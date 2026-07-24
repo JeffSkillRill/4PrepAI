@@ -1,1 +1,0 @@
-{"root":["./src/app.tsx","./src/main.tsx","./src/components/states.tsx","./src/components/trust.tsx","./src/components/universitycard.tsx","./src/mock/sample-data.ts","./src/screens/comparescreen.tsx","./src/screens/flowscreens.tsx","./src/screens/profilescreen.tsx","./src/screens/searchscreen.tsx","./src/screens/toolssavedscreens.tsx","./src/types/index.ts"],"version":"5.8.3"}

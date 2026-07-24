@@ -1,18 +1,6 @@
 import { ArrowRight, Bookmark, BookmarkCheck, MapPin } from 'lucide-react'
 import type { University } from '../types'
-import { DataValue } from './Trust'
-
-export function FitBadge({ grade, label, compact = false }: { grade: string; label: string; compact?: boolean }) {
-  return (
-    <div className={`inline-flex items-center gap-2 rounded-xl bg-white text-forest-900 shadow-lg ring-1 ring-black/5 ${compact ? 'p-1.5 pr-2.5' : 'p-2 pr-3'}`}>
-      <span className={`grid place-items-center rounded-lg bg-forest-600 font-extrabold text-white ${compact ? 'size-8 text-sm' : 'size-11 text-lg'}`}>{grade}</span>
-      <span className="text-left">
-        <span className="block text-[10px] font-bold uppercase tracking-[.12em] text-muted">4Prep fit</span>
-        <span className="block text-xs font-bold">{label}</span>
-      </span>
-    </div>
-  )
-}
+import { DataValue, ExpandableFit, MissingValue } from './Trust'
 
 export function UniversityCard({ university, saved, onSave, onOpen }: { university: University; saved: boolean; onSave: () => void; onOpen: () => void }) {
   return (
@@ -29,14 +17,15 @@ export function UniversityCard({ university, saved, onSave, onOpen }: { universi
             <h3 className="display text-xl font-extrabold leading-tight">{university.name}</h3>
             <p className="mt-1 flex items-center gap-1 text-sm text-white/85"><MapPin size={14} /> {university.city}, {university.country}</p>
           </div>
-          <FitBadge grade={university.fit.grade} label={university.fit.label} compact />
+          {university.fit ? <ExpandableFit fit={university.fit} compact /> : null}
         </div>
       </div>
       <div className="p-5">
-        <p className="line-clamp-2 min-h-12 text-sm leading-6 text-muted">{university.tagline}. {university.fit.summary}</p>
+        <p className="line-clamp-2 min-h-12 text-sm leading-6 text-muted">{university.tagline}{university.fit ? `. ${university.fit.summary}` : ''}</p>
+        {!university.fit && <div className="mt-4"><MissingValue reason="Complete intake to see your fit." action="Build your pathway to calculate all five fit components." /></div>}
         <div className="mt-4 grid grid-cols-2 gap-4 border-y border-line py-4 text-sm">
-          <div><span className="block text-xs font-semibold uppercase tracking-wide text-muted">Tuition</span><DataValue point={university.tuition} className="mt-1 font-bold [&>span:last-child]:hidden" /></div>
-          <div><span className="block text-xs font-semibold uppercase tracking-wide text-muted">Next intake</span><DataValue point={university.intake} className="mt-1 font-bold [&>span:last-child]:hidden" /></div>
+          <div><span className="block text-xs font-semibold uppercase tracking-wide text-muted">Tuition</span><DataValue point={university.tuition} className="mt-1 font-bold" /></div>
+          <div><span className="block text-xs font-semibold uppercase tracking-wide text-muted">Next intake</span><DataValue point={university.intake} className="mt-1 font-bold" /></div>
         </div>
         <button onClick={onOpen} className="mt-4 inline-flex w-full items-center justify-between rounded-xl bg-forest-50 px-4 py-3 text-sm font-bold text-forest-800 transition hover:bg-forest-100">
           Explore university <ArrowRight size={17} className="transition group-hover:translate-x-1" />

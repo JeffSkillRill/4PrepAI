@@ -1,15 +1,26 @@
-import { AlertCircle, ArrowUpRight, Database, Info } from 'lucide-react'
-import type { DataPoint, DataSource } from '../types'
+import { AlertCircle, ArrowUpRight, ChevronDown, Database, Info, Sparkles } from 'lucide-react'
+import type { DataPoint, FitComponent, FitDimension, FitScore, Verification } from '../types'
+import { useSource } from '../data/DataProvider'
 
-export function SourceChip({ source }: { source: DataSource }) {
-  return (
+export function SourceChip({ sourceId }: { sourceId: string }) {
+  const source = useSource(sourceId)
+  if (!source) {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full border border-line bg-canvas px-2 py-1 text-[11px] font-semibold text-muted">
+        <Database size={11} aria-hidden="true" /> Source loading
+      </span>
+    )
+  }
+  const label = source.verification === 'verified' ? source.origin : `${source.origin} · sample`
+  const content = (
     <span
       className="inline-flex items-center gap-1 rounded-full border border-line bg-canvas px-2 py-1 text-[11px] font-semibold text-muted"
-      title={`Checked ${source.checkedAt}`}
+      title={`Retrieved ${source.retrievedAt}`}
     >
-      <Database size={11} aria-hidden="true" /> {source.label}
+      <Database size={11} aria-hidden="true" /> {label} · {source.retrievedAt}
     </span>
   )
+  return source.url ? <a href={source.url} target="_blank" rel="noreferrer">{content}</a> : content
 }
 
 export function MissingValue({ reason, action }: { reason: string; action: string }) {
@@ -23,22 +34,67 @@ export function MissingValue({ reason, action }: { reason: string; action: strin
 }
 
 export function DataValue<T>({ point, className = '' }: { point: DataPoint<T>; className?: string }) {
-  if (point.value === null) {
-    return <MissingValue reason={point.missingReason ?? 'This value is unavailable.'} action={point.nextAction ?? 'Verify with the university.'} />
+  if (point.status === 'unknown') {
+    return <MissingValue reason={point.reason} action={point.suggestedAction} />
   }
   return (
     <span className={`flex flex-wrap items-center gap-2 ${className}`}>
       <span>{String(point.value)}</span>
-      <SourceChip source={point.source} />
+      <SourceChip sourceId={point.sourceId} />
     </span>
   )
 }
 
-export function SampleNotice() {
+const componentOrder: FitDimension[] = ['academic', 'financial', 'language', 'career', 'geographic']
+
+function FitComponentRow({ item }: { item: FitComponent }) {
+  const colors = item.tone === 'strong' ? 'bg-emerald-100 text-emerald-800' : item.tone === 'medium' ? 'bg-amber-100 text-amber-800' : 'bg-rose-100 text-rose-800'
+  return (
+    <div className="flex items-start gap-3 rounded-xl border border-line p-3">
+      <span className={`grid size-10 shrink-0 place-items-center rounded-lg text-xs font-extrabold ${colors}`}>{item.grade}</span>
+      <span>
+        <span className="block font-bold">{item.label} · {item.score}/100</span>
+        <span className="mt-1 block text-xs leading-5 text-muted">{item.reason}</span>
+      </span>
+    </div>
+  )
+}
+
+export function FitBreakdown({ fit }: { fit: FitScore }) {
+  return (
+    <div className="mt-3 grid gap-2">
+      {componentOrder.map((key) => <FitComponentRow key={key} item={fit.components[key]} />)}
+      <p className="text-[11px] text-muted">Scoring model: {fit.version}. This is guidance, not an admission prediction.</p>
+    </div>
+  )
+}
+
+export function ExpandableFit({ fit, compact = false }: { fit: FitScore; compact?: boolean }) {
+  return (
+    <details className="group rounded-xl bg-white text-forest-900 shadow-lg ring-1 ring-black/5">
+      <summary className={`flex cursor-pointer list-none items-center gap-2 ${compact ? 'p-1.5 pr-2.5' : 'p-2 pr-3'}`}>
+        <span className={`grid place-items-center rounded-lg bg-forest-600 font-extrabold text-white ${compact ? 'size-8 text-sm' : 'size-11 text-lg'}`}>{fit.grade}</span>
+        <span className="text-left">
+          <span className="block text-[10px] font-bold uppercase tracking-[.12em] text-muted">4Prep fit · {fit.overall}/100</span>
+          <span className="block text-xs font-bold">{fit.label}</span>
+        </span>
+        <ChevronDown size={14} className="ml-auto transition group-open:rotate-180" />
+      </summary>
+      <div className="w-[min(360px,calc(100vw-40px))] border-t border-line p-3"><FitBreakdown fit={fit} /></div>
+    </details>
+  )
+}
+
+export function AIResponseBlock({ children }: { children: React.ReactNode }) {
+  return <div className="rounded-2xl border border-forest-200 bg-forest-50 p-5"><span className="flex items-center gap-2 text-sm font-bold text-forest-800"><Sparkles size={16} /> AI-assisted explanation</span><div className="mt-3 text-sm leading-6 text-muted">{children}</div></div>
+}
+
+export function SampleNotice({ verification = 'unverified_sample' }: { verification?: Verification }) {
+  if (verification === 'verified') return null
   return (
     <div className="flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs leading-5 text-amber-950">
       <Info size={15} className="mt-0.5 shrink-0" />
-      <span><strong>Sample university.</strong> This fictional composite demonstrates 4Prep’s source-backed guidance. Verify all details before applying.</span>
+      <span><strong>Sample university — not verified.</strong> This fictional composite demonstrates 4Prep’s source-backed guidance. Verify all details before applying.</span>
     </div>
   )
 }

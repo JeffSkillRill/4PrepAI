@@ -1,14 +1,23 @@
 import { Bookmark, BookmarkCheck, CalendarDays, Check, CircleDollarSign, Clock3, Languages, MapPin, Sparkles } from 'lucide-react'
-import type { FitComponent, University } from '../types'
-import { DataValue, SampleNotice } from '../components/Trust'
-import { FitBadge } from '../components/UniversityCard'
+import { useMemo } from 'react'
+import type { StudentProfile } from '../types'
+import { DataValue, ExpandableFit, FitBreakdown, MissingValue, SampleNotice } from '../components/Trust'
+import { DesignedState, LoadingState } from '../components/States'
+import { getUniversity } from '../data/repository'
+import { useRepositoryData } from '../data/useRepositoryData'
+import { computeFit } from '../scoring/phi'
 
-function Grade({ item }: { item: FitComponent }) {
-  const colors = item.tone === 'strong' ? 'bg-emerald-100 text-emerald-800' : item.tone === 'medium' ? 'bg-amber-100 text-amber-800' : 'bg-rose-100 text-rose-800'
-  return <span className={`grid size-11 shrink-0 place-items-center rounded-xl text-sm font-extrabold ${colors}`}>{item.grade}</span>
-}
+export function ProfileScreen({ universityId, profile, saved, onToggleSave }: { universityId: string; profile: StudentProfile | null; saved: boolean; onToggleSave: () => void }) {
+  const { data, status, reload } = useRepositoryData(() => getUniversity(universityId), [universityId])
+  const university = useMemo(() => data ? {
+    ...data,
+    ...(profile ? { fit: computeFit(profile, data) } : {}),
+  } : null, [data, profile])
 
-export function ProfileScreen({ university, saved, onToggleSave }: { university: University; saved: boolean; onToggleSave: () => void }) {
+  if (status === 'loading') return <LoadingState />
+  if (status === 'error' || status === 'offline') return <DesignedState state={status} onReset={reload} />
+  if (!university) return <DesignedState state="empty" onReset={reload} />
+
   return (
     <main>
       <section className="relative h-[390px] min-h-[340px] overflow-hidden bg-forest-900 sm:h-[440px]">
@@ -18,7 +27,7 @@ export function ProfileScreen({ university, saved, onToggleSave }: { university:
         <div className="page-container absolute inset-x-0 bottom-0 pb-8 text-white sm:pb-10">
           <div className="flex flex-col items-start justify-between gap-5 md:flex-row md:items-end">
             <div className="max-w-3xl"><p className="flex items-center gap-2 text-sm font-semibold text-white/80"><MapPin size={17} /> {university.city}, {university.country} {university.flag}</p><h1 className="display mt-3 text-4xl font-extrabold leading-tight sm:text-5xl">{university.name}</h1><p className="mt-3 text-lg text-white/80">{university.tagline}</p></div>
-            <FitBadge grade={university.fit.grade} label={university.fit.label} />
+            {university.fit && <ExpandableFit fit={university.fit} />}
           </div>
         </div>
       </section>
@@ -31,20 +40,20 @@ export function ProfileScreen({ university, saved, onToggleSave }: { university:
 
       <div className="page-container grid items-start gap-8 py-10 lg:grid-cols-[minmax(0,1fr)_340px]">
         <div className="space-y-8">
-          <SampleNotice />
+          <SampleNotice verification={university.verification} />
           <section id="overview" className="card scroll-mt-36 p-6 sm:p-8">
             <p className="text-sm font-bold uppercase tracking-[.14em] text-forest-700">Overview</p>
             <h2 className="display mt-2 text-3xl font-extrabold">Why this could fit your plan</h2>
             <p className="mt-4 leading-7 text-muted">{university.description}</p>
             <div className="mt-6 grid gap-3 sm:grid-cols-3">{university.highlights.map((highlight) => <div key={highlight} className="flex items-start gap-2 rounded-xl bg-forest-50 p-4 text-sm font-semibold text-forest-900"><Check size={17} className="mt-0.5 shrink-0 text-forest-600" />{highlight}</div>)}</div>
-            <div className="mt-8 border-t border-line pt-7"><h3 className="display text-xl font-extrabold">4Prep fit report</h3><p className="mt-1 text-sm text-muted">A reasoned comparison against your sample intake profile—not an admission prediction.</p>
-              <div className="mt-5 grid gap-3 sm:grid-cols-2">{university.fit.components.map((item) => <div key={item.label} className="flex items-start gap-3 rounded-xl border border-line p-4"><Grade item={item} /><div><h4 className="font-bold">{item.label}</h4><p className="mt-1 text-sm leading-5 text-muted">{item.reason}</p></div></div>)}</div>
+            <div className="mt-8 border-t border-line pt-7"><h3 className="display text-xl font-extrabold">4Prep fit report</h3>
+              {university.fit ? <><p className="mt-1 text-sm text-muted">Calculated only from the profile you entered—not an admission prediction.</p><FitBreakdown fit={university.fit} /></> : <div className="mt-4"><MissingValue reason="Complete intake to see your fit." action="Build your pathway to calculate all five fit components." /></div>}
             </div>
           </section>
 
           <section className="card p-6 sm:p-8">
             <p className="text-sm font-bold uppercase tracking-[.14em] text-forest-700">Programs</p><h2 className="display mt-2 text-3xl font-extrabold">Courses to explore</h2>
-            <div className="mt-6 divide-y divide-line border-y border-line">{university.programs.map((program) => <div key={program.name} className="grid gap-4 py-5 sm:grid-cols-[1fr_auto_auto] sm:items-center"><div><h3 className="font-bold">{program.name}</h3><p className="mt-1 text-sm text-muted">{program.degree}</p></div><div className="text-sm"><span className="block text-xs font-bold uppercase tracking-wide text-muted">Duration</span><DataValue point={program.duration} className="mt-1 font-semibold" /></div><div className="text-sm"><span className="block text-xs font-bold uppercase tracking-wide text-muted">Tuition</span><DataValue point={program.tuition} className="mt-1 font-semibold" /></div></div>)}</div>
+            <div className="mt-6 divide-y divide-line border-y border-line">{university.programs.map((program) => <div key={program.id} className="grid gap-4 py-5 sm:grid-cols-[1fr_auto_auto] sm:items-center"><div><h3 className="font-bold">{program.name}</h3><p className="mt-1 text-sm text-muted">{program.degree}</p></div><div className="text-sm"><span className="block text-xs font-bold uppercase tracking-wide text-muted">Duration</span><DataValue point={program.duration} className="mt-1 font-semibold" /></div><div className="text-sm"><span className="block text-xs font-bold uppercase tracking-wide text-muted">Tuition</span><DataValue point={program.tuition} className="mt-1 font-semibold" /></div></div>)}</div>
           </section>
 
           <section id="costs" className="card scroll-mt-36 p-6 sm:p-8">
@@ -61,7 +70,7 @@ export function ProfileScreen({ university, saved, onToggleSave }: { university:
         </div>
 
         <aside className="card sticky top-36 overflow-hidden">
-          <div className="bg-forest-900 p-6 text-white"><p className="text-xs font-bold uppercase tracking-[.14em] text-forest-200">At a glance</p><h2 className="display mt-2 text-2xl font-extrabold">Your route here</h2><p className="mt-2 text-sm leading-6 text-white/70">{university.fit.summary}</p></div>
+          <div className="bg-forest-900 p-6 text-white"><p className="text-xs font-bold uppercase tracking-[.14em] text-forest-200">At a glance</p><h2 className="display mt-2 text-2xl font-extrabold">Your route here</h2>{university.fit ? <p className="mt-2 text-sm leading-6 text-white/70">{university.fit.summary}</p> : <div className="mt-3"><MissingValue reason="No profile has been entered." action="Complete intake to see a profile-specific route." /></div>}</div>
           <div className="space-y-5 p-6"><Summary label="Next intake" value={<DataValue point={university.intake} />} /><Summary label="Tuition" value={<DataValue point={university.tuition} />} /><Summary label="IELTS sample" value={<DataValue point={university.ielts} />} /><Summary label="Deadline" value={<DataValue point={university.deadline} />} />
             <button onClick={onToggleSave} className={`flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3.5 font-bold transition ${saved ? 'bg-forest-100 text-forest-900' : 'bg-forest-800 text-white hover:bg-forest-700'}`}>{saved ? <BookmarkCheck size={19} /> : <Bookmark size={19} />}{saved ? 'Saved to shortlist' : 'Save university'}</button>
           </div>

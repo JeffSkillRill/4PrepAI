@@ -1,11 +1,17 @@
 import { ArrowRight, BookMarked, Calculator, CalendarCheck, CheckCircle2, ClipboardCheck, GitCompareArrows, LockKeyhole, Sparkles, Target } from 'lucide-react'
-import { tools, universities } from '../mock/sample-data'
 import type { ToolItem, University, View } from '../types'
 import { UniversityCard } from '../components/UniversityCard'
+import { DesignedState, LoadingState } from '../components/States'
+import { listUniversities } from '../data/repository'
+import { tools } from '../data/static-content'
+import { useRepositoryData } from '../data/useRepositoryData'
 
 const toolIcons = [Calculator, Target, CalendarCheck, GitCompareArrows, Sparkles, ClipboardCheck]
 
 export function ToolsScreen({ onNavigate }: { onNavigate: (view: View) => void }) {
+  const { status, reload } = useRepositoryData(() => listUniversities(), [])
+  if (status === 'loading') return <LoadingState />
+  if (status === 'error' || status === 'offline') return <DesignedState state={status} onReset={reload} />
   return (
     <main>
       <section className="border-b border-line bg-forest-50">
@@ -15,7 +21,7 @@ export function ToolsScreen({ onNavigate }: { onNavigate: (view: View) => void }
         </div>
       </section>
       <section className="page-container py-10 lg:py-14"><div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">{tools.map((tool, index) => { const Icon = toolIcons[index]; return <ToolCard key={tool.id} tool={tool} icon={<Icon size={25} />} onOpen={() => tool.view ? onNavigate(tool.view) : undefined} /> })}</div>
-        <div className="mt-10 grid gap-6 rounded-2xl border border-line bg-white p-6 shadow-soft sm:grid-cols-[1fr_auto] sm:items-center"><div className="flex items-start gap-4"><div className="grid size-12 shrink-0 place-items-center rounded-xl bg-amber-100 text-amber-800"><LockKeyhole size={22} /></div><div><h2 className="display text-xl font-extrabold">Your work stays in this session</h2><p className="mt-1 text-sm leading-6 text-muted">This sample has no account or backend. Nothing is written to local storage; refresh resets your choices.</p></div></div><button className="rounded-xl border border-line px-4 py-3 text-sm font-bold text-muted" disabled>Sign-in unavailable in sample</button></div>
+        <div className="mt-10 grid gap-6 rounded-2xl border border-line bg-white p-6 shadow-soft sm:grid-cols-[1fr_auto] sm:items-center"><div className="flex items-start gap-4"><div className="grid size-12 shrink-0 place-items-center rounded-xl bg-amber-100 text-amber-800"><LockKeyhole size={22} /></div><div><h2 className="display text-xl font-extrabold">Your work stays in this session</h2><p className="mt-1 text-sm leading-6 text-muted">University evidence loads from the configured data service. Your intake answers and saved list are not persisted.</p></div></div><button className="rounded-xl border border-line px-4 py-3 text-sm font-bold text-muted" disabled>Sign-in unavailable in sample</button></div>
       </section>
     </main>
   )
@@ -26,7 +32,10 @@ function ToolCard({ tool, icon, onOpen }: { tool: ToolItem; icon: React.ReactNod
 }
 
 export function SavedScreen({ saved, onToggleSave, onOpen, onExplore }: { saved: Set<string>; onToggleSave: (id: string) => void; onOpen: (university: University) => void; onExplore: () => void }) {
-  const items = universities.filter((university) => saved.has(university.id))
+  const { data, status, reload } = useRepositoryData(() => listUniversities(), [])
+  if (status === 'loading') return <LoadingState />
+  if (status === 'error' || status === 'offline') return <DesignedState state={status} onReset={reload} />
+  const items = (data ?? []).filter((university) => saved.has(university.id))
   return (
     <main className="page-container py-10 lg:py-14">
       <div className="flex flex-wrap items-end justify-between gap-5"><div><p className="text-sm font-bold uppercase tracking-[.14em] text-forest-700">Saved</p><h1 className="display mt-2 text-4xl font-extrabold sm:text-5xl">Your considered shortlist</h1><p className="mt-4 max-w-2xl leading-7 text-muted">Keep promising routes together, then compare their evidence when you are ready.</p></div>{items.length > 1 && <button className="inline-flex items-center gap-2 rounded-xl bg-forest-800 px-5 py-3 font-bold text-white"><GitCompareArrows size={18} /> Compare saved</button>}</div>
