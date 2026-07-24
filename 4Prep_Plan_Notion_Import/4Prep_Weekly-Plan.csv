@@ -1,0 +1,45 @@
+Name,Week,Dates,Due,Month,Goal,Deliverable,Tasks,Est. hours,Status,Depends on,Notes
+Week 1 — Decide & set the foundation,1,Jul 27 – Aug 2,2026-08-02,Month 1,Decide the stack and lay the real foundation.,Git repo + live Supabase schema + 1 real sourced university + Φ spec doc.,"[ ] Lock canonical stack in writing: Vite/React front-end + Supabase backend; retire Lovable/Next.js ambiguity (2h) — due Mon Jul 27
+[ ] git init + GitHub remote + .gitignore; delete dead files: dist/, __smoke.tsx, root lockfile, .DS_Store (1h) — due Mon Jul 27
+[ ] Stand up Supabase; build schema from types/index.ts with non-null source FK on every fact field (5h) — due Thu Jul 30
+[ ] Extract EPIF Φ equations from the paper into an implementation spec; log ambiguities (3h) — due Fri Jul 31
+[ ] Source ONE real university end-to-end and time it = your throughput baseline (3h) — due Sun Aug 2",14,Not started,—,"DEPENDENCY-CRITICAL. Blocks everything. DoD: schema deploys, one real record exists, minutes-per-university known. Needs the EPIF paper."
+Week 2 — Φ engine + read contract,2,Aug 3 – Aug 9,2026-08-09,Month 1,"A real, tested scoring engine + the read contract.",Φ passing paper unit tests + a documented query function.,"[ ] Implement Φ as a deterministic, versioned function; unit-test against the paper's worked examples (6h) — due Wed Aug 5
+[ ] Resolve any underspecified normalization with founder; version the decision, don't improvise (2h) — due Thu Aug 6
+[ ] Define the minimal Gateway query: profile → candidate records + citation IDs (4h) — due Sat Aug 8
+[ ] Privacy/legal self-check: republishing sourced figures + storing student profiles (RLS) (2h) — due Sun Aug 9",14,Not started,Week 1,DEPENDENCY-CRITICAL. DoD: npm test green on Φ; a profile returns real candidates from Supabase. Biggest de-risking item (R5).
+Week 3 — Wire the UI to real data,3,Aug 10 – Aug 16,2026-08-16,Month 1,Wire the UI to real data — prototype becomes genuine.,App ranks real universities from real data for an entered profile.,"[ ] Swap sample-data.ts reads for Supabase queries behind the same DataPoint contract (6h) — due Wed Aug 12
+[ ] Make intake actually drive candidate selection + Φ ranking — kills the fixed-fixture bug S1 (5h) — due Fri Aug 14
+[ ] Fix S2 (contradictory fit display) + S3 (budget vs scholarship semantics) (2h) — due Sat Aug 15
+[ ] Keep the ribbon + DataValue/MissingValue enforcement intact (1h) — due Sun Aug 16",14,Not started,Week 2,DEPENDENCY-CRITICAL. DoD: change intake answers → ranked list and fit change; every number sourced. Removes the S1 blocker.
+Week 4 — Data fill I + get help,4,Aug 17 – Aug 23,2026-08-23,Month 1,Start the data fill and bring in help.,~8 verified universities live.,"[ ] Shortlist the ~15–20 universities that matter (demand-first, with founder) (2h) — due Mon Aug 17
+[ ] Build the dead-simple entry path: Sheet template → CSV import, or a 1-screen form. NO admin console (4h) — due Wed Aug 19
+[ ] Enter + source 6–8 universities yourself, refining the process (6h) — due Sat Aug 22
+[ ] Brief a 4Prep alum to source records to your standard — BUY, don't build (2h) — due Sun Aug 23",14,Not started,Week 3,"DoD: 8 universities render with sourced figures, zero invented values. Data fill is the #1 schedule risk."
+Week 5 — Data fill II + scholarships,5,Aug 24 – Aug 30,2026-08-30,Month 2,Complete the depth-first dataset.,"~15–20 universities + scholarships, sourced.","[ ] Reach ~15–20 universities total (you + helper) (8h) — due Fri Aug 28
+[ ] Enter the cohort's relevant scholarships, sourced (4h) — due Sat Aug 29
+[ ] Spot-audit 10% of records against their sources (2h) — due Sun Aug 30",14,Not started,Week 4,"DoD: coverage spans the pilot cohort's likely targets; audit clears your accuracy bar. If you slip, cut to 10 unis — never the safeguards."
+Week 6 — The grounded AI counselor,6,Aug 31 – Sep 6,2026-09-06,Month 2,The grounded AI counselor (core).,"One real profile → a grounded, sourced pathway.","[ ] Wire Claude API Pathway Generator: profile + record bundle + Φ + citation IDs → structured, sourced narrative (8h) — due Thu Sep 3
+[ ] Build the claim validator: strip any figure/name/deadline with no citation; missing fact → the response says so (5h) — due Sun Sep 6",14,Not started,"Week 3, Week 5",CORE. DoD: a deliberately missing figure is provably stripped (red-team it once). The validator is non-negotiable.
+Week 7 — Accounts + saved plans,7,Sep 7 – Sep 13,2026-09-13,Month 2,Accounts + saved plans (Phase 3).,Sign up → run → save → log out → return tomorrow → still there.,"[ ] Supabase Auth (email) — BUY, don't build (3h) — due Tue Sep 8
+[ ] Persist profiles + saved pathways per user; wire the Saved screen to real storage (6h) — due Fri Sep 11
+[ ] Replace in-memory routing with real routes/URLs so login + deep links work — fixes R4 (4h) — due Sun Sep 13",14,Not started,Week 6,DoD: the brief's Phase-3 gate passes for a real account.
+Week 8 — Honesty & grounding pass,8,Sep 14 – Sep 20,2026-09-20,Month 2,Honesty + grounding pass.,Passing manual grounding check + clean error/refusal states.,"[ ] Golden set of ~10 realistic profiles; verify every claim maps to a record and missing data → refusal (5h) — due Wed Sep 16
+[ ] Tune refusal/caveat behavior; flip verified records off 'sample'; keep the ribbon accurate (4h) — due Fri Sep 18
+[ ] Fix M1–M3 (em-dash for missing data, devState on Compare/Saved, duplicate saves) (3h) — due Sat Sep 19
+[ ] Wire Sentry — BUY (2h) — due Sun Sep 20",14,Not started,Week 7,DoD: 10/10 golden profiles behave; zero uncited figures on screen.
+Week 9 — Deploy + domain,9,Sep 21 – Sep 27,2026-09-27,Month 3,Deploy to the real domain.,Live at app.4prep.ai on real data.,"[ ] Deploy front-end (Vercel) + Supabase prod; wire app.4prep.ai DNS (5h) — due Wed Sep 23
+[ ] Production RLS check: app reads only verified rows; profiles are private (3h) — due Thu Sep 24
+[ ] Enable Supabase backups; run one restore drill (2h) — due Fri Sep 25
+[ ] Responsive-desktop pass — NOT the Niche redesign, just not-broken on a laptop (4h) — due Sun Sep 27",14,Not started,Week 8,DoD: you use it end-to-end on the real domain from a fresh device.
+Week 10 — Pre-launch hardening,10,Sep 28 – Oct 4,2026-10-04,Month 3,Pre-launch hardening.,Launch-ready app + live privacy policy + evidence pack v1.,"[ ] Privacy policy + consent copy BEFORE any real user (3h) — due Tue Sep 29
+[ ] Mobile QA on real phones; fix the top issues (4h) — due Thu Oct 1
+[ ] Evidence pack: dated screenshots, what's live, feature demos (brief deliverable + EB-1A evidence) (4h) — due Sat Oct 3
+[ ] Founder sign-off that nothing on screen diverges from the paper/public narrative (3h) — due Sun Oct 4",14,Not started,Week 9,DoD: you sign off; policy is live.
+Week 11 — Soft launch,11,Oct 5 – Oct 11,2026-10-11,Month 3,Soft launch to the cohort.,Real users generating real pathways.,"[ ] Invite a small first cohort (existing 4Prep leads/students) (2h) — due Mon Oct 5
+[ ] Instrument: pathway runs, refusal rate, saves, citation clicks, coverage-gap misses (5h) — due Wed Oct 7
+[ ] Support the cohort live; log every bug + data gap (5h) — due Sat Oct 10
+[ ] Daily triage (2h) — due Sun Oct 11",14,Not started,Week 10,DoD: a handful of real users completed + saved a pathway; you have usage data + a gap list. It will feel premature — launch anyway.
+Week 12 — Stabilize & ship the record,12,Oct 12 – Oct 18,2026-10-18,Month 3,Stabilize & ship the record.,Stable public soft launch + a provable evidence pack.,"[ ] Fix the top launch bugs; fill the specific coverage gaps that blocked real users (7h) — due Thu Oct 15
+[ ] Finalize the documentation/evidence pack with real user counts + screenshots (4h) — due Sat Oct 17
+[ ] Write the public description that matches exactly what shipped (3h) — due Sun Oct 18",14,Not started,Week 11,"DoD: it's live, real users have used it, every public claim maps to a working feature. SHIPPABLE — not 'almost'."
