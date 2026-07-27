@@ -1,4 +1,14 @@
-export type View = 'search' | 'profile' | 'compare' | 'intake' | 'results' | 'tools' | 'saved'
+export type View =
+  | 'search'
+  | 'profile'
+  | 'compare'
+  | 'intake'
+  | 'results'
+  | 'tools'
+  | 'saved'
+  | 'counselor'
+  | 'auth'
+  | 'privacy'
 
 export type DevState = 'ready' | 'loading' | 'empty' | 'partial' | 'no_results' | 'refusal' | 'error' | 'offline'
 
@@ -12,8 +22,18 @@ export type Source = {
   verification: Verification
 }
 
+export type AmountPeriod = 'year' | 'semester' | 'month' | 'one_time' | 'percentage'
+
+export type DataPointMetadata = {
+  numericValue?: number
+  currency?: string
+  period?: AmountPeriod
+}
+
+// The known/unknown union is the product's provenance boundary. Numeric metadata
+// is optional and can only accompany a known, cited value.
 export type DataPoint<T> =
-  | { status: 'known'; value: T; sourceId: string }
+  | ({ status: 'known'; value: T; sourceId: string } & DataPointMetadata)
   | { status: 'unknown'; reason: string; suggestedAction: string }
 
 export type FitTone = 'strong' | 'medium' | 'weak'
@@ -82,6 +102,7 @@ export type StudentProfile = {
   field: string
   academicScore: number | null
   budgetMax: number | null
+  budgetCurrency: string | null
   languageScore: number | null
   needsLanguagePathway: boolean
   intake: string
@@ -114,7 +135,11 @@ export type ToolItem = {
   view?: View
 }
 
-export const known = <T,>(value: T, sourceId: string): DataPoint<T> => ({ status: 'known', value, sourceId })
+export const known = <T,>(
+  value: T,
+  sourceId: string,
+  metadata: DataPointMetadata = {},
+): DataPoint<T> => ({ status: 'known', value, sourceId, ...metadata })
 
 export const unknown = <T,>(reason: string, suggestedAction: string): DataPoint<T> => ({
   status: 'unknown',

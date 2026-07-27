@@ -29,7 +29,7 @@ describe('data mappers', () => {
   it('maps source verification and retrieval metadata', () => {
     expect(mapSource({
       id: 'source-1',
-      origin: 'University page',
+      name: 'University page',
       url: 'https://example.test',
       retrieved_at: '2026-07-18',
       verification: 'verified',

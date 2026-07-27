@@ -6,6 +6,7 @@ import { DesignedState, LoadingState } from '../components/States'
 import { listUniversities } from '../data/repository'
 import { useRepositoryData } from '../data/useRepositoryData'
 import { computeFit } from '../scoring/phi'
+import { UniversityVisual } from '../components/UniversityVisual'
 
 type Row = {
   label: string
@@ -15,7 +16,7 @@ type Row = {
 function CompareHeader({ university }: { university: University }) {
   return (
     <div className="min-w-[250px] overflow-hidden rounded-xl border border-line bg-white text-left">
-      <div className="relative aspect-[2.2/1] overflow-hidden bg-forest-800"><img src={`https://picsum.photos/seed/${university.id}/600/300`} alt="Sample campus" className="h-full w-full object-cover" /><span className="absolute left-2 top-2 rounded-full bg-black/45 px-2 py-1 text-[9px] font-bold text-white">Sample photo</span><button className="absolute right-2 top-2 grid size-7 place-items-center rounded-full bg-white/90" aria-label={`Remove ${university.name}`}><X size={14} /></button></div>
+      <div className="relative aspect-[2.2/1] overflow-hidden bg-forest-800"><UniversityVisual university={university} className="absolute inset-0" /><button className="absolute right-2 top-2 grid size-7 place-items-center rounded-full bg-white/90" aria-label={`Remove ${university.name}`}><X size={14} /></button></div>
       <div className="p-3"><h3 className="display text-base font-extrabold leading-tight">{university.name}</h3><p className="mt-1 flex items-center gap-1 text-xs text-muted"><MapPin size={12} />{university.city}, {university.country}</p></div>
     </div>
   )
@@ -33,7 +34,7 @@ export function CompareScreen({ profile }: { profile: StudentProfile | null }) {
     { label: 'Living costs', render: (university) => <DataValue point={university.livingCost} /> },
     { label: 'Next intake', render: (university) => <DataValue point={university.intake} /> },
     { label: 'Deadline', render: (university) => <DataValue point={university.deadline} /> },
-    { label: 'IELTS sample', render: (university) => <DataValue point={university.ielts} /> },
+    { label: 'IELTS minimum', render: (university) => <DataValue point={university.ielts} /> },
     { label: 'Scholarship', render: (university) => <DataValue point={university.scholarship} /> },
     { label: 'Application fee', render: (university) => <DataValue point={university.applicationFee} /> },
     { label: 'Highlights', render: (university) => <ul className="space-y-2 text-sm">{university.highlights.map((highlight) => <li key={highlight} className="flex gap-2"><Check size={15} className="mt-0.5 shrink-0 text-forest-600" />{highlight}</li>)}</ul> },

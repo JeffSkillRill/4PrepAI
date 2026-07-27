@@ -1,18 +1,35 @@
 import type { DataPoint, FitComponent, FitDimension, FitScore, StudentProfile, University } from '../types'
 
-export const PHI_VERSION = 'phi-placeholder-v1'
+export const PHI_VERSION = 'phi-v0.1'
 
-export type PhiWeights = Record<FitDimension, number> & {
-  computedAt?: string
+export type PhiWeights = {
+  academic: number
+  financial: number
+  language: number
+  career: number
+  geographic: number
 }
 
-export const DEFAULT_PHI_WEIGHTS: PhiWeights = {
-  academic: 0.25,
-  financial: 0.25,
-  language: 0.2,
-  career: 0.15,
-  geographic: 0.15,
+// Academic preparation matters, but is not treated as a proxy for admission.
+const ACADEMIC_WEIGHT = 0.25
+// Affordability receives equal weight because an unaffordable option is not actionable.
+const FINANCIAL_WEIGHT = 0.25
+// Language readiness is a material, separately remediable constraint.
+const LANGUAGE_WEIGHT = 0.2
+// Programme-to-goal alignment is useful but relies on the student's broad field choice.
+const CAREER_WEIGHT = 0.15
+// Destination preference matters while remaining the easiest preference to change.
+const GEOGRAPHIC_WEIGHT = 0.15
+
+// TODO(EPIF): calibrate against the paper's equations.
+export const PHI_WEIGHTS: PhiWeights = {
+  academic: ACADEMIC_WEIGHT,
+  financial: FINANCIAL_WEIGHT,
+  language: LANGUAGE_WEIGHT,
+  career: CAREER_WEIGHT,
+  geographic: GEOGRAPHIC_WEIGHT,
 }
+export const DEFAULT_PHI_WEIGHTS = PHI_WEIGHTS
 
 const clamp = (value: number) => Math.max(0, Math.min(100, Math.round(value)))
 
@@ -38,9 +55,25 @@ function component(label: string, score: number, reason: string): FitComponent {
 }
 
 export function numericPart(point: DataPoint<string>): number | null {
-  if (point.status === 'unknown') return null
-  const match = point.value.replaceAll(',', '').match(/\d+(?:\.\d+)?/)
-  return match ? Number(match[0]) : null
+  return point.status === 'known' && point.numericValue !== undefined ? point.numericValue : null
+}
+
+function annualAmount(point: DataPoint<string>): { amount: number; currency: string } | null {
+  if (
+    point.status === 'unknown'
+    || point.numericValue === undefined
+    || !point.currency
+    || !point.period
+  ) return null
+  const multiplier = point.period === 'month' ? 12 : point.period === 'semester' ? 2 : point.period === 'year' ? 1 : null
+  return multiplier === null ? null : { amount: point.numericValue * multiplier, currency: point.currency }
+}
+
+function maximumPublishedScholarshipPercent(university: University): number {
+  return Math.max(0, ...university.scholarships.map(({ amount }) =>
+    amount.status === 'known' && amount.period === 'percentage' && amount.numericValue !== undefined
+      ? amount.numericValue
+      : 0))
 }
 
 function fieldMatches(profile: StudentProfile, university: University) {
@@ -52,42 +85,51 @@ function fieldMatches(profile: StudentProfile, university: University) {
   })
 }
 
-// TODO(EPIF): replace internals with paper equations.
-// This placeholder is intentionally transparent, monotonic, bounded, and deterministic.
-// The cost comparison uses published sticker-price numbers before scholarships and performs
-// no currency conversion; it is a ranking scaffold, not a financial estimate.
+// Φ v0.1 is intentionally transparent, monotonic, bounded, and deterministic.
+// It performs no currency conversion. Unknown or incomparable inputs receive a neutral
+// 50 with an explicit reason, rather than being treated as zero.
 export function computeFit(
   profile: StudentProfile,
   university: University,
-  weights: PhiWeights = DEFAULT_PHI_WEIGHTS,
+  weights: PhiWeights = PHI_WEIGHTS,
 ): FitScore {
   const match = fieldMatches(profile, university)
-  const academicReadiness = profile.academicScore ?? 55
+  const academicReadiness = profile.academicScore
   const academic = component(
     'Academic fit',
-    match ? (academicReadiness + 90) / 2 : academicReadiness * 0.65,
-    match
-      ? `A published program matches your ${profile.field} direction; formal entry evidence still needs review.`
-      : `No published program directly matches your ${profile.field} direction, so academic alignment needs review.`,
+    academicReadiness === null ? 50 : match ? academicReadiness : academicReadiness * 0.7,
+    academicReadiness === null
+      ? 'No academic score was entered, so academic readiness remains unresolved.'
+      : match
+        ? `Your entered academic score is ${academicReadiness}/100 and a published programme matches ${profile.field}; admission is not predicted.`
+        : `Your entered academic score is ${academicReadiness}/100, but no published programme directly matches ${profile.field}.`,
   )
 
-  const tuition = numericPart(university.tuition)
-  const living = numericPart(university.livingCost)
+  const tuition = annualAmount(university.tuition)
+  const living = annualAmount(university.livingCost)
   let financial: FitComponent
-  if (profile.budgetMax === null) {
-    financial = component('Financial fit', 50, 'You have not set a budget ceiling, so financial fit remains unresolved.')
+  if (profile.budgetMax === null || profile.budgetCurrency === null) {
+    financial = component('Financial fit', 50, 'You have not set a budget and currency, so financial fit remains unresolved.')
   } else if (tuition === null || living === null) {
-    financial = component('Financial fit', 50, 'A published sticker-price cost is missing, so this option is not excluded.')
+    financial = component('Financial fit', 50, 'Published annual tuition or living-cost metadata is missing, so this option is not excluded.')
+  } else if (tuition.currency !== living.currency || tuition.currency !== profile.budgetCurrency) {
+    financial = component(
+      'Financial fit',
+      50,
+      `Published costs cannot be compared with your ${profile.budgetCurrency} budget without an exchange-rate estimate, which Φ does not make.`,
+    )
   } else {
-    const sticker = tuition + living
-    const ratio = profile.budgetMax / Math.max(sticker, 1)
+    const scholarshipPercent = maximumPublishedScholarshipPercent(university)
+    const payableTuition = tuition.amount * (1 - Math.min(scholarshipPercent, 100) / 100)
+    const annualCost = payableTuition + living.amount
+    const ratio = profile.budgetMax / Math.max(annualCost, 1)
     const score = ratio >= 1 ? 70 + Math.min(30, (ratio - 1) * 30) : ratio * 70
     financial = component(
       'Financial fit',
       score,
       ratio >= 1
-        ? 'Published tuition plus living-cost minimum fits your ceiling before scholarships.'
-        : 'Published tuition plus living-cost minimum is above your ceiling before scholarships.',
+        ? `Published annual costs fit your ${profile.budgetCurrency} ceiling${scholarshipPercent ? ` after a published ${scholarshipPercent}% tuition reduction` : ' before scholarships'}.`
+        : `Published annual costs are above your ${profile.budgetCurrency} ceiling${scholarshipPercent ? ` even after a published ${scholarshipPercent}% tuition reduction` : ' before scholarships'}.`,
     )
   }
 
@@ -109,8 +151,8 @@ export function computeFit(
       'Language fit',
       70 + gap * 40,
       gap >= 0
-        ? `Your entered IELTS level meets the published ${requiredLanguage.toFixed(1)} sample minimum.`
-        : `Your entered IELTS level is below the published ${requiredLanguage.toFixed(1)} sample minimum.`,
+        ? `Your entered IELTS level meets the published ${requiredLanguage.toFixed(1)} minimum.`
+        : `Your entered IELTS level is below the published ${requiredLanguage.toFixed(1)} minimum.`,
     )
   }
 
@@ -122,7 +164,7 @@ export function computeFit(
       : 'Career alignment needs a closer course-by-course review.',
   )
 
-  const geographicMatch = profile.country === university.country
+  const geographicMatch = profile.country.toLowerCase() === university.country.toLowerCase()
   const geographic = component(
     'Geographic fit',
     geographicMatch ? 100 : 45,
@@ -152,6 +194,6 @@ export function computeFit(
     label,
     summary: `${label} for your entered ${profile.field} profile; open all five components before deciding.`,
     components,
-    computedAt: weights.computedAt ?? 'not-recorded',
+    computedAt: 'deterministic:no-clock',
   }
 }

@@ -5,7 +5,7 @@ import { UniversityCard } from '../components/UniversityCard'
 import { DesignedState, LoadingState } from '../components/States'
 import { listUniversities } from '../data/repository'
 import { useRepositoryData } from '../data/useRepositoryData'
-import { numericPart } from '../scoring/phi'
+import type { DataPoint } from '../types'
 
 type Props = {
   query: string
@@ -18,6 +18,8 @@ type Props = {
 type FilterProps = {
   budget: number
   setBudget: (value: number) => void
+  currency: string
+  setCurrency: (value: string) => void
   country: string
   setCountry: (value: string) => void
   field: string
@@ -27,21 +29,50 @@ type FilterProps = {
 }
 
 const flags: Record<string, string> = {
-  'United Kingdom': '🇬🇧',
-  Canada: '🇨🇦',
+  Kazakhstan: '🇰🇿',
+  Uzbekistan: '🇺🇿',
+  Hungary: '🇭🇺',
+  Estonia: '🇪🇪',
   Germany: '🇩🇪',
-  Ireland: '🇮🇪',
-  Netherlands: '🇳🇱',
-  Australia: '🇦🇺',
+  Türkiye: '🇹🇷',
 }
 
-function FilterContent({ budget, setBudget, country, setCountry, field, setField, countries, fields }: FilterProps) {
+const currencyLimits: Record<string, { min: number; max: number; step: number }> = {
+  USD: { min: 5000, max: 100000, step: 1000 },
+  EUR: { min: 5000, max: 100000, step: 1000 },
+  UZS: { min: 25000000, max: 500000000, step: 5000000 },
+  KZT: { min: 1000000, max: 20000000, step: 250000 },
+}
+
+function annualAmount(point: DataPoint<string>, currency: string): number | null {
+  if (point.status === 'unknown' || point.numericValue === undefined || point.currency !== currency) return null
+  if (point.period === 'year') return point.numericValue
+  if (point.period === 'semester') return point.numericValue * 2
+  if (point.period === 'month') return point.numericValue * 12
+  return null
+}
+
+function scholarshipPercent(university: University): number {
+  return Math.max(0, ...university.scholarships.map(({ amount }) =>
+    amount.status === 'known' && amount.period === 'percentage' && amount.numericValue !== undefined
+      ? amount.numericValue
+      : 0))
+}
+
+function FilterContent({ budget, setBudget, currency, setCurrency, country, setCountry, field, setField, countries, fields }: FilterProps) {
+  const limits = currencyLimits[currency]
   return (
     <div className="space-y-6">
       <div>
-        <label htmlFor="budget" className="flex items-center justify-between text-sm font-bold"><span>Annual budget <span className="block text-xs font-normal text-muted">before scholarships</span></span><span className="text-forest-700">Up to {budget}k</span></label>
-        <input id="budget" type="range" min="5" max="50" value={budget} onChange={(event) => setBudget(Number(event.target.value))} className="mt-4 w-full accent-forest-700" />
-        <div className="mt-1 flex justify-between text-xs text-muted"><span>5k</span><span>50k+</span></div>
+        <div className="flex items-end justify-between gap-2">
+          <label htmlFor="budget" className="text-sm font-bold">Annual budget ceiling <span className="block text-xs font-normal text-muted">before scholarships</span></label>
+          <select value={currency} onChange={(event) => { const next = event.target.value; setCurrency(next); setBudget(currencyLimits[next].max) }} className="rounded-lg border border-line bg-white px-2 py-1 text-xs font-bold" aria-label="Budget currency">
+            {Object.keys(currencyLimits).map((item) => <option key={item}>{item}</option>)}
+          </select>
+        </div>
+        <p className="mt-2 text-right text-sm font-bold text-forest-700">{currency} {budget.toLocaleString()}</p>
+        <input id="budget" type="range" min={limits.min} max={limits.max} step={limits.step} value={budget} onChange={(event) => setBudget(Number(event.target.value))} className="mt-3 w-full accent-forest-700" />
+        <div className="mt-1 flex justify-between text-xs text-muted"><span>{limits.min.toLocaleString()}</span><span>{limits.max.toLocaleString()}</span></div>
       </div>
       <fieldset>
         <legend className="mb-3 text-sm font-bold">Country</legend>
@@ -57,14 +88,15 @@ function FilterContent({ budget, setBudget, country, setCountry, field, setField
       <label className="block text-sm font-bold">Field of study
         <span className="relative mt-2 block"><select value={field} onChange={(event) => setField(event.target.value)} className="w-full appearance-none rounded-xl border border-line bg-white px-3 py-2.5 pr-9 text-sm font-normal text-ink"><option value="">All fields</option>{fields.map((item) => <option key={item}>{item}</option>)}</select><ChevronDown size={16} className="pointer-events-none absolute right-3 top-3 text-muted" /></span>
       </label>
-      <p className="rounded-xl bg-forest-50 p-3 text-xs leading-5 text-muted"><strong className="block text-forest-900">Budget meaning</strong>Results compare published tuition plus the minimum published living cost before scholarships. Unknown costs stay visible for review.</p>
+      <p className="rounded-xl bg-forest-50 p-3 text-xs leading-5 text-muted"><strong className="block text-forest-900">Budget meaning</strong>Results compare annualized published tuition and living costs in the selected currency. A route stays visible if a published percentage scholarship brings it under the ceiling. Unknown or incomparable costs stay visible for review.</p>
     </div>
   )
 }
 
 export function SearchScreen({ query, setQuery, saved, onToggleSave, onOpen }: Props) {
   const [filtersOpen, setFiltersOpen] = useState(false)
-  const [budget, setBudget] = useState(50)
+  const [currency, setCurrency] = useState('USD')
+  const [budget, setBudget] = useState(currencyLimits.USD.max)
   const [country, setCountry] = useState('')
   const [field, setField] = useState('')
   const { data: universities, status, reload } = useRepositoryData(() => listUniversities(), [])
@@ -73,21 +105,24 @@ export function SearchScreen({ query, setQuery, saved, onToggleSave, onOpen }: P
   const fields = useMemo(() => [...new Set((universities ?? []).flatMap((item) => item.programs.map((program) => program.field)))].sort(), [universities])
   const { filtered, unknownCostCount } = useMemo(() => {
     let unknownCount = 0
-    const items = (universities ?? []).filter((university) => {
+    const items = (universities ?? []).flatMap((university) => {
       const haystack = `${university.name} ${university.city} ${university.country} ${university.programs.map((program) => `${program.name} ${program.field}`).join(' ')}`.toLowerCase()
-      if (query.trim() && !haystack.includes(query.trim().toLowerCase())) return false
-      if (country && university.country !== country) return false
-      if (field && !university.programs.some((program) => program.field === field)) return false
-      const tuition = numericPart(university.tuition)
-      const living = numericPart(university.livingCost)
+      if (query.trim() && !haystack.includes(query.trim().toLowerCase())) return []
+      if (country && university.country !== country) return []
+      if (field && !university.programs.some((program) => program.field === field)) return []
+      const tuition = annualAmount(university.tuition, currency)
+      const living = annualAmount(university.livingCost, currency)
       if (tuition === null || living === null) {
         unknownCount += 1
-        return true
+        return [{ university, fitsAfterScholarship: false }]
       }
-      return tuition + living <= budget * 1000
+      const sticker = tuition + living
+      if (sticker <= budget) return [{ university, fitsAfterScholarship: false }]
+      const afterScholarship = tuition * (1 - Math.min(scholarshipPercent(university), 100) / 100) + living
+      return afterScholarship <= budget ? [{ university, fitsAfterScholarship: true }] : []
     })
     return { filtered: items, unknownCostCount: unknownCount }
-  }, [universities, query, country, field, budget])
+  }, [universities, query, country, field, budget, currency])
 
   if (status === 'loading') return <LoadingState />
   if (status === 'error' || status === 'offline') return <DesignedState state={status} onReset={reload} />
@@ -119,19 +154,19 @@ export function SearchScreen({ query, setQuery, saved, onToggleSave, onOpen }: P
           <div><p className="text-sm font-bold uppercase tracking-[.14em] text-forest-700">Explore your options</p><h2 className="display mt-1 text-3xl font-extrabold">Universities matched to your direction</h2></div>
           <button onClick={() => setFiltersOpen(true)} className="inline-flex items-center gap-2 rounded-xl border border-line bg-white px-4 py-2.5 text-sm font-bold lg:hidden"><Filter size={17} /> Filters</button>
         </div>
-        {unknownCostCount > 0 && <div className="mb-5 flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950"><AlertCircle size={17} className="mt-0.5 shrink-0" /><span>{unknownCostCount} result{unknownCostCount === 1 ? '' : 's'} with incomplete cost evidence remain visible and are not filtered out.</span></div>}
+        {unknownCostCount > 0 && <div className="mb-5 flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950"><AlertCircle size={17} className="mt-0.5 shrink-0" /><span>{unknownCostCount} result{unknownCostCount === 1 ? '' : 's'} with incomplete or different-currency cost evidence remain visible and are not filtered out.</span></div>}
         <div className="grid items-start gap-7 lg:grid-cols-[240px_minmax(0,1fr)]">
           <aside className="card sticky top-28 hidden p-5 lg:block">
             <div className="mb-5 flex items-center justify-between"><h3 className="display text-lg font-extrabold">Filters</h3><SlidersHorizontal size={18} className="text-forest-700" /></div>
-            <FilterContent {...{ budget, setBudget, country, setCountry, field, setField, countries, fields }} />
+            <FilterContent {...{ budget, setBudget, currency, setCurrency, country, setCountry, field, setField, countries, fields }} />
           </aside>
           {filtered.length > 0 ? <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
-            {filtered.map((university) => <UniversityCard key={university.id} university={university} saved={saved.has(university.id)} onSave={() => onToggleSave(university.id)} onOpen={() => onOpen(university)} />)}
-          </div> : <DesignedState state="no_results" onReset={() => { setQuery(''); setCountry(''); setField(''); setBudget(50) }} />}
+            {filtered.map(({ university, fitsAfterScholarship }) => <UniversityCard key={university.id} university={university} fitsAfterScholarship={fitsAfterScholarship} saved={saved.has(university.id)} onSave={() => onToggleSave(university.id)} onOpen={() => onOpen(university)} />)}
+          </div> : <DesignedState state="no_results" onReset={() => { setQuery(''); setCountry(''); setField(''); setCurrency('USD'); setBudget(currencyLimits.USD.max) }} />}
         </div>
       </main>
 
-      {filtersOpen && <div className="fixed inset-0 z-50 bg-ink/40 lg:hidden" role="dialog" aria-modal="true" aria-label="Search filters" onMouseDown={() => setFiltersOpen(false)}><aside className="absolute inset-x-0 bottom-0 max-h-[88vh] overflow-y-auto rounded-t-[28px] bg-white p-6" onMouseDown={(event) => event.stopPropagation()}><div className="mb-6 flex items-center justify-between"><h2 className="display text-2xl font-extrabold">Refine results</h2><button onClick={() => setFiltersOpen(false)} className="grid size-10 place-items-center rounded-full bg-canvas" aria-label="Close filters"><X size={20} /></button></div><FilterContent {...{ budget, setBudget, country, setCountry, field, setField, countries, fields }} /><button onClick={() => setFiltersOpen(false)} className="sticky bottom-4 mt-7 w-full rounded-xl bg-forest-800 py-3.5 font-bold text-white shadow-lg">Show results</button></aside></div>}
+      {filtersOpen && <div className="fixed inset-0 z-50 bg-ink/40 lg:hidden" role="dialog" aria-modal="true" aria-label="Search filters" onMouseDown={() => setFiltersOpen(false)}><aside className="absolute inset-x-0 bottom-0 max-h-[88vh] overflow-y-auto rounded-t-[28px] bg-white p-6" onMouseDown={(event) => event.stopPropagation()}><div className="mb-6 flex items-center justify-between"><h2 className="display text-2xl font-extrabold">Refine results</h2><button onClick={() => setFiltersOpen(false)} className="grid size-10 place-items-center rounded-full bg-canvas" aria-label="Close filters"><X size={20} /></button></div><FilterContent {...{ budget, setBudget, currency, setCurrency, country, setCountry, field, setField, countries, fields }} /><button onClick={() => setFiltersOpen(false)} className="sticky bottom-4 mt-7 w-full rounded-xl bg-forest-800 py-3.5 font-bold text-white shadow-lg">Show results</button></aside></div>}
     </>
   )
 }

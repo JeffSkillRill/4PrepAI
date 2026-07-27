@@ -1,0 +1,17 @@
+{
+  "framework": "vite",
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
+  "rewrites": [
+    { "source": "/universities", "destination": "/index.html" },
+    { "source": "/universities/:id", "destination": "/index.html" },
+    { "source": "/compare", "destination": "/index.html" },
+    { "source": "/intake", "destination": "/index.html" },
+    { "source": "/results", "destination": "/index.html" },
+    { "source": "/tools", "destination": "/index.html" },
+    { "source": "/saved", "destination": "/index.html" },
+    { "source": "/counselor", "destination": "/index.html" },
+    { "source": "/login", "destination": "/index.html" },
+    { "source": "/privacy", "destination": "/index.html" }
+  ]
+}

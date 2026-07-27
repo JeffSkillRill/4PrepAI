@@ -1,4 +1,4 @@
-import { ArrowRight, BookMarked, Calculator, CalendarCheck, CheckCircle2, ClipboardCheck, GitCompareArrows, LockKeyhole, Sparkles, Target } from 'lucide-react'
+import { ArrowRight, BookMarked, CheckCircle2, GitCompareArrows, LockKeyhole, MessageCircle, Sparkles } from 'lucide-react'
 import type { ToolItem, University, View } from '../types'
 import { UniversityCard } from '../components/UniversityCard'
 import { DesignedState, LoadingState } from '../components/States'
@@ -6,7 +6,7 @@ import { listUniversities } from '../data/repository'
 import { tools } from '../data/static-content'
 import { useRepositoryData } from '../data/useRepositoryData'
 
-const toolIcons = [Calculator, Target, CalendarCheck, GitCompareArrows, Sparkles, ClipboardCheck]
+const toolIcons = [MessageCircle, GitCompareArrows, Sparkles]
 
 export function ToolsScreen({ onNavigate }: { onNavigate: (view: View) => void }) {
   const { status, reload } = useRepositoryData(() => listUniversities(), [])
@@ -21,7 +21,7 @@ export function ToolsScreen({ onNavigate }: { onNavigate: (view: View) => void }
         </div>
       </section>
       <section className="page-container py-10 lg:py-14"><div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">{tools.map((tool, index) => { const Icon = toolIcons[index]; return <ToolCard key={tool.id} tool={tool} icon={<Icon size={25} />} onOpen={() => tool.view ? onNavigate(tool.view) : undefined} /> })}</div>
-        <div className="mt-10 grid gap-6 rounded-2xl border border-line bg-white p-6 shadow-soft sm:grid-cols-[1fr_auto] sm:items-center"><div className="flex items-start gap-4"><div className="grid size-12 shrink-0 place-items-center rounded-xl bg-amber-100 text-amber-800"><LockKeyhole size={22} /></div><div><h2 className="display text-xl font-extrabold">Your work stays in this session</h2><p className="mt-1 text-sm leading-6 text-muted">University evidence loads from the configured data service. Your intake answers and saved list are not persisted.</p></div></div><button className="rounded-xl border border-line px-4 py-3 text-sm font-bold text-muted" disabled>Sign-in unavailable in sample</button></div>
+        <div className="mt-10 grid gap-6 rounded-2xl border border-line bg-white p-6 shadow-soft sm:grid-cols-[1fr_auto] sm:items-center"><div className="flex items-start gap-4"><div className="grid size-12 shrink-0 place-items-center rounded-xl bg-amber-100 text-amber-800"><LockKeyhole size={22} /></div><div><h2 className="display text-xl font-extrabold">Your private planning data stays yours</h2><p className="mt-1 text-sm leading-6 text-muted">Sign in to restore your intake profile and saved plans. Database row-level security limits both to your account.</p></div></div><button onClick={() => onNavigate('auth')} className="rounded-xl border border-line px-4 py-3 text-sm font-bold text-forest-800">Open account</button></div>
       </section>
     </main>
   )
@@ -39,7 +39,7 @@ export function SavedScreen({ saved, onToggleSave, onOpen, onExplore }: { saved:
   return (
     <main className="page-container py-10 lg:py-14">
       <div className="flex flex-wrap items-end justify-between gap-5"><div><p className="text-sm font-bold uppercase tracking-[.14em] text-forest-700">Saved</p><h1 className="display mt-2 text-4xl font-extrabold sm:text-5xl">Your considered shortlist</h1><p className="mt-4 max-w-2xl leading-7 text-muted">Keep promising routes together, then compare their evidence when you are ready.</p></div>{items.length > 1 && <button className="inline-flex items-center gap-2 rounded-xl bg-forest-800 px-5 py-3 font-bold text-white"><GitCompareArrows size={18} /> Compare saved</button>}</div>
-      {items.length > 0 ? <div className="mt-8 grid gap-6 md:grid-cols-2 lg:grid-cols-3">{items.map((university) => <UniversityCard key={university.id} university={university} saved onSave={() => onToggleSave(university.id)} onOpen={() => onOpen(university)} />)}</div> : <section className="soft-grid mt-9 overflow-hidden rounded-[28px] border border-line bg-white px-6 py-14 text-center shadow-soft sm:px-12"><div className="mx-auto grid size-24 place-items-center rounded-full bg-forest-50 text-forest-700"><BookMarked size={52} strokeWidth={1.4} /></div><h2 className="display mt-7 text-3xl font-extrabold">Save routes worth a second look</h2><p className="mx-auto mt-3 max-w-lg leading-7 text-muted">Use the bookmark on any university card. Your shortlist stays private in this session and remains easy to compare.</p><button onClick={onExplore} className="mt-7 inline-flex items-center gap-2 rounded-xl bg-forest-800 px-5 py-3 font-bold text-white">Explore universities <ArrowRight size={18} /></button></section>}
+      {items.length > 0 ? <div className="mt-8 grid gap-6 md:grid-cols-2 lg:grid-cols-3">{items.map((university) => <UniversityCard key={university.id} university={university} saved onSave={() => onToggleSave(university.id)} onOpen={() => onOpen(university)} />)}</div> : <section className="soft-grid mt-9 overflow-hidden rounded-[28px] border border-line bg-white px-6 py-14 text-center shadow-soft sm:px-12"><div className="mx-auto grid size-24 place-items-center rounded-full bg-forest-50 text-forest-700"><BookMarked size={52} strokeWidth={1.4} /></div><h2 className="display mt-7 text-3xl font-extrabold">Save routes worth a second look</h2><p className="mx-auto mt-3 max-w-lg leading-7 text-muted">Use the bookmark on any university card. Your account’s private shortlist will appear here.</p><button onClick={onExplore} className="mt-7 inline-flex items-center gap-2 rounded-xl bg-forest-800 px-5 py-3 font-bold text-white">Explore universities <ArrowRight size={18} /></button></section>}
       <section className="mt-10 flex items-start gap-4 rounded-2xl border border-line bg-white p-5"><CheckCircle2 size={22} className="mt-0.5 shrink-0 text-forest-600" /><div><h2 className="font-extrabold">Shortlist with intent</h2><p className="mt-1 text-sm leading-6 text-muted">A balanced shortlist usually includes ambitious, strong-fit, and cost-conscious routes. Fit labels explain trade-offs without promising outcomes.</p></div></section>
     </main>
   )

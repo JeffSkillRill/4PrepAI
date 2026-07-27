@@ -3,9 +3,10 @@ import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App'
 import { DataProvider } from './data/DataProvider'
+import { AuthProvider } from './auth/AuthProvider'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <DataProvider><App /></DataProvider>
+    <AuthProvider><DataProvider><App /></DataProvider></AuthProvider>
   </StrictMode>,
 )

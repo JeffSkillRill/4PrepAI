@@ -59,8 +59,8 @@ button { cursor: pointer; }
 .hero-grid {
   background-color: #123f35;
   background-image:
-    linear-gradient(120deg, rgba(11,44,37,.98) 0%, rgba(18,63,53,.9) 48%, rgba(40,125,103,.7) 100%),
-    url('https://picsum.photos/seed/4prep-hero/1800/700');
+    radial-gradient(circle at 82% 18%, rgba(255,255,255,.16), transparent 28%),
+    linear-gradient(120deg, rgba(11,44,37,.98) 0%, rgba(18,63,53,.94) 48%, rgba(40,125,103,.86) 100%);
   background-size: cover;
   background-position: center;
 }

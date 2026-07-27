@@ -1,6 +1,5 @@
 import type { Pathway, Source, StudentProfile, University, UniversityFilters, Verification } from '../types'
-import { computeFit, DEFAULT_PHI_WEIGHTS } from '../scoring/phi'
-import { numericPart } from '../scoring/phi'
+import { computeFit, PHI_WEIGHTS } from '../scoring/phi'
 import { pathwayMilestones } from './static-content'
 import { getSupabaseClient } from './client'
 import {
@@ -12,10 +11,10 @@ import {
 
 const universitySelect = `
   id,name,city,country,flag,tagline,description,photo_seed,highlights,source_id,
-  university_facts(kind,value,numeric_value,currency,source_id,unknown_reason,suggested_action),
+  university_facts(kind,value,numeric_value,currency,amount_period,source_id,unknown_reason,suggested_action),
   requirements(kind,value,numeric_value,source_id,unknown_reason,suggested_action),
-  programs(id,name,degree,field,program_facts(kind,value,numeric_value,currency,source_id,unknown_reason,suggested_action)),
-  university_scholarships(scholarships(id,name,amount_value,amount_source_id,amount_unknown_reason,amount_suggested_action))
+  programs(id,name,degree,field,program_facts(kind,value,numeric_value,currency,amount_period,source_id,unknown_reason,suggested_action)),
+  university_scholarships(scholarships(id,name,amount_value,amount_numeric,currency,amount_period,amount_source_id,amount_unknown_reason,amount_suggested_action))
 `
 
 function throwIfError(error: { message: string } | null) {
@@ -41,9 +40,8 @@ function matchesFilters(university: University, filters: UniversityFilters): boo
     if (!haystack.includes(query)) return false
   }
   if (filters.budgetMax !== undefined && filters.budgetMax !== null) {
-    const tuition = numericPart(university.tuition)
-    const living = numericPart(university.livingCost)
-    if (tuition !== null && living !== null && tuition + living > filters.budgetMax) return false
+    const tuition = university.tuition.status === 'known' ? university.tuition.numericValue : undefined
+    if (tuition !== undefined && tuition > filters.budgetMax) return false
   }
   return true
 }
@@ -51,7 +49,7 @@ function matchesFilters(university: University, filters: UniversityFilters): boo
 export async function listSources(): Promise<Source[]> {
   const { data, error } = await getSupabaseClient()
     .from('sources')
-    .select('id,origin,url,retrieved_at,verification')
+    .select('id,name,url,retrieved_at,verification')
     .order('id')
   throwIfError(error)
   return ((data ?? []) as RawSource[]).map(mapSource)
@@ -87,12 +85,71 @@ export async function getRankedPathway(profile: StudentProfile): Promise<Pathway
   const ranked = universities
     .map((university) => ({
       ...university,
-      fit: computeFit(profile, university, {
-        ...DEFAULT_PHI_WEIGHTS,
-        computedAt: new Date().toISOString(),
-      }),
+      fit: computeFit(profile, university, PHI_WEIGHTS),
     }))
     .sort((left, right) => (right.fit?.overall ?? 0) - (left.fit?.overall ?? 0))
 
   return { profile, ranked, milestones: pathwayMilestones }
+}
+
+export async function getStudentProfile(userId: string): Promise<StudentProfile | null> {
+  const { data, error } = await getSupabaseClient()
+    .from('student_profiles')
+    .select('country,field,academic_score,budget_max,budget_currency,language_score,needs_language_pathway,intake')
+    .eq('user_id', userId)
+    .maybeSingle()
+  throwIfError(error)
+  if (!data) return null
+  return {
+    country: data.country,
+    field: data.field,
+    academicScore: data.academic_score === null ? null : Number(data.academic_score),
+    budgetMax: data.budget_max === null ? null : Number(data.budget_max),
+    budgetCurrency: data.budget_currency,
+    languageScore: data.language_score === null ? null : Number(data.language_score),
+    needsLanguagePathway: data.needs_language_pathway,
+    intake: data.intake,
+  }
+}
+
+export async function saveStudentProfile(userId: string, profile: StudentProfile): Promise<void> {
+  const { error } = await getSupabaseClient().from('student_profiles').upsert({
+    user_id: userId,
+    country: profile.country,
+    field: profile.field,
+    academic_score: profile.academicScore,
+    budget_max: profile.budgetMax,
+    budget_currency: profile.budgetCurrency,
+    language_score: profile.languageScore,
+    needs_language_pathway: profile.needsLanguagePathway,
+    intake: profile.intake,
+    consented_at: new Date().toISOString(),
+  }, { onConflict: 'user_id' })
+  throwIfError(error)
+}
+
+export async function listSavedPlanIds(userId: string): Promise<string[]> {
+  const { data, error } = await getSupabaseClient()
+    .from('saved_plans')
+    .select('university_id')
+    .eq('user_id', userId)
+    .order('created_at')
+  throwIfError(error)
+  return (data ?? []).map((row) => row.university_id)
+}
+
+export async function savePlan(userId: string, universityId: string): Promise<void> {
+  const { error } = await getSupabaseClient()
+    .from('saved_plans')
+    .upsert({ user_id: userId, university_id: universityId }, { onConflict: 'user_id,university_id', ignoreDuplicates: true })
+  throwIfError(error)
+}
+
+export async function removePlan(userId: string, universityId: string): Promise<void> {
+  const { error } = await getSupabaseClient()
+    .from('saved_plans')
+    .delete()
+    .eq('user_id', userId)
+    .eq('university_id', universityId)
+  throwIfError(error)
 }

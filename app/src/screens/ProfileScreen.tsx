@@ -6,6 +6,7 @@ import { DesignedState, LoadingState } from '../components/States'
 import { getUniversity } from '../data/repository'
 import { useRepositoryData } from '../data/useRepositoryData'
 import { computeFit } from '../scoring/phi'
+import { UniversityVisual } from '../components/UniversityVisual'
 
 export function ProfileScreen({ universityId, profile, saved, onToggleSave }: { universityId: string; profile: StudentProfile | null; saved: boolean; onToggleSave: () => void }) {
   const { data, status, reload } = useRepositoryData(() => getUniversity(universityId), [universityId])
@@ -21,9 +22,8 @@ export function ProfileScreen({ universityId, profile, saved, onToggleSave }: { 
   return (
     <main>
       <section className="relative h-[390px] min-h-[340px] overflow-hidden bg-forest-900 sm:h-[440px]">
-        <img src={`https://picsum.photos/seed/${university.id}/1800/700`} alt="Sample campus banner" className="h-full w-full object-cover" />
+        <UniversityVisual university={university} className="absolute inset-0" />
         <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-black/10" />
-        <span className="absolute right-5 top-5 rounded-full bg-black/40 px-3 py-1.5 text-xs font-semibold text-white backdrop-blur">Sample photo</span>
         <div className="page-container absolute inset-x-0 bottom-0 pb-8 text-white sm:pb-10">
           <div className="flex flex-col items-start justify-between gap-5 md:flex-row md:items-end">
             <div className="max-w-3xl"><p className="flex items-center gap-2 text-sm font-semibold text-white/80"><MapPin size={17} /> {university.city}, {university.country} {university.flag}</p><h1 className="display mt-3 text-4xl font-extrabold leading-tight sm:text-5xl">{university.name}</h1><p className="mt-3 text-lg text-white/80">{university.tagline}</p></div>
@@ -58,12 +58,12 @@ export function ProfileScreen({ universityId, profile, saved, onToggleSave }: { 
 
           <section id="costs" className="card scroll-mt-36 p-6 sm:p-8">
             <p className="text-sm font-bold uppercase tracking-[.14em] text-forest-700">Costs</p><h2 className="display mt-2 text-3xl font-extrabold">Build a complete budget</h2>
-            <div className="mt-6 grid gap-4 sm:grid-cols-2"><Fact icon={<CircleDollarSign />} label="Tuition" value={<DataValue point={university.tuition} />} /><Fact icon={<MapPin />} label="Estimated living costs" value={<DataValue point={university.livingCost} />} /><Fact icon={<Sparkles />} label="Application fee" value={<DataValue point={university.applicationFee} />} /><Fact icon={<CalendarDays />} label="Scholarship sample" value={<DataValue point={university.scholarship} />} /></div>
+            <div className="mt-6 grid gap-4 sm:grid-cols-2"><Fact icon={<CircleDollarSign />} label="Tuition" value={<DataValue point={university.tuition} />} /><Fact icon={<MapPin />} label="Published living costs" value={<DataValue point={university.livingCost} />} /><Fact icon={<Sparkles />} label="Application fee" value={<DataValue point={university.applicationFee} />} /><Fact icon={<CalendarDays />} label="Scholarship" value={<DataValue point={university.scholarship} />} /></div>
           </section>
 
           <section id="admissions" className="card scroll-mt-36 p-6 sm:p-8">
             <p className="text-sm font-bold uppercase tracking-[.14em] text-forest-700">Admissions</p><h2 className="display mt-2 text-3xl font-extrabold">Key application checkpoints</h2>
-            <div className="mt-6 grid gap-4 sm:grid-cols-3"><Fact icon={<CalendarDays />} label="Sample deadline" value={<DataValue point={university.deadline} />} /><Fact icon={<Languages />} label="Teaching language" value={<DataValue point={university.language} />} /><Fact icon={<Clock3 />} label="IELTS sample" value={<DataValue point={university.ielts} />} /></div>
+            <div className="mt-6 grid gap-4 sm:grid-cols-3"><Fact icon={<CalendarDays />} label="Application deadline" value={<DataValue point={university.deadline} />} /><Fact icon={<Languages />} label="Teaching language" value={<DataValue point={university.language} />} /><Fact icon={<Clock3 />} label="IELTS minimum" value={<DataValue point={university.ielts} />} /></div>
           </section>
 
           <section id="scholarships" className="card scroll-mt-36 p-6 sm:p-8"><p className="text-sm font-bold uppercase tracking-[.14em] text-forest-700">Scholarships</p><h2 className="display mt-2 text-3xl font-extrabold">Funding evidence</h2><div className="mt-5 rounded-2xl bg-amber-50 p-5"><DataValue point={university.scholarship} className="font-bold" /><p className="mt-3 text-sm leading-6 text-muted">Funding can change by course, nationality, and intake. Open the source and confirm eligibility before including an award in your budget.</p></div></section>
@@ -71,7 +71,7 @@ export function ProfileScreen({ universityId, profile, saved, onToggleSave }: { 
 
         <aside className="card sticky top-36 overflow-hidden">
           <div className="bg-forest-900 p-6 text-white"><p className="text-xs font-bold uppercase tracking-[.14em] text-forest-200">At a glance</p><h2 className="display mt-2 text-2xl font-extrabold">Your route here</h2>{university.fit ? <p className="mt-2 text-sm leading-6 text-white/70">{university.fit.summary}</p> : <div className="mt-3"><MissingValue reason="No profile has been entered." action="Complete intake to see a profile-specific route." /></div>}</div>
-          <div className="space-y-5 p-6"><Summary label="Next intake" value={<DataValue point={university.intake} />} /><Summary label="Tuition" value={<DataValue point={university.tuition} />} /><Summary label="IELTS sample" value={<DataValue point={university.ielts} />} /><Summary label="Deadline" value={<DataValue point={university.deadline} />} />
+          <div className="space-y-5 p-6"><Summary label="Next intake" value={<DataValue point={university.intake} />} /><Summary label="Tuition" value={<DataValue point={university.tuition} />} /><Summary label="IELTS minimum" value={<DataValue point={university.ielts} />} /><Summary label="Deadline" value={<DataValue point={university.deadline} />} />
             <button onClick={onToggleSave} className={`flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3.5 font-bold transition ${saved ? 'bg-forest-100 text-forest-900' : 'bg-forest-800 text-white hover:bg-forest-700'}`}>{saved ? <BookmarkCheck size={19} /> : <Bookmark size={19} />}{saved ? 'Saved to shortlist' : 'Save university'}</button>
           </div>
         </aside>

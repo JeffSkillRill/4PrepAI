@@ -13,13 +13,13 @@ const university: University = {
   description: 'Test fixture',
   photoSeed: 'test',
   verification: 'unverified_sample',
-  tuition: known('10,000 / year', 'source'),
-  livingCost: known('10,000 / year', 'source'),
+  tuition: known('US$10,000 / year', 'source', { numericValue: 10000, currency: 'USD', period: 'year' }),
+  livingCost: known('US$10,000 / year', 'source', { numericValue: 10000, currency: 'USD', period: 'year' }),
   applicationFee: unknown('Not published.', 'Ask admissions.'),
   deadline: known('1 January 2027', 'source'),
   scholarship: unknown('Not published.', 'Check funding page.'),
   language: known('English', 'source'),
-  ielts: known('6.5 overall', 'source'),
+  ielts: known('6.5 overall', 'source', { numericValue: 6.5 }),
   intake: known('September 2027', 'source'),
   programs: [{
     id: 'cs',
@@ -27,7 +27,7 @@ const university: University = {
     degree: 'BSc',
     field: 'Computer Science',
     duration: known('3 years', 'source'),
-    tuition: known('10,000 / year', 'source'),
+    tuition: known('US$10,000 / year', 'source', { numericValue: 10000, currency: 'USD', period: 'year' }),
   }],
   scholarships: [],
   highlights: [],
@@ -38,12 +38,13 @@ const profile: StudentProfile = {
   field: 'Computer Science',
   academicScore: 80,
   budgetMax: 25000,
+  budgetCurrency: 'USD',
   languageScore: 6,
   needsLanguagePathway: false,
   intake: 'Autumn 2027',
 }
 
-describe('computeFit placeholder contract', () => {
+describe('computeFit Φ v0.1 contract', () => {
   it('is deterministic, versioned, and exposes exactly five bounded components', () => {
     const first = computeFit(profile, university)
     const second = computeFit(profile, university)
@@ -89,5 +90,25 @@ describe('computeFit placeholder contract', () => {
     const result = computeFit(profile, incomplete)
     expect(result.components.financial.score).toBe(50)
     expect(result.components.financial.reason).toContain('missing')
+  })
+
+  it('never compares unlike currencies', () => {
+    const result = computeFit({ ...profile, budgetCurrency: 'EUR' }, university)
+    expect(result.components.financial.score).toBe(50)
+    expect(result.components.financial.reason).toContain('exchange-rate')
+  })
+
+  it('accounts for a published percentage scholarship without inventing an award', () => {
+    const funded = {
+      ...university,
+      scholarships: [{
+        id: 'published-award',
+        name: 'Published award',
+        amount: known('50% tuition reduction', 'source', { numericValue: 50, period: 'percentage' }),
+      }],
+    }
+    const without = computeFit({ ...profile, budgetMax: 16000 }, university)
+    const withAward = computeFit({ ...profile, budgetMax: 16000 }, funded)
+    expect(withAward.components.financial.score).toBeGreaterThan(without.components.financial.score)
   })
 })

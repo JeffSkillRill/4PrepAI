@@ -1,14 +1,14 @@
 import { ArrowRight, Bookmark, BookmarkCheck, MapPin } from 'lucide-react'
 import type { University } from '../types'
 import { DataValue, ExpandableFit, MissingValue } from './Trust'
+import { UniversityVisual } from './UniversityVisual'
 
-export function UniversityCard({ university, saved, onSave, onOpen }: { university: University; saved: boolean; onSave: () => void; onOpen: () => void }) {
+export function UniversityCard({ university, saved, onSave, onOpen, fitsAfterScholarship = false }: { university: University; saved: boolean; onSave: () => void; onOpen: () => void; fitsAfterScholarship?: boolean }) {
   return (
     <article className="card interactive-card group overflow-hidden">
       <div className="relative aspect-video overflow-hidden bg-forest-800">
-        <img src={`https://picsum.photos/seed/${university.id}/800/450`} alt="Sample campus" className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.035]" />
+        <UniversityVisual university={university} className="absolute inset-0 transition duration-500 group-hover:scale-[1.035]" />
         <div className="image-scrim absolute inset-0" />
-        <span className="absolute left-3 top-3 rounded-full bg-black/45 px-2 py-1 text-[10px] font-semibold text-white/90 backdrop-blur">Sample photo</span>
         <button onClick={onSave} className="absolute right-3 top-3 grid size-10 place-items-center rounded-full bg-white/95 text-forest-800 shadow transition hover:scale-105" aria-label={saved ? `Remove ${university.name} from saved` : `Save ${university.name}`}>
           {saved ? <BookmarkCheck size={19} /> : <Bookmark size={19} />}
         </button>
@@ -21,6 +21,7 @@ export function UniversityCard({ university, saved, onSave, onOpen }: { universi
         </div>
       </div>
       <div className="p-5">
+        {fitsAfterScholarship && <p className="mb-3 inline-flex rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold text-emerald-900">Fits ceiling after published scholarship</p>}
         <p className="line-clamp-2 min-h-12 text-sm leading-6 text-muted">{university.tagline}{university.fit ? `. ${university.fit.summary}` : ''}</p>
         {!university.fit && <div className="mt-4"><MissingValue reason="Complete intake to see your fit." action="Build your pathway to calculate all five fit components." /></div>}
         <div className="mt-4 grid grid-cols-2 gap-4 border-y border-line py-4 text-sm">

@@ -1,4 +1,4 @@
-import type { DataPoint, Program, Scholarship, Source, University, Verification } from '../types'
+import type { AmountPeriod, DataPoint, DataPointMetadata, Program, Scholarship, Source, University, Verification } from '../types'
 import { known, unknown } from '../types'
 
 export type RawFact = {
@@ -6,6 +6,7 @@ export type RawFact = {
   value: string | null
   numeric_value?: number | string | null
   currency?: string | null
+  amount_period?: AmountPeriod | null
   source_id: string | null
   unknown_reason: string | null
   suggested_action: string | null
@@ -25,6 +26,9 @@ export type RawScholarship = {
   id: string
   name: string
   amount_value: string | null
+  amount_numeric?: number | string | null
+  currency?: string | null
+  amount_period?: AmountPeriod | null
   amount_source_id: string | null
   amount_unknown_reason: string | null
   amount_suggested_action: string | null
@@ -53,7 +57,7 @@ export type RawUniversity = {
 
 export type RawSource = {
   id: string
-  origin: string
+  name: string
   url: string | null
   retrieved_at: string
   verification: Verification
@@ -64,7 +68,17 @@ const missingFact = (label: string): DataPoint<string> =>
 
 export function mapFact(fact: RawFact | undefined, label: string): DataPoint<string> {
   if (!fact) return missingFact(label)
-  if (fact.value !== null && fact.source_id) return known(fact.value, fact.source_id)
+  if (fact.value !== null && fact.source_id) {
+    const numericValue = fact.numeric_value === null || fact.numeric_value === undefined
+      ? undefined
+      : Number(fact.numeric_value)
+    const metadata: DataPointMetadata = {
+      ...(Number.isFinite(numericValue) ? { numericValue } : {}),
+      ...(fact.currency ? { currency: fact.currency } : {}),
+      ...(fact.amount_period ? { period: fact.amount_period } : {}),
+    }
+    return known(fact.value, fact.source_id, metadata)
+  }
   return unknown(
     fact.unknown_reason ?? `${label} is not published.`,
     fact.suggested_action ?? `Ask the university to confirm ${label.toLowerCase()}.`,
@@ -74,7 +88,7 @@ export function mapFact(fact: RawFact | undefined, label: string): DataPoint<str
 export function mapSource(row: RawSource): Source {
   return {
     id: row.id,
-    origin: row.origin,
+    origin: row.name,
     ...(row.url ? { url: row.url } : {}),
     retrievedAt: row.retrieved_at,
     verification: row.verification,
@@ -86,7 +100,13 @@ export function mapScholarship(row: RawScholarship): Scholarship {
     id: row.id,
     name: row.name,
     amount: row.amount_value !== null && row.amount_source_id
-      ? known(row.amount_value, row.amount_source_id)
+      ? known(row.amount_value, row.amount_source_id, {
+          ...(row.amount_numeric === null || row.amount_numeric === undefined
+            ? {}
+            : { numericValue: Number(row.amount_numeric) }),
+          ...(row.currency ? { currency: row.currency } : {}),
+          ...(row.amount_period ? { period: row.amount_period } : {}),
+        })
       : unknown(
           row.amount_unknown_reason ?? 'The scholarship amount is not published.',
           row.amount_suggested_action ?? 'Ask the provider for the current award amount.',
