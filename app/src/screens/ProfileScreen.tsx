@@ -7,6 +7,7 @@ import { getUniversity } from '../data/repository'
 import { useRepositoryData } from '../data/useRepositoryData'
 import { computeFit } from '../scoring/phi'
 import { UniversityVisual } from '../components/UniversityVisual'
+import { PublishedNetCost } from '../components/CostSummary'
 
 export function ProfileScreen({ universityId, profile, saved, onToggleSave }: { universityId: string; profile: StudentProfile | null; saved: boolean; onToggleSave: () => void }) {
   const { data, status, reload } = useRepositoryData(() => getUniversity(universityId), [universityId])
@@ -53,25 +54,46 @@ export function ProfileScreen({ universityId, profile, saved, onToggleSave }: { 
 
           <section className="card p-6 sm:p-8">
             <p className="text-sm font-bold uppercase tracking-[.14em] text-forest-700">Programs</p><h2 className="display mt-2 text-3xl font-extrabold">Courses to explore</h2>
-            <div className="mt-6 divide-y divide-line border-y border-line">{university.programs.map((program) => <div key={program.id} className="grid gap-4 py-5 sm:grid-cols-[1fr_auto_auto] sm:items-center"><div><h3 className="font-bold">{program.name}</h3><p className="mt-1 text-sm text-muted">{program.degree}</p></div><div className="text-sm"><span className="block text-xs font-bold uppercase tracking-wide text-muted">Duration</span><DataValue point={program.duration} className="mt-1 font-semibold" /></div><div className="text-sm"><span className="block text-xs font-bold uppercase tracking-wide text-muted">Tuition</span><DataValue point={program.tuition} className="mt-1 font-semibold" /></div></div>)}</div>
+            <div className="mt-6 divide-y divide-line border-y border-line">{university.programs.map((program) => <div key={program.id} className="grid gap-4 py-5 sm:grid-cols-[1fr_auto] sm:items-center"><div><h3 className="font-bold">{program.name}</h3><p className="mt-1 text-sm text-muted">{program.degree}</p></div><div className="text-sm"><span className="block text-xs font-bold uppercase tracking-wide text-muted">Field</span><span className="mt-1 block font-semibold">{program.field}</span></div></div>)}</div>
           </section>
 
           <section id="costs" className="card scroll-mt-36 p-6 sm:p-8">
             <p className="text-sm font-bold uppercase tracking-[.14em] text-forest-700">Costs</p><h2 className="display mt-2 text-3xl font-extrabold">Build a complete budget</h2>
-            <div className="mt-6 grid gap-4 sm:grid-cols-2"><Fact icon={<CircleDollarSign />} label="Tuition" value={<DataValue point={university.tuition} />} /><Fact icon={<MapPin />} label="Published living costs" value={<DataValue point={university.livingCost} />} /><Fact icon={<Sparkles />} label="Application fee" value={<DataValue point={university.applicationFee} />} /><Fact icon={<CalendarDays />} label="Scholarship" value={<DataValue point={university.scholarship} />} /></div>
+            <p className="mt-3 text-sm leading-6 text-muted">Sticker cost and aid-adjusted cost are shown separately. The net figure uses only a numeric institutional award published for international students and never assumes you will receive it.</p>
+            <div className="mt-6 grid gap-4 sm:grid-cols-2">
+              <Fact icon={<CircleDollarSign />} label="Published cost of attendance" value={<DataValue point={university.totalCostOfAttendance} />} />
+              <Fact icon={<Sparkles />} label="Aid-adjusted net-cost scenario" value={<PublishedNetCost university={university} />} />
+              <Fact icon={<CircleDollarSign />} label="Tuition" value={<DataValue point={university.tuition} />} />
+              <Fact icon={<CircleDollarSign />} label="Mandatory fees" value={<DataValue point={university.fees} />} />
+              <Fact icon={<MapPin />} label="Room and board" value={<DataValue point={university.roomBoard} />} />
+              <Fact icon={<Sparkles />} label="Aid for international students" value={<DataValue point={university.aidInternational} />} />
+              <Fact icon={<CircleDollarSign />} label="Application fee" value={<DataValue point={university.applicationFee} />} />
+              <Fact icon={<CircleDollarSign />} label="F-1 financial certification" value={<DataValue point={university.financialCertification} />} />
+            </div>
           </section>
 
           <section id="admissions" className="card scroll-mt-36 p-6 sm:p-8">
             <p className="text-sm font-bold uppercase tracking-[.14em] text-forest-700">Admissions</p><h2 className="display mt-2 text-3xl font-extrabold">Key application checkpoints</h2>
-            <div className="mt-6 grid gap-4 sm:grid-cols-3"><Fact icon={<CalendarDays />} label="Application deadline" value={<DataValue point={university.deadline} />} /><Fact icon={<Languages />} label="Teaching language" value={<DataValue point={university.language} />} /><Fact icon={<Clock3 />} label="IELTS minimum" value={<DataValue point={university.ielts} />} /></div>
+            <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              <Fact icon={<CalendarDays />} label="Application deadline" value={<DataValue point={university.deadline} />} />
+              <Fact icon={<CalendarDays />} label="Intake term" value={<DataValue point={university.intake} />} />
+              <Fact icon={<Languages />} label="Teaching language" value={<DataValue point={university.language} />} />
+              <Fact icon={<Clock3 />} label="Test policy" value={<DataValue point={university.testPolicy} />} />
+              <Fact icon={<Languages />} label="TOEFL" value={<DataValue point={university.toefl} />} />
+              <Fact icon={<Languages />} label="IELTS" value={<DataValue point={university.ielts} />} />
+              <Fact icon={<Languages />} label="Duolingo" value={<DataValue point={university.duolingo} />} />
+              <Fact icon={<Clock3 />} label="SAT expectation" value={<DataValue point={university.sat} />} />
+              <Fact icon={<Clock3 />} label="ACT expectation" value={<DataValue point={university.act} />} />
+              <Fact icon={<Clock3 />} label="GPA expectation" value={<DataValue point={university.gpa} />} />
+            </div>
           </section>
 
-          <section id="scholarships" className="card scroll-mt-36 p-6 sm:p-8"><p className="text-sm font-bold uppercase tracking-[.14em] text-forest-700">Scholarships</p><h2 className="display mt-2 text-3xl font-extrabold">Funding evidence</h2><div className="mt-5 rounded-2xl bg-amber-50 p-5"><DataValue point={university.scholarship} className="font-bold" /><p className="mt-3 text-sm leading-6 text-muted">Funding can change by course, nationality, and intake. Open the source and confirm eligibility before including an award in your budget.</p></div></section>
+          <section id="scholarships" className="card scroll-mt-36 p-6 sm:p-8"><p className="text-sm font-bold uppercase tracking-[.14em] text-forest-700">Scholarships</p><h2 className="display mt-2 text-3xl font-extrabold">International funding evidence</h2><div className="mt-5 rounded-2xl bg-amber-50 p-5"><DataValue point={university.aidInternational} className="font-bold" /><p className="mt-3 text-sm leading-6 text-muted">Competitive merit awards and need-based grants are not guaranteed. Open the source, confirm international eligibility, and get a personal aid offer before treating the displayed net-cost scenario as your price.</p></div></section>
         </div>
 
         <aside className="card sticky top-36 overflow-hidden">
           <div className="bg-forest-900 p-6 text-white"><p className="text-xs font-bold uppercase tracking-[.14em] text-forest-200">At a glance</p><h2 className="display mt-2 text-2xl font-extrabold">Your route here</h2>{university.fit ? <p className="mt-2 text-sm leading-6 text-white/70">{university.fit.summary}</p> : <div className="mt-3"><MissingValue reason="No profile has been entered." action="Complete intake to see a profile-specific route." /></div>}</div>
-          <div className="space-y-5 p-6"><Summary label="Next intake" value={<DataValue point={university.intake} />} /><Summary label="Tuition" value={<DataValue point={university.tuition} />} /><Summary label="IELTS minimum" value={<DataValue point={university.ielts} />} /><Summary label="Deadline" value={<DataValue point={university.deadline} />} />
+          <div className="space-y-5 p-6"><Summary label="Published cost of attendance" value={<DataValue point={university.totalCostOfAttendance} />} /><Summary label="Aid-adjusted net-cost scenario" value={<PublishedNetCost university={university} compact />} /><Summary label="International aid" value={<DataValue point={university.aidInternational} />} /><Summary label="Test policy" value={<DataValue point={university.testPolicy} />} /><Summary label="Deadline" value={<DataValue point={university.deadline} />} />
             <button onClick={onToggleSave} className={`flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3.5 font-bold transition ${saved ? 'bg-forest-100 text-forest-900' : 'bg-forest-800 text-white hover:bg-forest-700'}`}>{saved ? <BookmarkCheck size={19} /> : <Bookmark size={19} />}{saved ? 'Saved to shortlist' : 'Save university'}</button>
           </div>
         </aside>

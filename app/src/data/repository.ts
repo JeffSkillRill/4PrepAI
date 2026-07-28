@@ -1,5 +1,10 @@
 import type { Pathway, Source, StudentProfile, University, UniversityFilters, Verification } from '../types'
 import { computeFit, PHI_WEIGHTS } from '../scoring/phi'
+import {
+  bestPublishedCostScenario,
+  hasComprehensiveInternationalFunding,
+  hasFullNeedPolicy,
+} from '../scoring/costs'
 import { pathwayMilestones } from './static-content'
 import { getSupabaseClient } from './client'
 import {
@@ -40,8 +45,9 @@ function matchesFilters(university: University, filters: UniversityFilters): boo
     if (!haystack.includes(query)) return false
   }
   if (filters.budgetMax !== undefined && filters.budgetMax !== null) {
-    const tuition = university.tuition.status === 'known' ? university.tuition.numericValue : undefined
-    if (tuition !== undefined && tuition > filters.budgetMax) return false
+    if (hasFullNeedPolicy(university) || hasComprehensiveInternationalFunding(university)) return true
+    const scenario = bestPublishedCostScenario(university)
+    if (scenario?.currency === 'USD' && scenario.netCost > filters.budgetMax) return false
   }
   return true
 }
@@ -95,7 +101,7 @@ export async function getRankedPathway(profile: StudentProfile): Promise<Pathway
 export async function getStudentProfile(userId: string): Promise<StudentProfile | null> {
   const { data, error } = await getSupabaseClient()
     .from('student_profiles')
-    .select('country,field,academic_score,budget_max,budget_currency,language_score,needs_language_pathway,intake')
+    .select('country,field,academic_score,budget_max,budget_currency,language_test,language_score,needs_language_pathway,intake')
     .eq('user_id', userId)
     .maybeSingle()
   throwIfError(error)
@@ -106,6 +112,7 @@ export async function getStudentProfile(userId: string): Promise<StudentProfile 
     academicScore: data.academic_score === null ? null : Number(data.academic_score),
     budgetMax: data.budget_max === null ? null : Number(data.budget_max),
     budgetCurrency: data.budget_currency,
+    languageTest: data.language_test as StudentProfile['languageTest'],
     languageScore: data.language_score === null ? null : Number(data.language_score),
     needsLanguagePathway: data.needs_language_pathway,
     intake: data.intake,
@@ -120,6 +127,7 @@ export async function saveStudentProfile(userId: string, profile: StudentProfile
     academic_score: profile.academicScore,
     budget_max: profile.budgetMax,
     budget_currency: profile.budgetCurrency,
+    language_test: profile.languageTest,
     language_score: profile.languageScore,
     needs_language_pathway: profile.needsLanguagePathway,
     intake: profile.intake,

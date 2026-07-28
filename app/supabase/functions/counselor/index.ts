@@ -39,24 +39,34 @@ type CounselorAnswer = {
 }
 
 const aliases: Record<string, string[]> = {
-  nu: ['nazarbayev', 'nazarbayev university'],
-  wiut: ['wiut', 'westminster international'],
-  newuu: ['newuu', 'new uzbekistan'],
-  aitu: ['aitu', 'astana it'],
-  kbtu: ['kbtu', 'kazakh-british'],
-  debrecen: ['debrecen', 'university of debrecen'],
-  elte: ['elte', 'eötvös loránd', 'eotvos lorand'],
-  tartu: ['tartu', 'university of tartu'],
-  constructor: ['constructor university', 'constructor'],
-  sabanci: ['sabancı', 'sabanci'],
+  harvard: ['harvard', 'harvard university'],
+  yale: ['yale', 'yale university'],
+  princeton: ['princeton', 'princeton university'],
+  berea: ['berea', 'berea college'],
+  'illinois-wesleyan': ['illinois wesleyan', 'iwu'],
+  clark: ['clark', 'clark university'],
+  usm: ['southern miss', 'university of southern mississippi', 'usm'],
+  alabama: ['university of alabama', 'alabama'],
+  unk: ['university of nebraska at kearney', 'unk'],
+  hcc: ['houston city college', 'houston community college', 'hcc'],
 }
 
 function targetedKind(message: string): string | null {
-  if (/\btuition\b|\bstudy fee\b/i.test(message)) return 'tuition'
   if (/\bapplication fee\b|\bapply fee\b/i.test(message)) return 'application_fee'
+  if (/\btotal cost\b|\bcost of attendance\b|\bcoa\b/i.test(message)) return 'total_cost_of_attendance'
+  if (/\broom\b.*\bboard\b|\bhousing\b.*\bmeal/i.test(message)) return 'room_board'
+  if (/\bmandatory fee\b|\bstudent fee\b/i.test(message)) return 'fees'
+  if (/\btuition\b|\bstudy fee\b/i.test(message)) return 'tuition'
   if (/\bdeadline\b|\bwhen (?:do|should) i apply\b/i.test(message)) return 'deadline'
-  if (/\bielts\b|\blanguage (?:score|minimum|requirement)\b/i.test(message)) return 'ielts'
-  if (/\bscholarship\b|\bfunding\b|\btuition waiver\b/i.test(message)) return 'scholarship'
+  if (/\bfinancial certification\b|\bproof of funds\b|\bi-20\b/i.test(message)) return 'financial_certification'
+  if (/\baid\b|\bscholarship\b|\bfunding\b|\btuition waiver\b/i.test(message)) return 'aid_international'
+  if (/\btest optional\b|\btest required\b|\btesting policy\b/i.test(message)) return 'test_policy'
+  if (/\btoefl\b/i.test(message)) return 'toefl'
+  if (/\bielts\b/i.test(message)) return 'ielts'
+  if (/\bduolingo\b|\bdet\b/i.test(message)) return 'duolingo'
+  if (/\bsat\b/i.test(message)) return 'sat'
+  if (/\bact\b/i.test(message)) return 'act'
+  if (/\bgpa\b/i.test(message)) return 'gpa'
   return null
 }
 
@@ -115,6 +125,10 @@ function validateFigures(answer: string, records: ReturnType<typeof knownContext
     /\b\d{4}-\d{2}-\d{2}\b/g,
     /\bIELTS\s*(?:overall\s*)?\d(?:\.\d)?\b/gi,
     /\b\d(?:\.\d)?\s*(?:overall\s*)?IELTS\b/gi,
+    /\b(?:TOEFL|Duolingo|SAT|ACT)\s*(?:iBT\s*)?\d{1,4}\b/gi,
+    /\b\d{1,4}\s*(?:iBT\s*)?(?:TOEFL|Duolingo|SAT|ACT)\b/gi,
+    /\bGPA\s*\d(?:\.\d{1,2})?\b/gi,
+    /\b\d(?:\.\d{1,2})?\s*GPA\b/gi,
     /\b\d{1,3}%/g,
   ]
   const figures = patterns.flatMap((pattern) => answer.match(pattern) ?? [])
@@ -180,7 +194,7 @@ async fetch(request: Request) {
     const records = knownContext(relevant)
     if (kind) {
       const matching = records.filter((record) =>
-        record.field === kind || (kind === 'scholarship' && record.field === 'scholarship_amount'))
+        record.field === kind || (kind === 'aid_international' && record.field === 'scholarship_amount'))
       if (matching.length === 0 || matching.every((record) => record.status === 'unknown')) {
         const next = matching.find((record) => record.suggestedAction)?.suggestedAction
         return json(refusal(requestId, `4Prep does not have a verified ${kind.replaceAll('_', ' ')} figure for ${relevant.map((item) => item.name).join(', ')}.${next ? ` ${next}` : ' Please confirm it with the university.'}`))
@@ -192,7 +206,7 @@ async fetch(request: Request) {
     const system = `You are the 4Prep university counselor. Return JSON only with keys answerType, answer, recordCitations.
 
 GROUNDING CONTRACT:
-- For tuition, fees, deadlines, IELTS/admission requirements, and scholarship amounts, use ONLY the supplied 4Prep records.
+- For tuition, cost of attendance, room and board, mandatory fees, aid, financial certification, deadlines, testing policy, TOEFL, IELTS, Duolingo, SAT, ACT, GPA, and scholarship amounts, use ONLY the supplied 4Prep records.
 - Every such factual sentence must end with its supplied citation ID in square brackets.
 - If the supplied record is unknown or absent, say plainly that 4Prep does not have the verified figure and what is needed. Never use a web figure, estimate, conversion, or substitute.
 - General essay, visa-process, and study advice may use web search. Label it exactly "General information — not verified 4Prep data." Do not mix it with university figures.

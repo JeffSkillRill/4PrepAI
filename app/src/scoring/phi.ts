@@ -1,6 +1,11 @@
 import type { DataPoint, FitComponent, FitDimension, FitScore, StudentProfile, University } from '../types'
+import {
+  bestPublishedCostScenario,
+  hasComprehensiveInternationalFunding,
+  hasFullNeedPolicy,
+} from './costs'
 
-export const PHI_VERSION = 'phi-v0.1'
+export const PHI_VERSION = 'phi-v0.2'
 
 export type PhiWeights = {
   academic: number
@@ -58,24 +63,6 @@ export function numericPart(point: DataPoint<string>): number | null {
   return point.status === 'known' && point.numericValue !== undefined ? point.numericValue : null
 }
 
-function annualAmount(point: DataPoint<string>): { amount: number; currency: string } | null {
-  if (
-    point.status === 'unknown'
-    || point.numericValue === undefined
-    || !point.currency
-    || !point.period
-  ) return null
-  const multiplier = point.period === 'month' ? 12 : point.period === 'semester' ? 2 : point.period === 'year' ? 1 : null
-  return multiplier === null ? null : { amount: point.numericValue * multiplier, currency: point.currency }
-}
-
-function maximumPublishedScholarshipPercent(university: University): number {
-  return Math.max(0, ...university.scholarships.map(({ amount }) =>
-    amount.status === 'known' && amount.period === 'percentage' && amount.numericValue !== undefined
-      ? amount.numericValue
-      : 0))
-}
-
 function fieldMatches(profile: StudentProfile, university: University) {
   const wanted = profile.field.toLowerCase()
   return university.programs.some((program) => {
@@ -85,7 +72,7 @@ function fieldMatches(profile: StudentProfile, university: University) {
   })
 }
 
-// Φ v0.1 is intentionally transparent, monotonic, bounded, and deterministic.
+// Φ v0.2 is intentionally transparent, monotonic, bounded, and deterministic.
 // It performs no currency conversion. Unknown or incomparable inputs receive a neutral
 // 50 with an explicit reason, rather than being treated as zero.
 export function computeFit(
@@ -105,37 +92,49 @@ export function computeFit(
         : `Your entered academic score is ${academicReadiness}/100, but no published programme directly matches ${profile.field}.`,
   )
 
-  const tuition = annualAmount(university.tuition)
-  const living = annualAmount(university.livingCost)
+  const costScenario = bestPublishedCostScenario(university)
   let financial: FitComponent
   if (profile.budgetMax === null || profile.budgetCurrency === null) {
     financial = component('Financial fit', 50, 'You have not set a budget and currency, so financial fit remains unresolved.')
-  } else if (tuition === null || living === null) {
-    financial = component('Financial fit', 50, 'Published annual tuition or living-cost metadata is missing, so this option is not excluded.')
-  } else if (tuition.currency !== living.currency || tuition.currency !== profile.budgetCurrency) {
+  } else if (hasFullNeedPolicy(university)) {
+    financial = component(
+      'Financial fit',
+      70,
+      'The university publishes a full-demonstrated-need policy for international students; personal net cost requires an individual aid calculation and is not treated as zero.',
+    )
+  } else if (hasComprehensiveInternationalFunding(university)) {
+    financial = component(
+      'Financial fit',
+      65,
+      'The university publishes comprehensive funding for enrolled international students, but no single post-aid price; personal net cost is unresolved and is not treated as zero.',
+    )
+  } else if (costScenario === null) {
+    financial = component('Financial fit', 50, 'A sourced annual cost of attendance or a computable aid-adjusted net cost is missing, so this option is not excluded.')
+  } else if (costScenario.currency !== profile.budgetCurrency) {
     financial = component(
       'Financial fit',
       50,
       `Published costs cannot be compared with your ${profile.budgetCurrency} budget without an exchange-rate estimate, which Φ does not make.`,
     )
   } else {
-    const scholarshipPercent = maximumPublishedScholarshipPercent(university)
-    const payableTuition = tuition.amount * (1 - Math.min(scholarshipPercent, 100) / 100)
-    const annualCost = payableTuition + living.amount
-    const ratio = profile.budgetMax / Math.max(annualCost, 1)
+    const ratio = profile.budgetMax / Math.max(costScenario.netCost, 1)
     const score = ratio >= 1 ? 70 + Math.min(30, (ratio - 1) * 30) : ratio * 70
+    const aidLabel = costScenario.publishedAid > 0
+      ? ` after subtracting the largest published annual institutional award (${costScenario.currency} ${costScenario.publishedAid.toLocaleString()}); award eligibility is not assumed`
+      : ' before any unpublished or individualized aid'
     financial = component(
       'Financial fit',
       score,
       ratio >= 1
-        ? `Published annual costs fit your ${profile.budgetCurrency} ceiling${scholarshipPercent ? ` after a published ${scholarshipPercent}% tuition reduction` : ' before scholarships'}.`
-        : `Published annual costs are above your ${profile.budgetCurrency} ceiling${scholarshipPercent ? ` even after a published ${scholarshipPercent}% tuition reduction` : ' before scholarships'}.`,
+        ? `The published annual net-cost scenario fits your ${profile.budgetCurrency} ceiling${aidLabel}.`
+        : `The published annual net-cost scenario is above your ${profile.budgetCurrency} ceiling${aidLabel}.`,
     )
   }
 
-  const requiredLanguage = numericPart(university.ielts)
+  const languagePoint = profile.languageTest ? university[profile.languageTest] : null
+  const requiredLanguage = languagePoint ? numericPart(languagePoint) : null
   let language: FitComponent
-  if (profile.languageScore === null) {
+  if (profile.languageScore === null || profile.languageTest === null) {
     language = component(
       'Language fit',
       profile.needsLanguagePathway ? 30 : 45,
@@ -144,15 +143,21 @@ export function computeFit(
         : 'No test score was entered, so language readiness remains unresolved.',
     )
   } else if (requiredLanguage === null) {
-    language = component('Language fit', 50, 'The language minimum is not published, so readiness cannot be confirmed.')
+    language = component('Language fit', 50, `A numeric ${profile.languageTest.toUpperCase()} minimum is not published, so readiness cannot be confirmed.`)
   } else {
     const gap = profile.languageScore - requiredLanguage
+    const scale = profile.languageTest === 'ielts' ? 40 : profile.languageTest === 'toefl' ? 1.5 : 1.2
+    const testName = profile.languageTest === 'ielts'
+      ? 'IELTS'
+      : profile.languageTest === 'toefl'
+        ? 'TOEFL'
+        : 'Duolingo'
     language = component(
       'Language fit',
-      70 + gap * 40,
+      70 + gap * scale,
       gap >= 0
-        ? `Your entered IELTS level meets the published ${requiredLanguage.toFixed(1)} minimum.`
-        : `Your entered IELTS level is below the published ${requiredLanguage.toFixed(1)} minimum.`,
+        ? `Your entered ${testName} score meets the published ${requiredLanguage} benchmark.`
+        : `Your entered ${testName} score is below the published ${requiredLanguage} benchmark.`,
     )
   }
 

@@ -85,12 +85,23 @@ export type University = {
   verification: Verification
   fit?: FitScore
   tuition: DataPoint<string>
+  fees: DataPoint<string>
+  roomBoard: DataPoint<string>
+  totalCostOfAttendance: DataPoint<string>
+  aidInternational: DataPoint<string>
+  testPolicy: DataPoint<string>
+  financialCertification: DataPoint<string>
   livingCost: DataPoint<string>
   applicationFee: DataPoint<string>
   deadline: DataPoint<string>
   scholarship: DataPoint<string>
   language: DataPoint<string>
   ielts: DataPoint<string>
+  toefl: DataPoint<string>
+  duolingo: DataPoint<string>
+  sat: DataPoint<string>
+  act: DataPoint<string>
+  gpa: DataPoint<string>
   intake: DataPoint<string>
   programs: Program[]
   scholarships: Scholarship[]
@@ -103,6 +114,7 @@ export type StudentProfile = {
   academicScore: number | null
   budgetMax: number | null
   budgetCurrency: string | null
+  languageTest: 'ielts' | 'toefl' | 'duolingo' | null
   languageScore: number | null
   needsLanguagePathway: boolean
   intake: string

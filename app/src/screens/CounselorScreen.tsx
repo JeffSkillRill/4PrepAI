@@ -29,10 +29,21 @@ type PreflightUniversity = {
 }
 
 function requestedKind(message: string): string | null {
-  if (/\btuition\b|\bstudy fee\b/i.test(message)) return 'tuition'
   if (/\bapplication fee\b|\bapply fee\b/i.test(message)) return 'application_fee'
+  if (/\btotal cost\b|\bcost of attendance\b|\bcoa\b/i.test(message)) return 'total_cost_of_attendance'
+  if (/\broom\b.*\bboard\b|\bhousing\b.*\bmeal/i.test(message)) return 'room_board'
+  if (/\bmandatory fee\b|\bstudent fee\b/i.test(message)) return 'fees'
+  if (/\btuition\b|\bstudy fee\b/i.test(message)) return 'tuition'
   if (/\bdeadline\b/i.test(message)) return 'deadline'
+  if (/\bfinancial certification\b|\bproof of funds\b|\bi-20\b/i.test(message)) return 'financial_certification'
+  if (/\baid\b|\bscholarship\b|\bfunding\b/i.test(message)) return 'aid_international'
+  if (/\btest optional\b|\btest required\b|\btesting policy\b/i.test(message)) return 'test_policy'
+  if (/\btoefl\b/i.test(message)) return 'toefl'
   if (/\bielts\b/i.test(message)) return 'ielts'
+  if (/\bduolingo\b|\bdet\b/i.test(message)) return 'duolingo'
+  if (/\bsat\b/i.test(message)) return 'sat'
+  if (/\bact\b/i.test(message)) return 'act'
+  if (/\bgpa\b/i.test(message)) return 'gpa'
   return null
 }
 
@@ -46,8 +57,7 @@ async function preflightUnknown(message: string): Promise<CounselorAnswer | null
   const normalized = message.toLowerCase()
   const university = (data as unknown as PreflightUniversity[]).find((item) =>
     normalized.includes(item.id.toLowerCase())
-    || normalized.includes(item.name.toLowerCase())
-    || (item.id === 'kbtu' && normalized.includes('kazakh-british')))
+    || normalized.includes(item.name.toLowerCase()))
   if (!university) return null
   const record = [...university.university_facts, ...university.requirements]
     .find((fact) => fact.kind === kind)
@@ -104,7 +114,7 @@ export function CounselorScreen() {
           <div>
             <form onSubmit={(event) => void ask(event)} className="card p-5 sm:p-7">
               <label htmlFor="counselor-message" className="display text-xl font-extrabold">What would you like to know?</label>
-              <textarea id="counselor-message" value={message} onChange={(event) => setMessage(event.target.value)} maxLength={1000} rows={5} placeholder="For example: What is KBTU’s undergraduate tuition?" className="mt-4 w-full resize-y rounded-xl border border-line p-4 leading-7 outline-none focus:border-forest-500" />
+              <textarea id="counselor-message" value={message} onChange={(event) => setMessage(event.target.value)} maxLength={1000} rows={5} placeholder="For example: What is Princeton’s 2026–27 cost of attendance?" className="mt-4 w-full resize-y rounded-xl border border-line p-4 leading-7 outline-none focus:border-forest-500" />
               <button disabled={loading || !message.trim()} className="mt-4 inline-flex items-center gap-2 rounded-xl bg-forest-800 px-5 py-3 font-bold text-white disabled:opacity-50">{loading ? 'Checking verified records…' : 'Ask counselor'} <Send size={17} /></button>
             </form>
 

@@ -1,16 +1,15 @@
 # 4Prep database state
 
-Last regenerated: 27 July 2026 (Asia/Tashkent), after applying the public MVP schema, real-university seed, and migration ledger.
+Last regenerated: 28 July 2026 (Asia/Tashkent), after the US admissions schema and US-only catalogue migrations were applied and verified on Production.
 
-This document describes the connected live database in plain language. The SQL files in `app/supabase/migrations/` are the source of truth.
+This document describes the connected live database. The forward-only SQL files in `app/supabase/migrations/` are the source of truth.
 
 ## Connection and project
 
 - Project name: `4PrepAi`
 - Project reference: `pubhgajlqhdbpwqahtki`
 - Branch/environment: `main` — Production
-- Hosting: Supabase Cloud (not local)
-- Region: Northeast Asia (Tokyo), AWS `ap-northeast-1`
+- Hosting: Supabase Cloud, Northeast Asia (Tokyo), AWS `ap-northeast-1`
 - Compute: Nano
 - Organization plan shown in the dashboard: Free
 - Project URL: `https://pubhgajlqhdbpwqahtki.supabase.co`
@@ -21,243 +20,165 @@ This document describes the connected live database in plain language. The SQL f
 
 | Table | Rows |
 |---|---:|
-| `sources` | 33 |
+| `sources` | 50 |
 | `universities` | 10 |
-| `university_facts` | 70 |
+| `university_facts` | 110 |
 | `programs` | 10 |
-| `program_facts` | 20 |
-| `requirements` | 10 |
+| `program_facts` | 0 |
+| `requirements` | 60 |
 | `scholarships` | 10 |
 | `university_scholarships` | 10 |
 | `student_profiles` | 0 |
 | `saved_plans` | 0 |
 | `counselor_strikes` | 0 |
 
-## Seeded universities and evidence coverage
+The live country query returned 10 `United States` rows and zero rows whose country differs from `United States`. All former Central Asian and European universities, their dependent catalogue rows, and their now-orphaned sources were deleted by the forward migration.
 
-“Sourced” and “unknown” below cover the eight launch facts shown in the product: tuition, living cost, application fee, deadline, scholarship, teaching language, intake, and IELTS minimum. An unknown is stored with both a reason and a suggested next action. It is not stored as zero or placeholder text.
+Deleting the former universities cascades to `saved_plans`. The pre-migration and post-migration Production checks both returned zero saved plans, so no user plan was lost during this cutover.
 
-| University | Country | Sourced facts | Explicit unknowns |
+## US catalogue and evidence coverage
+
+“Sourced” and “unknown” cover the 17 admissions records stored for each university: 11 university facts and six requirements. Every known record has a non-null `source_id`; every unknown has a non-null reason and suggested next action. Scholarship amount unknowns are audited separately below because scholarship amounts use their own known-or-unknown constraint.
+
+| University | Tier | Sourced | Explicit unknowns |
 |---|---|---:|---:|
-| Astana IT University | Kazakhstan | 4 | 4 |
-| Constructor University | Germany | 8 | 0 |
-| Eötvös Loránd University | Hungary | 6 | 2 |
-| Kazakh-British Technical University | Kazakhstan | 3 | 5 |
-| Nazarbayev University | Kazakhstan | 7 | 1 |
-| New Uzbekistan University | Uzbekistan | 5 | 3 |
-| Sabancı University | Türkiye | 6 | 2 |
-| University of Debrecen | Hungary | 8 | 0 |
-| University of Tartu | Estonia | 7 | 1 |
-| Westminster International University in Tashkent | Uzbekistan | 5 | 3 |
+| Harvard University | Need-blind / full need | 15 | 2 |
+| Yale University | Need-blind / full need | 13 | 4 |
+| Princeton University | Need-blind / full need | 15 | 2 |
+| Berea College | Private, unusually deep international funding | 12 | 5 |
+| Illinois Wesleyan University | Private, published international merit | 14 | 3 |
+| Clark University | Private, published international merit | 15 | 2 |
+| University of Southern Mississippi | Public, published international merit | 17 | 0 |
+| University of Alabama | Public, published international merit | 16 | 1 |
+| University of Nebraska at Kearney | Public, published international merit | 16 | 1 |
+| Houston City College | Community college / 2+2 transfer | 12 | 5 |
 
-All 33 source rows are marked `verified` and contain the real official-page URL and retrieval date. No `unverified_sample` source or fictional university remains in the live catalogue.
+All 50 source rows are `verified`, use official university URLs, and have retrieval date `2026-07-28`. Every monetary figure in the US catalogue uses `USD`; no mixed-currency US record exists.
 
-## Tables and columns
+### Why this mix
 
-`nullable` means the database permits an empty value. Defaults are applied by PostgreSQL when the application omits the column.
+- Harvard, Yale, and Princeton represent the very small need-blind/full-demonstrated-need tier for international applicants. Φ does not invent a personal aid amount for them; it labels the result as individualized.
+- Berea, Illinois Wesleyan, and Clark add private options whose official pages publish material international funding or merit opportunities rather than leaving aid implicit.
+- Southern Miss, Alabama, and UNK add public options with published international merit awards and lower starting prices than the private sticker-price tier.
+- Houston City College adds a 60-credit Computer Science Associate of Science designed for university transfer. Its published one-year F-1 budget is `$22,980`, with `$7,980` assigned to tuition/fees in the official budget. Although still above an `$8,000` all-in budget, it is the catalogue’s lowest published-cost route and the only deliberate 2+2 option; students must plan separately for living costs and confirm any Foundation aid.
 
-### `sources`
+This spread avoids presenting ten versions of the same unaffordable pathway. It also prevents a low-budget student from seeing only four-year sticker prices while keeping every affordability claim honest.
 
-| Column | Type | Nullable | Default | Foreign key |
-|---|---|---|---|---|
-| `id` | text | no | none | — |
-| `name` | text | no | none | — |
-| `url` | text | yes | none | — |
-| `retrieved_at` | date | no | none | — |
-| `verification` | `source_verification` enum | no | `unverified_sample` | — |
+## Facts, requirements, and enums
 
-Provenance rule: a verified source must have a URL. The source is the root evidence record, so it does not itself carry `source_id`.
+`university_fact_kind` now contains:
 
-### `universities`
+`tuition`, `living_cost`, `application_fee`, `deadline`, `scholarship`, `language`, `intake`, `room_board`, `fees`, `total_cost_of_attendance`, `aid_international`, `test_policy`, `financial_certification`.
 
-| Column | Type | Nullable | Default | Foreign key |
-|---|---|---|---|---|
-| `id` | text | no | none | — |
-| `name` | text | no | none | — |
-| `city` | text | no | none | — |
-| `country` | text | no | none | — |
-| `flag` | text | no | none | — |
-| `tagline` | text | no | none | — |
-| `description` | text | no | none | — |
-| `photo_seed` | text | no | none | — |
-| `highlights` | text array | no | empty array | — |
-| `source_id` | text | no | none | `sources.id` |
+`requirement_kind` now contains:
 
-Provenance rule: every university identity/summary row has a non-null `source_id`. Numeric and time-sensitive facts are not stored here; they live in `university_facts`.
+`ielts`, `toefl`, `duolingo`, `sat`, `act`, `gpa`.
 
-### `university_facts`
+The new enum values were added with `ALTER TYPE ... ADD VALUE` in migration `202607280005`. They are used only by the following migration, avoiding PostgreSQL’s same-transaction enum limitation.
 
-| Column | Type | Nullable | Default | Foreign key |
-|---|---|---|---|---|
-| `university_id` | text | no | none | `universities.id` |
-| `kind` | `university_fact_kind` enum | no | none | — |
-| `value` | text | yes | none | — |
-| `numeric_value` | numeric | yes | none | — |
-| `currency` | text | yes | none | — |
-| `source_id` | text | yes | none | `sources.id` |
-| `unknown_reason` | text | yes | none | — |
-| `suggested_action` | text | yes | none | — |
-| `amount_period` | text | yes | none | — |
+The existing known-or-explicitly-unknown checks were not weakened:
 
-Provenance rule: a known fact requires non-null `value` and `source_id`, with no unknown reason/action. An unknown fact requires null `value` and `source_id`, plus non-null `unknown_reason` and `suggested_action`. Numeric value, currency, and period are optional metadata for known amounts; Φ will not infer them from display text.
+- A known `university_facts` or `requirements` row requires a display value and real `source_id`, and cannot carry an unknown reason/action.
+- An unknown row requires a null value/source plus both `unknown_reason` and `suggested_action`.
+- Numeric value, currency, and amount period are structured metadata for known records; clients do not parse display text to invent numbers.
+- Scholarship identity always has a source. Its amount independently obeys the same known-or-explicitly-unknown model.
 
-### `programs`
+Every university has one sourced programme with name, field, and degree. `program_facts` is intentionally empty because no unsourced duration or programme-level tuition was carried forward; university-level costs are shown instead.
 
-| Column | Type | Nullable | Default | Foreign key |
-|---|---|---|---|---|
-| `id` | text | no | none | — |
-| `university_id` | text | no | none | `universities.id` |
-| `name` | text | no | none | — |
-| `degree` | text | no | none | — |
-| `field` | text | no | none | — |
-| `source_id` | text | no | none | `sources.id` |
+## Core table and relationship summary
 
-Provenance rule: every named programme has a non-null `source_id`.
+### Public catalogue
 
-### `program_facts`
+- `sources`: official evidence URL, retrieval date, and verification state.
+- `universities`: identity and summary, with a required source.
+- `university_facts`: one row per university/fact kind, with the known-or-unknown check.
+- `programs`: university, programme name, degree, field, and required source.
+- `program_facts`: optional sourced/unknown structured programme facts.
+- `requirements`: one row per university/requirement kind, with the known-or-unknown check.
+- `scholarships`: sourced scholarship identity plus independently sourced or explicitly unknown amount.
+- `university_scholarships`: sourced university-to-scholarship link.
+- `verified_universities`: security-invoker view that exposes only universities whose owning source is `verified`.
 
-| Column | Type | Nullable | Default | Foreign key |
-|---|---|---|---|---|
-| `program_id` | text | no | none | `programs.id` |
-| `kind` | `program_fact_kind` enum | no | none | — |
-| `value` | text | yes | none | — |
-| `numeric_value` | numeric | yes | none | — |
-| `currency` | text | yes | none | — |
-| `source_id` | text | yes | none | `sources.id` |
-| `unknown_reason` | text | yes | none | — |
-| `suggested_action` | text | yes | none | — |
-| `amount_period` | text | yes | none | — |
+Catalogue foreign keys cascade from a deleted university to facts, programmes, requirements, scholarship links, and saved plans. The migration explicitly deletes now-unlinked scholarships and orphaned sources after the old catalogue is removed.
 
-Provenance rule: the same known-or-explicitly-unknown constraint as `university_facts`.
+### Private and audit data
 
-### `requirements`
+- `student_profiles`: one row per `auth.users.id`; includes destination, field, academic score, budget, `language_test`, language score, pathway preference, intake, consent, and timestamps.
+- `saved_plans`: unique `(user_id, university_id)` relationship.
+- `counselor_strikes`: server-written audit entries for untraceable counselor figures.
 
-| Column | Type | Nullable | Default | Foreign key |
-|---|---|---|---|---|
-| `id` | bigint identity | no | generated identity | — |
-| `university_id` | text | no | none | `universities.id` |
-| `kind` | `requirement_kind` enum | no | none | — |
-| `value` | text | yes | none | — |
-| `numeric_value` | numeric | yes | none | — |
-| `source_id` | text | yes | none | `sources.id` |
-| `unknown_reason` | text | yes | none | — |
-| `suggested_action` | text | yes | none | — |
+`student_profiles.language_test` accepts `ielts`, `toefl`, or `duolingo` when present. The score constraint is conditional on the selected scale: IELTS `0–9`, TOEFL `0–120`, and Duolingo `10–160`. A null test requires a null score. User-entered profile values do not carry source IDs.
 
-Provenance rule: a known requirement requires `value` and `source_id`; an unknown requires reason and action. The launch enum currently contains IELTS only.
+## Row-level security verification
 
-### `scholarships`
+RLS policies and grants were not changed by the US migrations.
 
-| Column | Type | Nullable | Default | Foreign key |
-|---|---|---|---|---|
-| `id` | text | no | none | — |
-| `name` | text | no | none | — |
-| `amount_value` | text | yes | none | — |
-| `amount_numeric` | numeric | yes | none | — |
-| `currency` | text | yes | none | — |
-| `amount_source_id` | text | yes | none | `sources.id` |
-| `amount_unknown_reason` | text | yes | none | — |
-| `amount_suggested_action` | text | yes | none | — |
-| `source_id` | text | no | none | `sources.id` |
-| `amount_period` | text | yes | none | — |
-
-Provenance rule: `source_id` always proves the scholarship’s identity. Its amount is independently a DataPoint: a known amount has non-null `amount_value` and `amount_source_id`; an unknown amount has a null value/source and non-null reason/action.
-
-### `university_scholarships`
-
-| Column | Type | Nullable | Default | Foreign key |
-|---|---|---|---|---|
-| `university_id` | text | no | none | `universities.id` |
-| `scholarship_id` | text | no | none | `scholarships.id` |
-| `source_id` | text | no | none | `sources.id` |
-
-Provenance rule: every university-to-scholarship claim has its own non-null `source_id`.
-
-### `student_profiles`
-
-| Column | Type | Nullable | Default | Foreign key |
-|---|---|---|---|---|
-| `user_id` | UUID | no | none | `auth.users.id` |
-| `country` | text | no | none | — |
-| `field` | text | no | none | — |
-| `academic_score` | numeric | yes | none | — |
-| `budget_max` | numeric | yes | none | — |
-| `budget_currency` | text | yes | none | — |
-| `language_score` | numeric | yes | none | — |
-| `needs_language_pathway` | boolean | no | false | — |
-| `intake` | text | no | none | — |
-| `consented_at` | timestamp with time zone | no | none | — |
-| `created_at` | timestamp with time zone | no | `now()` | — |
-| `updated_at` | timestamp with time zone | no | `now()` | — |
-
-Provenance rule: these are user-entered preferences and self-reported values, not university facts, so they do not carry source IDs. Academic score, budget, and language score may be null when the student says they do not know. A non-null budget must have a three-letter currency.
-
-### `saved_plans`
-
-| Column | Type | Nullable | Default | Foreign key |
-|---|---|---|---|---|
-| `id` | UUID | no | `gen_random_uuid()` | — |
-| `user_id` | UUID | no | none | `auth.users.id` |
-| `university_id` | text | no | none | `universities.id` |
-| `created_at` | timestamp with time zone | no | `now()` | — |
-
-Provenance rule: this is a user-owned relationship, not a fact. `(user_id, university_id)` is unique, preventing the same plan from being saved twice.
-
-### `counselor_strikes`
-
-| Column | Type | Nullable | Default | Foreign key |
-|---|---|---|---|---|
-| `id` | UUID | no | `gen_random_uuid()` | — |
-| `request_id` | UUID | no | none | — |
-| `user_id` | UUID | yes | none | `auth.users.id` |
-| `strike_type` | text | no | none | — |
-| `detail` | text | no | none | — |
-| `created_at` | timestamp with time zone | no | `now()` | — |
-
-Provenance rule: this is an audit record created when the counselor validator detects an untraceable figure. It is not displayed as a university fact.
-
-### `verified_universities` view
-
-This security-invoker view exposes only universities whose owning source has `verification = 'verified'`. It does not add storage of its own.
-
-## Row-level security
-
-RLS is enabled on every public table.
-
-| Table | Anonymous visitor | Authenticated user |
+| Table group | Anonymous visitor | Authenticated user |
 |---|---|---|
-| `sources` | read | read |
-| `universities` | read | read |
-| `university_facts` | read | read |
-| `programs` | read | read |
-| `program_facts` | read | read |
-| `requirements` | read | read |
-| `scholarships` | read | read |
-| `university_scholarships` | read | read |
-| `student_profiles` | no privileges; no rows readable | owner can select, insert, update, and delete only their own row |
-| `saved_plans` | no privileges; no rows readable | owner can select, insert, and delete only their own rows |
-| `counselor_strikes` | no privileges | owner can select their own strikes; the server-side service role writes strikes |
+| All public catalogue tables | read | read |
+| `student_profiles` | no privilege | own row only |
+| `saved_plans` | no privilege | own rows only |
+| `counselor_strikes` | no privilege | own strikes readable; service role writes |
 
-**Can a logged-out visitor read student profiles? No.** A live test using the `anon` role failed with PostgreSQL error `42501: permission denied for table student_profiles`.
+Live `anon` client test on 28 July 2026:
 
-A second live test using the `anon` role successfully read 10 universities, 33 sources, and 10 programmes, so logged-out catalogue browsing remains usable.
+- `universities`: success, exact count `10`.
+- `student_profiles`: PostgreSQL `42501`, `permission denied for table student_profiles`.
 
-The owner policies compare `auth.uid()` with each row’s `user_id`; therefore a signed-in user cannot select or mutate a different user’s profile or saved plans. Direct anonymous grants were also revoked from all three private tables.
+The owner policies continue to compare `auth.uid()` to `user_id`; a signed-in user cannot select or mutate another user’s profile or saved plans.
+
+## Production verification
+
+Live SQL and anonymous API checks returned:
+
+- Universities: `10`.
+- Universities where `country <> 'United States'`: `0`.
+- Student profiles: `0`.
+- Saved plans: `0`.
+- Migrations recorded: `202607280005,202607280006`.
+- Fact coverage: exactly the sourced/unknown counts in the table above.
+
+Three stored figures were reopened and matched against the cited official page:
+
+1. Princeton: `$94,624` 2026–27 total cost of attendance; the page also lists `$68,140` tuition, `$13,010` housing, `$9,110` food, and `$314` fees — [Princeton Fees & Payment Options](https://admission.princeton.edu/cost-aid/fees-payment-options).
+2. UNK: `$35,064` before aid, `$4,797` International Loper Scholarship, `$30,267` after aid, with the same `$35,064` serving as the published pre-aid minimum support for I-20 issuance — [UNK international costs](https://www.unk.edu/international/international-admissions/costs.php).
+3. Houston City College: `$22,980` liquid financial support for a self-sponsored first-time F-1 student — [HCC financial requirements](https://www.hccs.edu/student-life--services/international-student-services/financial-requirements-for-international-students/).
+
+## Explicit unknown audit
+
+These are intentionally unknown in Production; no value was inferred or estimated.
+
+- **Harvard:** current undergraduate I-20 financial-certification amount; minimum first-year GPA; individualized need-aid award amount.
+- **Yale:** current application fee; one official total 2026–27 COA figure; undergraduate I-20 financial-certification amount; minimum first-year GPA; individualized need-aid award amount.
+- **Princeton:** undergraduate I-20 financial-certification amount; minimum first-year GPA; individualized need-aid award amount.
+- **Berea:** separately itemized mandatory fees; next international deadline; next intake term; post-aid I-20 financial-certification amount; minimum international first-year GPA.
+- **Illinois Wesleyan:** one official 2026–27 international COA total; current 2026–27 financial-certification amount; minimum international first-year GPA.
+- **Clark:** exact post-scholarship I-20 financial-certification amount; minimum international first-year GPA.
+- **University of Alabama:** official 2026–27 nonresident undergraduate COA. The current international page instead publishes the I-20 funding total, which is stored separately.
+- **UNK:** mandatory-fee component separated from the published `$18,193` tuition-and-fees bundle.
+- **Houston City College:** international institutional/Foundation aid eligibility and amount; Duolingo acceptance/minimum; SAT expectation; ACT expectation; minimum GPA; Foundation scholarship amount.
+- **Southern Miss:** no explicit unknown among the 17 required university facts and requirements.
+
+Each database row contains the corresponding reason and next action (for example, contact the relevant admissions, financial-aid, international-student, testing, or student-accounts office). The migration contains the complete wording.
 
 ## Applied migrations
 
-Applied to the live Production branch in this order and recorded in `supabase_migrations.schema_migrations`:
+Applied to the live Production branch in order and recorded in `supabase_migrations.schema_migrations`:
 
 1. `202607240001_initial_schema.sql`
 2. `202607270002_public_mvp_schema.sql`
 3. `202607270003_seed_verified_universities.sql`
 4. `202607270004_record_migration_history.sql`
+5. `202607280005_us_admissions_enums.sql`
+6. `202607280006_us_catalogue.sql`
 
-The 27 July migrations were applied from the checked-in files through Supabase SQL Editor because this workspace does not have a Supabase access token or database password.
+Migrations 005 and 006 were applied from the checked-in files through Supabase SQL Editor because this workspace has neither a Supabase access token nor a database password. Migration 006 runs as a single transaction and aborts unless `saved_plans` is still zero.
 
 ## ⚠ Needs Jeff
 
+- Review the explicit unknown audit and request the listed current figures from each university. Update them only through a new forward migration with official source rows; do not edit migration 006.
 - Supply a Perplexity API key. Add `PPLX_API_KEY` as a Supabase Edge Function secret; optionally set `PPLX_MODEL=sonar`. Never add either to a `VITE_` variable.
-- Deploy `app/supabase/functions/counselor/index.ts` as the `counselor` Edge Function. The connected dashboard’s browser editor returned HTTP 400 even for its untouched minimal template and exposed no actionable error, so the function is not live. Use a Supabase access token/CLI or retry the dashboard deployment.
+- Deploy `app/supabase/functions/counselor/index.ts` as the `counselor` Edge Function. The connected dashboard’s browser editor previously returned HTTP 400 even for its untouched minimal template and exposed no actionable error, so the function is not live. Use a Supabase access token/CLI or retry the dashboard deployment.
 - Confirm the counselor function allows publishable/anonymous invocations (the checked-in `supabase/config.toml` sets `verify_jwt = false`). Add rate limiting before broad promotion if anonymous abuse becomes material.
 - Configure Supabase Auth **Site URL** to `https://app.4prep.ai` and add the same origin plus any required Vercel preview URL to **Redirect URLs**.
 - Configure production email delivery/SMTP. Supabase’s default email service is rate-limited and is not suitable for a public launch.

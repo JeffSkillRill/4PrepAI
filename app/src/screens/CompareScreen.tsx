@@ -7,6 +7,7 @@ import { listUniversities } from '../data/repository'
 import { useRepositoryData } from '../data/useRepositoryData'
 import { computeFit } from '../scoring/phi'
 import { UniversityVisual } from '../components/UniversityVisual'
+import { PublishedNetCost } from '../components/CostSummary'
 
 type Row = {
   label: string
@@ -30,12 +31,22 @@ export function CompareScreen({ profile }: { profile: StudentProfile | null }) {
   } : university), [data, profile])
   const rows: Row[] = [
     { label: '4Prep fit', render: (university) => university.fit ? <ExpandableFit fit={university.fit} compact /> : <MissingValue reason="No profile has been entered." action="Complete intake to calculate this comparison." /> },
+    { label: 'Cost of attendance', render: (university) => <DataValue point={university.totalCostOfAttendance} /> },
+    { label: 'Aid-adjusted net-cost scenario', render: (university) => <PublishedNetCost university={university} compact /> },
     { label: 'Tuition', render: (university) => <DataValue point={university.tuition} /> },
-    { label: 'Living costs', render: (university) => <DataValue point={university.livingCost} /> },
+    { label: 'Mandatory fees', render: (university) => <DataValue point={university.fees} /> },
+    { label: 'Room and board', render: (university) => <DataValue point={university.roomBoard} /> },
+    { label: 'International aid', render: (university) => <DataValue point={university.aidInternational} /> },
+    { label: 'F-1 financial certification', render: (university) => <DataValue point={university.financialCertification} /> },
     { label: 'Next intake', render: (university) => <DataValue point={university.intake} /> },
     { label: 'Deadline', render: (university) => <DataValue point={university.deadline} /> },
-    { label: 'IELTS minimum', render: (university) => <DataValue point={university.ielts} /> },
-    { label: 'Scholarship', render: (university) => <DataValue point={university.scholarship} /> },
+    { label: 'Test policy', render: (university) => <DataValue point={university.testPolicy} /> },
+    { label: 'TOEFL', render: (university) => <DataValue point={university.toefl} /> },
+    { label: 'IELTS', render: (university) => <DataValue point={university.ielts} /> },
+    { label: 'Duolingo', render: (university) => <DataValue point={university.duolingo} /> },
+    { label: 'SAT', render: (university) => <DataValue point={university.sat} /> },
+    { label: 'ACT', render: (university) => <DataValue point={university.act} /> },
+    { label: 'GPA', render: (university) => <DataValue point={university.gpa} /> },
     { label: 'Application fee', render: (university) => <DataValue point={university.applicationFee} /> },
     { label: 'Highlights', render: (university) => <ul className="space-y-2 text-sm">{university.highlights.map((highlight) => <li key={highlight} className="flex gap-2"><Check size={15} className="mt-0.5 shrink-0 text-forest-600" />{highlight}</li>)}</ul> },
   ]

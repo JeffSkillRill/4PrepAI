@@ -5,35 +5,43 @@ import { DataValue, ExpandableFit } from '../components/Trust'
 import { DesignedState, LoadingState } from '../components/States'
 import { getRankedPathway } from '../data/repository'
 import { UniversityVisual } from '../components/UniversityVisual'
+import { PublishedNetCost } from '../components/CostSummary'
 
 const questions = [
-  { eyebrow: 'Your destination', title: 'Where would you like to study?', detail: 'Choose one destination. The ranking will still show alternatives with a clear geographic trade-off.', icon: MapPin, options: ['🇰🇿 Kazakhstan', '🇺🇿 Uzbekistan', '🇭🇺 Hungary', '🇪🇪 Estonia', '🇩🇪 Germany', '🇹🇷 Türkiye'] },
+  { eyebrow: 'Your destination', title: 'Where would you like to study?', detail: 'This catalogue is currently dedicated to United States pathways.', icon: MapPin, options: ['🇺🇸 United States'] },
   { eyebrow: 'Your subject', title: 'What do you want to study?', detail: 'Pick a broad field for now—we will match against published programs.', icon: BookOpen, options: ['Computer Science', 'Business & Management', 'Engineering', 'Data & Analytics'] },
   { eyebrow: 'Your academics', title: 'How ready is your academic record?', detail: 'This is a self-assessment only. Formal requirements still need evidence.', icon: GraduationCap, options: ['Strong in relevant subjects', 'Generally on track', 'Some gaps to address', 'I am not sure yet'] },
-  { eyebrow: 'Your budget', title: 'What annual budget feels realistic?', detail: 'Choose the currency you actually budget in. Φ never invents an exchange rate.', icon: CircleDollarSign, options: ['US$15,000', '€20,000', 'UZS 150,000,000', 'KZT 5,000,000', 'Still working it out'] },
-  { eyebrow: 'Your language plan', title: 'Where are you with English testing?', detail: 'A target is enough. Missing scores remain an explicit gap.', icon: Languages, options: ['IELTS 6.5 or above', 'IELTS 6.0', 'No IELTS yet', 'I need a language pathway'] },
-  { eyebrow: 'Your timing', title: 'When would you like to begin?', detail: 'We will keep this preference in your pathway summary.', icon: CalendarDays, options: ['Autumn 2026', 'Spring 2027', 'Autumn 2027', 'I am flexible'] },
+  { eyebrow: 'Your budget', title: 'What annual budget feels realistic?', detail: 'US catalogue figures are stored in USD. Φ compares published net-cost scenarios without inventing exchange rates.', icon: CircleDollarSign, options: ['US$5,000', 'US$8,000', 'US$12,000', 'US$15,000', 'Still working it out'] },
+  { eyebrow: 'Your language plan', title: 'Where are you with English testing?', detail: 'Choose the score scale you use. Missing scores remain an explicit gap.', icon: Languages, options: ['IELTS 6.5', 'TOEFL iBT 90', 'Duolingo 120', 'No test yet', 'I need a language pathway'] },
+  { eyebrow: 'Your timing', title: 'When would you like to begin?', detail: 'We will keep this preference in your pathway summary.', icon: CalendarDays, options: ['Spring 2027', 'Fall 2027', 'I am flexible'] },
 ]
 
 const stripFlag = (value: string) => value.replace(/^\S+\s/, '')
 
 function profileFromAnswers(answers: string[]): StudentProfile {
   const budgetMap: Record<string, { amount: number | null; currency: string | null }> = {
+    'US$5,000': { amount: 5000, currency: 'USD' },
+    'US$8,000': { amount: 8000, currency: 'USD' },
+    'US$12,000': { amount: 12000, currency: 'USD' },
     'US$15,000': { amount: 15000, currency: 'USD' },
-    '€20,000': { amount: 20000, currency: 'EUR' },
-    'UZS 150,000,000': { amount: 150000000, currency: 'UZS' },
-    'KZT 5,000,000': { amount: 5000000, currency: 'KZT' },
     'Still working it out': { amount: null, currency: null },
   }
   const academicMap: Record<string, number | null> = { 'Strong in relevant subjects': 90, 'Generally on track': 72, 'Some gaps to address': 50, 'I am not sure yet': null }
-  const languageMap: Record<string, number | null> = { 'IELTS 6.5 or above': 6.5, 'IELTS 6.0': 6, 'No IELTS yet': null, 'I need a language pathway': null }
+  const languageMap: Record<string, { test: StudentProfile['languageTest']; score: number | null }> = {
+    'IELTS 6.5': { test: 'ielts', score: 6.5 },
+    'TOEFL iBT 90': { test: 'toefl', score: 90 },
+    'Duolingo 120': { test: 'duolingo', score: 120 },
+    'No test yet': { test: null, score: null },
+    'I need a language pathway': { test: null, score: null },
+  }
   return {
     country: stripFlag(answers[0]),
     field: answers[1],
     academicScore: academicMap[answers[2]],
     budgetMax: budgetMap[answers[3]].amount,
     budgetCurrency: budgetMap[answers[3]].currency,
-    languageScore: languageMap[answers[4]],
+    languageTest: languageMap[answers[4]].test,
+    languageScore: languageMap[answers[4]].score,
     needsLanguagePathway: answers[4] === 'I need a language pathway',
     intake: answers[5],
   }
@@ -107,7 +115,7 @@ export function ResultsScreen({ pathway, saved, onSave, onOpen }: { pathway: Pat
       </section>
 
       <section className="mt-12"><div className="flex flex-wrap items-end justify-between gap-4"><div><p className="text-sm font-bold uppercase tracking-[.14em] text-forest-700">Ranked shortlist</p><h2 className="display mt-2 text-3xl font-extrabold">Your strongest starting points</h2></div><p className="max-w-md text-sm leading-6 text-muted">Every fit opens into the same five scored components with plain-language reasons.</p></div>
-        <div className="mt-6 grid gap-6 lg:grid-cols-3">{ranked.map((university, index) => <article key={university.id} className="card interactive-card overflow-hidden"><div className="relative aspect-[2/1] overflow-hidden bg-forest-800"><UniversityVisual university={university} className="absolute inset-0" /><div className="image-scrim absolute inset-0" /><span className="absolute left-3 top-3 rounded-full bg-white px-3 py-1 text-xs font-extrabold text-forest-900">Choice {index + 1}</span><div className="absolute inset-x-4 bottom-4 text-white"><h3 className="display text-2xl font-extrabold">{university.name}</h3><p className="mt-1 text-sm text-white/80">{university.city}, {university.country}</p></div></div><div className="p-5">{university.fit && <ExpandableFit fit={university.fit} compact />}<div className="mt-4 text-xs"><span className="block font-bold uppercase tracking-wide text-muted">Tuition</span><DataValue point={university.tuition} className="mt-1 font-bold" /></div><p className="mt-4 text-sm leading-6 text-muted">{university.fit?.summary}</p><div className="mt-5 grid grid-cols-[1fr_auto] gap-2"><button onClick={() => onOpen(university)} className="inline-flex items-center justify-center gap-2 rounded-xl bg-forest-50 py-3 text-sm font-bold text-forest-800 transition hover:bg-forest-100">Review evidence <ArrowRight size={16} /></button><button onClick={() => onSave(university.id)} disabled={saved.has(university.id)} className="grid size-11 place-items-center rounded-xl border border-line text-forest-800 disabled:bg-forest-50" aria-label={saved.has(university.id) ? `${university.name} already saved` : `Save ${university.name}`}>{saved.has(university.id) ? <BookmarkCheck size={18} /> : <Bookmark size={18} />}</button></div></div></article>)}</div>
+        <div className="mt-6 grid gap-6 lg:grid-cols-3">{ranked.map((university, index) => <article key={university.id} className="card interactive-card overflow-hidden"><div className="relative aspect-[2/1] overflow-hidden bg-forest-800"><UniversityVisual university={university} className="absolute inset-0" /><div className="image-scrim absolute inset-0" /><span className="absolute left-3 top-3 rounded-full bg-white px-3 py-1 text-xs font-extrabold text-forest-900">Choice {index + 1}</span><div className="absolute inset-x-4 bottom-4 text-white"><h3 className="display text-2xl font-extrabold">{university.name}</h3><p className="mt-1 text-sm text-white/80">{university.city}, {university.country}</p></div></div><div className="p-5">{university.fit && <ExpandableFit fit={university.fit} compact />}<div className="mt-4 text-xs"><span className="block font-bold uppercase tracking-wide text-muted">Aid-adjusted net-cost scenario</span><div className="mt-1 font-bold"><PublishedNetCost university={university} compact /></div></div><p className="mt-4 text-sm leading-6 text-muted">{university.fit?.summary}</p><div className="mt-5 grid grid-cols-[1fr_auto] gap-2"><button onClick={() => onOpen(university)} className="inline-flex items-center justify-center gap-2 rounded-xl bg-forest-50 py-3 text-sm font-bold text-forest-800 transition hover:bg-forest-100">Review evidence <ArrowRight size={16} /></button><button onClick={() => onSave(university.id)} disabled={saved.has(university.id)} className="grid size-11 place-items-center rounded-xl border border-line text-forest-800 disabled:bg-forest-50" aria-label={saved.has(university.id) ? `${university.name} already saved` : `Save ${university.name}`}>{saved.has(university.id) ? <BookmarkCheck size={18} /> : <Bookmark size={18} />}</button></div></div></article>)}</div>
       </section>
 
       <section className="mt-14"><p className="text-sm font-bold uppercase tracking-[.14em] text-forest-700">Step by step</p><h2 className="display mt-2 text-3xl font-extrabold">Your application runway</h2><div className="timeline-line relative mt-8 grid gap-4 md:grid-cols-3 xl:grid-cols-6">{pathway.milestones.map((item, index) => <article key={item.month} className="relative rounded-2xl border border-line bg-white p-4 pt-14 shadow-soft"><span className="absolute left-4 top-3 z-10 grid size-10 place-items-center rounded-full bg-forest-700 text-xs font-extrabold text-white ring-4 ring-canvas">{index + 1}</span><p className="text-xs font-bold uppercase tracking-[.14em] text-forest-700">Step {item.month}</p><h3 className="mt-2 font-extrabold">{item.title}</h3><p className="mt-2 text-sm leading-5 text-muted">{item.detail}</p></article>)}</div></section>

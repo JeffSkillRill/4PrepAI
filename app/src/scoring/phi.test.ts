@@ -7,19 +7,30 @@ const university: University = {
   id: 'test',
   name: 'Test University (sample)',
   city: 'Test City',
-  country: 'Germany',
-  flag: '🇩🇪',
+  country: 'United States',
+  flag: '🇺🇸',
   tagline: 'Test',
   description: 'Test fixture',
   photoSeed: 'test',
   verification: 'unverified_sample',
   tuition: known('US$10,000 / year', 'source', { numericValue: 10000, currency: 'USD', period: 'year' }),
+  fees: known('US$1,000 / year', 'source', { numericValue: 1000, currency: 'USD', period: 'year' }),
+  roomBoard: known('US$9,000 / year', 'source', { numericValue: 9000, currency: 'USD', period: 'year' }),
+  totalCostOfAttendance: known('US$20,000 / year', 'cost-source', { numericValue: 20000, currency: 'USD', period: 'year' }),
+  aidInternational: unknown('No institutional aid is published.', 'Ask financial aid.'),
+  testPolicy: known('Test optional', 'source'),
+  financialCertification: known('US$20,000', 'source', { numericValue: 20000, currency: 'USD', period: 'year' }),
   livingCost: known('US$10,000 / year', 'source', { numericValue: 10000, currency: 'USD', period: 'year' }),
   applicationFee: unknown('Not published.', 'Ask admissions.'),
   deadline: known('1 January 2027', 'source'),
   scholarship: unknown('Not published.', 'Check funding page.'),
   language: known('English', 'source'),
   ielts: known('6.5 overall', 'source', { numericValue: 6.5 }),
+  toefl: known('80', 'source', { numericValue: 80 }),
+  duolingo: known('110', 'source', { numericValue: 110 }),
+  sat: known('Optional', 'source'),
+  act: known('Optional', 'source'),
+  gpa: unknown('Not published.', 'Ask admissions.'),
   intake: known('September 2027', 'source'),
   programs: [{
     id: 'cs',
@@ -34,17 +45,18 @@ const university: University = {
 }
 
 const profile: StudentProfile = {
-  country: 'Germany',
+  country: 'United States',
   field: 'Computer Science',
   academicScore: 80,
   budgetMax: 25000,
   budgetCurrency: 'USD',
+  languageTest: 'ielts',
   languageScore: 6,
   needsLanguagePathway: false,
   intake: 'Autumn 2027',
 }
 
-describe('computeFit Φ v0.1 contract', () => {
+describe('computeFit Φ v0.2 contract', () => {
   it('is deterministic, versioned, and exposes exactly five bounded components', () => {
     const first = computeFit(profile, university)
     const second = computeFit(profile, university)
@@ -82,10 +94,10 @@ describe('computeFit Φ v0.1 contract', () => {
     expect(baseline.components.language.score).toBeGreaterThan(noIelts.components.language.score)
   })
 
-  it('keeps missing cost inputs explicit instead of treating them as zero', () => {
+  it('keeps missing cost-of-attendance inputs explicit instead of treating them as zero', () => {
     const incomplete = {
       ...university,
-      livingCost: unknown<string>('Living cost is missing.', 'Ask the university.'),
+      totalCostOfAttendance: unknown<string>('Cost of attendance is missing.', 'Ask the university.'),
     }
     const result = computeFit(profile, incomplete)
     expect(result.components.financial.score).toBe(50)
@@ -98,17 +110,49 @@ describe('computeFit Φ v0.1 contract', () => {
     expect(result.components.financial.reason).toContain('exchange-rate')
   })
 
-  it('accounts for a published percentage scholarship without inventing an award', () => {
+  it('uses published dollar aid in a clearly conditional net-cost scenario', () => {
     const funded = {
       ...university,
-      scholarships: [{
-        id: 'published-award',
-        name: 'Published award',
-        amount: known('50% tuition reduction', 'source', { numericValue: 50, period: 'percentage' }),
-      }],
+      aidInternational: known('US$8,000 / year merit award', 'aid-source', { numericValue: 8000, currency: 'USD', period: 'year' }),
     }
     const without = computeFit({ ...profile, budgetMax: 16000 }, university)
     const withAward = computeFit({ ...profile, budgetMax: 16000 }, funded)
     expect(withAward.components.financial.score).toBeGreaterThan(without.components.financial.score)
+    expect(withAward.components.financial.reason).toContain('eligibility is not assumed')
+  })
+
+  it('recognizes full-need international aid without inventing a personal net price', () => {
+    const fullNeed = {
+      ...university,
+      aidInternational: known('Meets 100% of demonstrated financial need for international students', 'aid-source'),
+    }
+    const result = computeFit({ ...profile, budgetMax: 5000 }, fullNeed)
+    expect(result.components.financial.score).toBe(70)
+    expect(result.components.financial.reason).toContain('personal net cost')
+
+    const princetonWording = {
+      ...university,
+      aidInternational: known('Full demonstrated need is met for admitted international students', 'aid-source'),
+    }
+    expect(computeFit({ ...profile, budgetMax: 5000 }, princetonWording).components.financial.score).toBe(70)
+  })
+
+  it('keeps comprehensive international funding visible without inventing a post-aid price', () => {
+    const comprehensive = {
+      ...university,
+      aidInternational: known('100% funding to 100% of enrolled international students', 'aid-source'),
+    }
+    const result = computeFit({ ...profile, budgetMax: 5000 }, comprehensive)
+    expect(result.components.financial.score).toBe(65)
+    expect(result.components.financial.reason).toContain('personal net cost is unresolved')
+  })
+
+  it('compares TOEFL and Duolingo on their own scales', () => {
+    const toeflBelow = computeFit({ ...profile, languageTest: 'toefl', languageScore: 75 }, university)
+    const toeflAbove = computeFit({ ...profile, languageTest: 'toefl', languageScore: 90 }, university)
+    const detAbove = computeFit({ ...profile, languageTest: 'duolingo', languageScore: 120 }, university)
+    expect(toeflAbove.components.language.score).toBeGreaterThan(toeflBelow.components.language.score)
+    expect(toeflAbove.components.language.reason).toContain('TOEFL')
+    expect(detAbove.components.language.reason).toContain('Duolingo')
   })
 })
