@@ -2,7 +2,7 @@
 
 Last updated: 28 July 2026 (Asia/Tashkent)
 
-This is the working handoff for Claude or any engineer continuing the 4Prep public MVP. Read `app/README.md`, `app/src/types/index.ts`, and `docs/DATABASE_STATE.md` before changing implementation or data.
+This is the working handoff for Claude or any engineer continuing the 4Prep public MVP. Read `README.md`, `src/types/index.ts`, and `../docs/DATABASE_STATE.md` before changing implementation or data.
 
 ## Current phase
 
@@ -14,7 +14,7 @@ Do not interpret setup instructions discussed with the owner as confirmation tha
 
 ## Confirmed complete
 
-- The React 19 + TypeScript + Vite + Tailwind v4 application is implemented under `app/`.
+- The React 19 + TypeScript + Vite + Tailwind v4 application is implemented in this directory.
 - The live Supabase Cloud database contains 10 real universities, 33 verified official sources, and explicit unknown states where facts could not be sourced.
 - All public university facts preserve the `DataPoint<T>` known/unknown contract.
 - Row-level security is enabled on every public table.
@@ -51,16 +51,16 @@ The counselor red-team test cannot be considered complete against production unt
 - Region: AWS Tokyo (`ap-northeast-1`)
 - Project URL: `https://pubhgajlqhdbpwqahtki.supabase.co`
 - Current documented plan: Free
-- Detailed schema, provenance rules, RLS policies, row counts, seeds, and migration history: `docs/DATABASE_STATE.md`
+- Detailed schema, provenance rules, RLS policies, row counts, seeds, and migration history: `../docs/DATABASE_STATE.md`
 
 Applied migrations, in order:
 
-1. `app/supabase/migrations/202607240001_initial_schema.sql`
-2. `app/supabase/migrations/202607270002_public_mvp_schema.sql`
-3. `app/supabase/migrations/202607270003_seed_verified_universities.sql`
-4. `app/supabase/migrations/202607270004_record_migration_history.sql`
+1. `supabase/migrations/202607240001_initial_schema.sql`
+2. `supabase/migrations/202607270002_public_mvp_schema.sql`
+3. `supabase/migrations/202607270003_seed_verified_universities.sql`
+4. `supabase/migrations/202607270004_record_migration_history.sql`
 
-Regenerate `docs/DATABASE_STATE.md` after every task that touches the database.
+Regenerate `../docs/DATABASE_STATE.md` after every task that touches the database.
 
 ## External setup still pending or unverified
 
@@ -74,8 +74,8 @@ Regenerate `docs/DATABASE_STATE.md` after every task that touches the database.
 
 ### 2. Counselor Edge Function
 
-- Deploy `app/supabase/functions/counselor/index.ts` as `counselor`.
-- The checked-in `app/supabase/config.toml` sets `verify_jwt = false` so logged-out visitors can use the public counselor.
+- Deploy `supabase/functions/counselor/index.ts` as `counselor`.
+- The checked-in `supabase/config.toml` sets `verify_jwt = false` so logged-out visitors can use the public counselor.
 - Confirm the deployment is reachable, preserves server-side secrets, and writes validator strikes.
 - Add/confirm suitable rate limiting before broad public promotion.
 - Run the required red-team question for a deliberately unknown tuition figure. The response must refuse plainly and cite nothing.
@@ -84,7 +84,7 @@ Regenerate `docs/DATABASE_STATE.md` after every task that touches the database.
 
 - Upgrade to a Supabase plan that provides the required production backup capability.
 - Enable and confirm backup retention or PITR appropriate for grades, budgets, and student profiles.
-- Record the final plan and backup state in `docs/DATABASE_STATE.md`.
+- Record the final plan and backup state in `../docs/DATABASE_STATE.md`.
 
 ### 4. Production SMTP
 
@@ -171,7 +171,7 @@ VITE_SUPABASE_ANON_KEY
 6. finalize Supabase Auth production and preview redirect URLs.
 7. Add the real privacy contact and deletion procedure.
 8. Run full production QA: build, tests, SSR smoke, mobile at 375 px, logged-out browsing, signup/email confirmation, persistence, cross-user RLS, and counselor red-team refusal.
-9. Regenerate `docs/DATABASE_STATE.md` after any database change.
+9. Regenerate `../docs/DATABASE_STATE.md` after any database change.
 10. Commit locally only unless the owner explicitly changes the no-push instruction.
 
 ## Non-negotiable product rules
@@ -193,21 +193,21 @@ VITE_SUPABASE_ANON_KEY
 
 | Purpose | File |
 |---|---|
-| Product and local setup | `app/README.md` |
-| Type/data contract | `app/src/types/index.ts` |
-| Database state | `docs/DATABASE_STATE.md` |
-| Repository/data access | `app/src/data/repository.ts` |
-| Data mapping | `app/src/data/mappers.ts` |
-| Application data provider | `app/src/data/DataProvider.tsx` |
-| Φ v0.1 | `app/src/scoring/phi.ts` |
-| Φ tests | `app/src/scoring/phi.test.ts` |
-| Auth state | `app/src/auth/AuthProvider.tsx` |
-| Counselor UI | `app/src/screens/CounselorScreen.tsx` |
-| Counselor server boundary | `app/supabase/functions/counselor/index.ts` |
-| Production schema | `app/supabase/migrations/202607270002_public_mvp_schema.sql` |
-| Verified catalogue seed | `app/supabase/migrations/202607270003_seed_verified_universities.sql` |
-| Vercel configuration | `app/vercel.json` |
-| Environment variable template | `app/.env.example` |
+| Product and local setup | `README.md` |
+| Type/data contract | `src/types/index.ts` |
+| Database state | `../docs/DATABASE_STATE.md` |
+| Repository/data access | `src/data/repository.ts` |
+| Data mapping | `src/data/mappers.ts` |
+| Application data provider | `src/data/DataProvider.tsx` |
+| Φ v0.1 | `src/scoring/phi.ts` |
+| Φ tests | `src/scoring/phi.test.ts` |
+| Auth state | `src/auth/AuthProvider.tsx` |
+| Counselor UI | `src/screens/CounselorScreen.tsx` |
+| Counselor server boundary | `supabase/functions/counselor/index.ts` |
+| Production schema | `supabase/migrations/202607270002_public_mvp_schema.sql` |
+| Verified catalogue seed | `supabase/migrations/202607270003_seed_verified_universities.sql` |
+| Vercel configuration | `vercel.json` |
+| Environment variable template | `.env.example` |
 
 ## Safe handoff note
 
