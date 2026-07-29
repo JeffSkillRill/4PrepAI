@@ -17,18 +17,42 @@ const AuthContext = createContext<AuthContextValue | null>(null)
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null)
   const [loading, setLoading] = useState(true)
+  const [startupError, setStartupError] = useState<Error | null>(null)
 
   useEffect(() => {
-    const client = getSupabaseClient()
-    void client.auth.getSession().then(({ data }) => {
-      setSession(data.session)
+    let active = true
+    let authClient: ReturnType<typeof getSupabaseClient>
+
+    try {
+      authClient = getSupabaseClient()
+    } catch (reason) {
       setLoading(false)
-    })
-    const { data } = client.auth.onAuthStateChange((_event, nextSession) => {
+      setStartupError(reason instanceof Error ? reason : new Error('4Prep could not initialize authentication.'))
+      return
+    }
+
+    void authClient.auth.getSession()
+      .then(({ data, error }) => {
+        if (!active) return
+        if (error) throw error
+        setSession(data.session)
+        setLoading(false)
+      })
+      .catch((reason: unknown) => {
+        if (!active) return
+        setLoading(false)
+        setStartupError(reason instanceof Error ? reason : new Error('4Prep could not initialize authentication.'))
+      })
+
+    const { data } = authClient.auth.onAuthStateChange((_event, nextSession) => {
+      if (!active) return
       setSession(nextSession)
       setLoading(false)
     })
-    return () => data.subscription.unsubscribe()
+    return () => {
+      active = false
+      data.subscription.unsubscribe()
+    }
   }, [])
 
   const value = useMemo<AuthContextValue>(() => ({
@@ -59,6 +83,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (error) throw error
     },
   }), [loading, session])
+
+  if (startupError) throw startupError
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }

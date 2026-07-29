@@ -4,9 +4,12 @@ import './index.css'
 import App from './App'
 import { DataProvider } from './data/DataProvider'
 import { AuthProvider } from './auth/AuthProvider'
+import { AppErrorBoundary } from './components/AppErrorBoundary'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <AuthProvider><DataProvider><App /></DataProvider></AuthProvider>
+    <AppErrorBoundary>
+      <AuthProvider><DataProvider><App /></DataProvider></AuthProvider>
+    </AppErrorBoundary>
   </StrictMode>,
 )

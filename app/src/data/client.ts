@@ -2,6 +2,17 @@ import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 
 let client: SupabaseClient | undefined
 
+export class ConfigurationError extends Error {
+  constructor() {
+    super('4Prep data is not configured. Copy .env.example to .env and set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY.')
+    this.name = 'ConfigurationError'
+  }
+}
+
+export function isConfigurationError(error: unknown): error is ConfigurationError {
+  return error instanceof ConfigurationError
+}
+
 export function getSupabaseClient(): SupabaseClient {
   if (client) return client
 
@@ -9,9 +20,7 @@ export function getSupabaseClient(): SupabaseClient {
   const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined
 
   if (!url || !anonKey) {
-    throw new Error(
-      '4Prep data is not configured. Copy .env.example to .env and set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY.',
-    )
+    throw new ConfigurationError()
   }
 
   client = createClient(url, anonKey, {
