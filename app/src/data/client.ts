@@ -4,7 +4,9 @@ let client: SupabaseClient | undefined
 
 export class ConfigurationError extends Error {
   constructor() {
-    super('4Prep data is not configured. Copy .env.example to .env and set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY.')
+    super(import.meta.env.DEV
+      ? '4Prep data is not configured. Copy .env.example to .env and set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY.'
+      : '4Prep data service is not configured.')
     this.name = 'ConfigurationError'
   }
 }
