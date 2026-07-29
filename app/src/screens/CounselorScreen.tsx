@@ -1,5 +1,6 @@
 import { ArrowUpRight, FileQuestion, Send, ShieldCheck, Sparkles } from 'lucide-react'
 import { useState } from 'react'
+import { FunctionsHttpError } from '@supabase/supabase-js'
 import { AIResponseBlock, SourceChip } from '../components/Trust'
 import { getSupabaseClient } from '../data/client'
 
@@ -94,6 +95,16 @@ export function CounselorScreen() {
     })
     setLoading(false)
     if (functionError) {
+      if (functionError instanceof FunctionsHttpError
+        && functionError.context instanceof Response
+        && functionError.context.status === 429) {
+        try {
+          setAnswer(await functionError.context.json() as CounselorAnswer)
+          return
+        } catch {
+          // Fall through to the safe generic transport error.
+        }
+      }
       setError('The grounded counselor is unavailable. No unverified answer was displayed.')
       return
     }

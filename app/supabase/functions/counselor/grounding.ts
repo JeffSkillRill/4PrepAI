@@ -32,6 +32,47 @@ export type GroundingRecord = {
   suggestedAction: string | null
 }
 
+const sha256Hex = async (input: string) => {
+  const bytes = new TextEncoder().encode(input)
+  const digest = await crypto.subtle.digest('SHA-256', bytes)
+  return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, '0')).join('')
+}
+
+export const normalizeQuestion = (question: string) =>
+  question.toLowerCase().replace(/\s+/g, ' ').trim()
+
+export async function hashCallerIp(ip: string, salt: string) {
+  return sha256Hex(`${salt}\u0000${ip}`)
+}
+
+export async function buildCounselorCacheKey(
+  question: string,
+  universityIds: string[],
+  records: GroundingRecord[],
+  versions: { cache: string; phi: string; prompt: string },
+) {
+  const recordSnapshot = records
+    .map((record) => ({
+      citationId: record.citationId,
+      field: record.field,
+      status: record.status,
+      suggestedAction: record.suggestedAction,
+      university: record.university,
+      unknownReason: record.unknownReason,
+      value: record.value,
+    }))
+    .sort((left, right) => JSON.stringify(left).localeCompare(JSON.stringify(right)))
+  const keyMaterial = JSON.stringify({
+    cacheVersion: versions.cache,
+    phiVersion: versions.phi,
+    promptVersion: versions.prompt,
+    question: normalizeQuestion(question),
+    records: recordSnapshot,
+    universityIds: [...new Set(universityIds)].sort(),
+  })
+  return sha256Hex(keyMaterial)
+}
+
 export function knownContext(rows: CatalogUniversity[]): GroundingRecord[] {
   return rows.flatMap((university) => {
     const facts = [...(university.university_facts ?? []), ...(university.requirements ?? [])]

@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import {
+  buildCounselorCacheKey,
   buildVerifiedFactAnswer,
+  hashCallerIp,
   knownContext,
+  normalizeQuestion,
   validateFigures,
   type CatalogUniversity,
 } from './grounding'
@@ -63,5 +66,52 @@ describe('counselor grounding', () => {
     }])
 
     expect(buildVerifiedFactAnswer('tuition', records)).toBeNull()
+  })
+
+  it('normalizes question whitespace and case for stable cache keys', async () => {
+    const records = knownContext([southernMississippi])
+    const versions = { cache: 'cache-v1', phi: 'phi-v0.2', prompt: 'prompt-v1' }
+    const first = await buildCounselorCacheKey(
+      '  What IS   tuition at Southern Miss? ',
+      ['usm'],
+      records,
+      versions,
+    )
+    const second = await buildCounselorCacheKey(
+      'what is tuition at southern miss?',
+      ['usm'],
+      records,
+      versions,
+    )
+
+    expect(normalizeQuestion('  What IS   tuition? ')).toBe('what is tuition?')
+    expect(first).toBe(second)
+    expect(first).toMatch(/^[0-9a-f]{64}$/)
+  })
+
+  it('invalidates cache keys when a record or cache version changes', async () => {
+    const records = knownContext([southernMississippi])
+    const versions = { cache: 'cache-v1', phi: 'phi-v0.2', prompt: 'prompt-v1' }
+    const original = await buildCounselorCacheKey('What is tuition?', ['usm'], records, versions)
+    const corrected = await buildCounselorCacheKey('What is tuition?', ['usm'], [{
+      ...records[0],
+      value: '$12,900 / year',
+    }], versions)
+    const bumped = await buildCounselorCacheKey('What is tuition?', ['usm'], records, {
+      ...versions,
+      cache: 'cache-v2',
+    })
+
+    expect(corrected).not.toBe(original)
+    expect(bumped).not.toBe(original)
+  })
+
+  it('hashes anonymous IPs with a salt without retaining the address', async () => {
+    const first = await hashCallerIp('203.0.113.9', 'salt-one')
+    const second = await hashCallerIp('203.0.113.9', 'salt-two')
+
+    expect(first).toMatch(/^[0-9a-f]{64}$/)
+    expect(first).not.toContain('203.0.113.9')
+    expect(second).not.toBe(first)
   })
 })

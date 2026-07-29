@@ -1,6 +1,6 @@
 # 4Prep database state
 
-Last regenerated: 28 July 2026 (Asia/Tashkent), after the US admissions schema and US-only catalogue migrations were applied and verified on Production.
+Last regenerated: 29 July 2026 (Asia/Tashkent), after counselor abuse protection, caching, retention, and operational logging were applied and verified on Production.
 
 This document describes the connected live database. The forward-only SQL files in `app/supabase/migrations/` are the source of truth.
 
@@ -13,7 +13,7 @@ This document describes the connected live database. The forward-only SQL files 
 - Compute: Nano
 - Organization plan shown in the dashboard: Free
 - Project URL: `https://pubhgajlqhdbpwqahtki.supabase.co`
-- Secret names used by the system: `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `PPLX_API_KEY`, `PPLX_MODEL`
+- Secret names used by the system: `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `PPLX_API_KEY`, `PPLX_MODEL`, `COUNSELOR_IP_SALT`
 - No password, API key, service-role key, or other secret is included here.
 
 ## Live row counts
@@ -30,11 +30,15 @@ This document describes the connected live database. The forward-only SQL files 
 | `university_scholarships` | 10 |
 | `student_profiles` | 0 |
 | `saved_plans` | 0 |
-| `counselor_strikes` | 0 |
+| `counselor_strikes` | 4 |
+| `counselor_requests` | 18 |
+| `counselor_cache` | 2 |
 
 The live country query returned 10 `United States` rows and zero rows whose country differs from `United States`. All former Central Asian and European universities, their dependent catalogue rows, and their now-orphaned sources were deleted by the forward migration.
 
 Deleting the former universities cascades to `saved_plans`. The pre-migration and post-migration Production checks both returned zero saved plans, so no user plan was lost during this cutover.
+
+The counselor operational rows are verification traffic from 29 July 2026. They are intentionally short-lived and are covered by the seven-day pruning function described below.
 
 ## US catalogue and evidence coverage
 
@@ -106,8 +110,34 @@ Catalogue foreign keys cascade from a deleted university to facts, programmes, r
 - `student_profiles`: one row per `auth.users.id`; includes destination, field, academic score, budget, `language_test`, language score, pathway preference, intake, consent, and timestamps.
 - `saved_plans`: unique `(user_id, university_id)` relationship.
 - `counselor_strikes`: server-written audit entries for untraceable counselor figures.
+- `counselor_requests`: one operational row per Edge Function invocation. Columns are `request_id`, nullable `user_id`, hash-only `caller_key`, constrained `outcome`, optional hash-only `cache_key`, `created_at`, and `completed_at`.
+- `counselor_cache`: validated cache entries keyed by a SHA-256 hash, with `response_payload`, `created_at`, and atomic `hit_count`.
 
 `student_profiles.language_test` accepts `ielts`, `toefl`, or `duolingo` when present. The score constraint is conditional on the selected scale: IELTS `0–9`, TOEFL `0–120`, and Duolingo `10–160`. A null test requires a null score. User-entered profile values do not carry source IDs.
+
+## Counselor operational controls
+
+The counselor remains available to anonymous visitors; `[functions.counselor] verify_jwt = false` is deliberate. Abuse and cost controls run inside the Edge Function before Perplexity:
+
+- Anonymous callers: 8 accepted requests per rolling minute and 40 per rolling hour.
+- Authenticated callers: 20 accepted requests per rolling minute and 200 per rolling hour.
+- The rate-limit decision is serialized per caller with a PostgreSQL transaction advisory lock, so concurrent requests cannot race past the count.
+- Signed-in callers use `auth.uid()` as their caller key. Anonymous callers use `SHA-256(COUNSELOR_IP_SALT + client IP)` from the gateway-controlled `x-forwarded-for` header. Raw IPs are never stored.
+- A caller-supplied `x-forwarded-for` spoofing check produced the same stored hash for two different supplied values, confirming the Supabase gateway overwrites that header.
+- Outcomes are constrained to `started`, `local_response`, `cache_hit`, `live_call`, `rate_limited`, `provider_failure`, and `server_failure`.
+- The live verification outcome totals are 13 `local_response`, 2 `cache_hit`, 1 `live_call`, and 2 `rate_limited`.
+
+The cache TTL is 24 hours. Keys hash the normalized lowercase/collapsed-whitespace question, sorted matched university IDs, `CACHE_VERSION`, Φ version, prompt version, and a sorted snapshot of every supplied grounding record. A source/value/status correction therefore produces a different key even before a manual version bump. Only validated `verified_fact` and `general_guidance` payloads are cached; refusals are never cached.
+
+`CACHE_VERSION` is the manual invalidation switch and must be bumped with any catalogue migration or behavior change that should invalidate all prior answers.
+
+Perplexity calls have a 25-second `AbortController` timeout and zero automatic retries. Timeout, non-2xx, malformed JSON, missing/invalid structured fields, and provider outages all return the existing grounded refusal without partial output.
+
+`public.prune_counselor_operational_data()` deletes request and cache rows older than seven days. Its live verification returned zero deletions because all operational rows were current. Run it daily from a trusted scheduler or database administrator session:
+
+```sql
+select * from public.prune_counselor_operational_data();
+```
 
 ## Row-level security verification
 
@@ -119,11 +149,15 @@ RLS policies and grants were not changed by the US migrations.
 | `student_profiles` | no privilege | own row only |
 | `saved_plans` | no privilege | own rows only |
 | `counselor_strikes` | no privilege | own strikes readable; service role writes |
+| `counselor_requests` | no privilege | no privilege; service role only |
+| `counselor_cache` | no privilege | no privilege; service role only |
 
-Live `anon` client test on 28 July 2026:
+Live `anon` client tests:
 
 - `universities`: success, exact count `10`.
 - `student_profiles`: PostgreSQL `42501`, `permission denied for table student_profiles`.
+- `counselor_requests` on 29 July: HTTP `401`, PostgreSQL `42501`, `permission denied for table counselor_requests`.
+- `counselor_cache` on 29 July: HTTP `401`, PostgreSQL `42501`, `permission denied for table counselor_cache`.
 
 The owner policies continue to compare `auth.uid()` to `user_id`; a signed-in user cannot select or mutate another user’s profile or saved plans.
 
@@ -135,8 +169,19 @@ Live SQL and anonymous API checks returned:
 - Universities where `country <> 'United States'`: `0`.
 - Student profiles: `0`.
 - Saved plans: `0`.
-- Migrations recorded: `202607280005,202607280006`.
+- Counselor strikes: `4`.
+- Counselor requests: `18`.
+- Counselor cache entries: `2`, both with `hit_count = 1`.
+- Migrations recorded through `202607290007`.
 - Fact coverage: exactly the sourced/unknown counts in the table above.
+
+Counselor production checks returned:
+
+- Southern Mississippi tuition: `verified_fact`, `$12,794 / year for a nonresident undergraduate (2026-27)`, citation `us-usm-coa`.
+- The identical second request: `cache_hit`, identical content/citations, and cache `hit_count` incremented from 0 to 1.
+- Berea minimum GPA, repeated twice: two fresh `local_response` refusals with no citations and `cache_key = null`; no provider call and no cache row.
+- Anonymous burst: 8 accepted requests followed by HTTP `429`, `Retry-After: 60`, and the designed refusal; the audit contained no `live_call` or `provider_failure` for the burst.
+- General essay guidance: one `live_call`, then an identical `cache_hit`; the second request made no Perplexity call.
 
 Three stored figures were reopened and matched against the cited official page:
 
@@ -171,15 +216,17 @@ Applied to the live Production branch in order and recorded in `supabase_migrati
 4. `202607270004_record_migration_history.sql`
 5. `202607280005_us_admissions_enums.sql`
 6. `202607280006_us_catalogue.sql`
+7. `202607290007_counselor_hardening.sql`
 
-Migrations 005 and 006 were applied from the checked-in files through Supabase SQL Editor because this workspace has neither a Supabase access token nor a database password. Migration 006 runs as a single transaction and aborts unless `saved_plans` is still zero.
+Migrations 005 and 006 were applied from the checked-in files through Supabase SQL Editor. Migration 007 was applied from its checked-in file with linked `supabase db push` after a dry run showed it as the only pending migration. Linked database lint returned no schema errors. Migration 006 runs as a single transaction and aborts unless `saved_plans` is still zero.
 
 ## ⚠ Needs Jeff
 
 - Review the explicit unknown audit and request the listed current figures from each university. Update them only through a new forward migration with official source rows; do not edit migration 006.
-- Supply a Perplexity API key. Add `PPLX_API_KEY` as a Supabase Edge Function secret; optionally set `PPLX_MODEL=sonar`. Never add either to a `VITE_` variable.
-- Deploy `app/supabase/functions/counselor/index.ts` as the `counselor` Edge Function. The connected dashboard’s browser editor previously returned HTTP 400 even for its untouched minimal template and exposed no actionable error, so the function is not live. Use a Supabase access token/CLI or retry the dashboard deployment.
-- Confirm the counselor function allows publishable/anonymous invocations (the checked-in `supabase/config.toml` sets `verify_jwt = false`). Add rate limiting before broad promotion if anonymous abuse becomes material.
+- Schedule `select * from public.prune_counselor_operational_data();` daily with Supabase Cron or another trusted scheduler. The cleanup function exists and was live-tested, but migration 007 does not enable a scheduler extension automatically.
+- Review `counselor_requests` outcome totals and `counselor_cache.hit_count` after real traffic. Tune the named rate constants if legitimate students frequently receive 429s; do not remove the hourly limit.
+- Bump `CACHE_VERSION` whenever a catalogue migration should invalidate all cached answers. Record fingerprints already invalidate changed university records, but the manual bump is the broad safety switch.
+- Use Perplexity billing as an independent final backstop. Current official documentation describes prepaid credits and optional automatic reload, but does not document a separate hard-cap control. Keep automatic reload disabled and maintain a deliberately small prepaid balance; if Jeff’s console exposes a group spending cap, set it. Otherwise ask Perplexity support for a hard-cap option and monitor the billing dashboard.
 - Configure Supabase Auth **Site URL** to `https://app.4prep.ai` and add the same origin plus any required Vercel preview URL to **Redirect URLs**.
 - Configure production email delivery/SMTP. Supabase’s default email service is rate-limited and is not suitable for a public launch.
 - The dashboard shows the organization on the Free plan and no database backups. Upgrade to a plan with automated backups/PITR and enable the desired retention before collecting student data.
