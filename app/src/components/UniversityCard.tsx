@@ -24,7 +24,15 @@ export function UniversityCard({ university, saved, onSave, onOpen, fitsAfterSch
       <div className="p-5">
         {fitsAfterScholarship && <p className="mb-3 inline-flex rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold text-emerald-900">Fits ceiling after published scholarship</p>}
         <p className="line-clamp-2 min-h-12 text-sm leading-6 text-muted">{university.tagline}{university.fit ? `. ${university.fit.summary}` : ''}</p>
-        {!university.fit && <div className="mt-4"><MissingValue reason="Complete intake to see your fit." action="Build your pathway to calculate all five fit components." /></div>}
+        {!university.fit && (
+          <div className="mt-4">
+            <MissingValue
+              title="Your fit isn’t calculated yet"
+              reason="We haven’t got your profile yet, so we can’t score this university for you."
+              action="Complete the intake to see all five fit components."
+            />
+          </div>
+        )}
         <div className="mt-4 space-y-4 border-y border-line py-4 text-sm">
           <div><span className="block text-xs font-semibold uppercase tracking-wide text-muted">Published cost of attendance</span><DataValue point={university.totalCostOfAttendance} className="mt-1 font-bold" /></div>
           <div><span className="block text-xs font-semibold uppercase tracking-wide text-muted">Aid-adjusted net-cost scenario</span><div className="mt-1 font-bold"><PublishedNetCost university={university} compact /></div></div>

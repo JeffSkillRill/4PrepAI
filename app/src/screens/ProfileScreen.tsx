@@ -48,7 +48,7 @@ export function ProfileScreen({ universityId, profile, saved, onToggleSave }: { 
             <p className="mt-4 leading-7 text-muted">{university.description}</p>
             <div className="mt-6 grid gap-3 sm:grid-cols-3">{university.highlights.map((highlight) => <div key={highlight} className="flex items-start gap-2 rounded-xl bg-forest-50 p-4 text-sm font-semibold text-forest-900"><Check size={17} className="mt-0.5 shrink-0 text-forest-600" />{highlight}</div>)}</div>
             <div className="mt-8 border-t border-line pt-7"><h3 className="display text-xl font-extrabold">4Prep fit report</h3>
-              {university.fit ? <><p className="mt-1 text-sm text-muted">Calculated only from the profile you entered—not an admission prediction.</p><FitBreakdown fit={university.fit} /></> : <div className="mt-4"><MissingValue reason="Complete intake to see your fit." action="Build your pathway to calculate all five fit components." /></div>}
+              {university.fit ? <><p className="mt-1 text-sm text-muted">Calculated only from the profile you entered—not an admission prediction.</p><FitBreakdown fit={university.fit} /></> : <div className="mt-4"><MissingValue title="Your fit isn’t calculated yet" reason="We haven’t got your profile yet, so we can’t score this university for you." action="Complete the intake to see all five fit components." /></div>}
             </div>
           </section>
 
@@ -92,7 +92,7 @@ export function ProfileScreen({ universityId, profile, saved, onToggleSave }: { 
         </div>
 
         <aside className="card sticky top-36 overflow-hidden">
-          <div className="bg-forest-900 p-6 text-white"><p className="text-xs font-bold uppercase tracking-[.14em] text-forest-200">At a glance</p><h2 className="display mt-2 text-2xl font-extrabold">Your route here</h2>{university.fit ? <p className="mt-2 text-sm leading-6 text-white/70">{university.fit.summary}</p> : <div className="mt-3"><MissingValue reason="No profile has been entered." action="Complete intake to see a profile-specific route." /></div>}</div>
+          <div className="bg-forest-900 p-6 text-white"><p className="text-xs font-bold uppercase tracking-[.14em] text-forest-200">At a glance</p><h2 className="display mt-2 text-2xl font-extrabold">Your route here</h2>{university.fit ? <p className="mt-2 text-sm leading-6 text-white/70">{university.fit.summary}</p> : <div className="mt-3"><MissingValue title="Your route isn’t calculated yet" reason="No profile has been entered yet." action="Complete the intake to see a route based on your profile." /></div>}</div>
           <div className="space-y-5 p-6"><Summary label="Published cost of attendance" value={<DataValue point={university.totalCostOfAttendance} />} /><Summary label="Aid-adjusted net-cost scenario" value={<PublishedNetCost university={university} compact />} /><Summary label="International aid" value={<DataValue point={university.aidInternational} />} /><Summary label="Test policy" value={<DataValue point={university.testPolicy} />} /><Summary label="Deadline" value={<DataValue point={university.deadline} />} />
             <button onClick={onToggleSave} className={`flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3.5 font-bold transition ${saved ? 'bg-forest-100 text-forest-900' : 'bg-forest-800 text-white hover:bg-forest-700'}`}>{saved ? <BookmarkCheck size={19} /> : <Bookmark size={19} />}{saved ? 'Saved to shortlist' : 'Save university'}</button>
           </div>

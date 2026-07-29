@@ -30,7 +30,7 @@ export function CompareScreen({ profile }: { profile: StudentProfile | null }) {
     fit: computeFit(profile, university),
   } : university), [data, profile])
   const rows: Row[] = [
-    { label: '4Prep fit', render: (university) => university.fit ? <ExpandableFit fit={university.fit} compact /> : <MissingValue reason="No profile has been entered." action="Complete intake to calculate this comparison." /> },
+    { label: '4Prep fit', render: (university) => university.fit ? <ExpandableFit fit={university.fit} compact /> : <MissingValue title="Your fit isn’t calculated yet" reason="No profile has been entered yet." action="Complete the intake to compare fit across these universities." /> },
     { label: 'Cost of attendance', render: (university) => <DataValue point={university.totalCostOfAttendance} /> },
     { label: 'Aid-adjusted net-cost scenario', render: (university) => <PublishedNetCost university={university} compact /> },
     { label: 'Tuition', render: (university) => <DataValue point={university.tuition} /> },
