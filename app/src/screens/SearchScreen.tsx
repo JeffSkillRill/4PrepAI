@@ -77,28 +77,26 @@ export function SearchScreen({ query, setQuery, saved, onToggleSave, onOpen }: P
   const countries = useMemo(() => [...new Set((universities ?? []).map((item) => item.country))].sort(), [universities])
   const fields = useMemo(() => [...new Set((universities ?? []).flatMap((item) => item.programs.map((program) => program.field)))].sort(), [universities])
   const { filtered, unknownCostCount } = useMemo(() => {
-    let unknownCount = 0
     const items = (universities ?? []).flatMap((university) => {
       const haystack = `${university.name} ${university.city} ${university.country} ${university.programs.map((program) => `${program.name} ${program.field}`).join(' ')}`.toLowerCase()
       if (query.trim() && !haystack.includes(query.trim().toLowerCase())) return []
       if (country && university.country !== country) return []
       if (field && !university.programs.some((program) => program.field === field)) return []
       if (hasFullNeedPolicy(university) || hasComprehensiveInternationalFunding(university)) {
-        unknownCount += 1
-        return [{ university, fitsAfterScholarship: false }]
+        return [{ university, fitsAfterScholarship: false, costUnknown: true }]
       }
       const scenario = bestPublishedCostScenario(university)
       if (scenario === null) {
-        unknownCount += 1
-        return [{ university, fitsAfterScholarship: false }]
+        return [{ university, fitsAfterScholarship: false, costUnknown: true }]
       }
       if (scenario.netCost > budget) return []
       return [{
         university,
         fitsAfterScholarship: scenario.publishedAid > 0 && scenario.stickerCost > budget,
+        costUnknown: false,
       }]
     })
-    return { filtered: items, unknownCostCount: unknownCount }
+    return { filtered: items, unknownCostCount: items.filter((item) => item.costUnknown).length }
   }, [universities, query, country, field, budget])
 
   if (status === 'loading') return <LoadingState />

@@ -1,7 +1,7 @@
 import { ArrowLeft, ArrowRight, BookOpen, Bookmark, BookmarkCheck, CalendarDays, Check, CircleDollarSign, GraduationCap, Languages, MapPin, Sparkles } from 'lucide-react'
 import { useState } from 'react'
 import type { Pathway, StudentProfile, University } from '../types'
-import { DataValue, ExpandableFit } from '../components/Trust'
+import { ExpandableFit } from '../components/Trust'
 import { DesignedState, LoadingState } from '../components/States'
 import { getRankedPathway } from '../data/repository'
 import { UniversityVisual } from '../components/UniversityVisual'

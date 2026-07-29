@@ -103,6 +103,7 @@ export default function App() {
 
   useEffect(() => {
     if (!user) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- Auth transitions must clear private in-memory data before another user's records can render.
       setSaved(new Set())
       setProfile(null)
       setPathway(null)

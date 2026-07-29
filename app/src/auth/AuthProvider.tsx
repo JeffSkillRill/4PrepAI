@@ -14,22 +14,29 @@ type AuthContextValue = {
 
 const AuthContext = createContext<AuthContextValue | null>(null)
 
+type AuthStartup =
+  | { client: ReturnType<typeof getSupabaseClient>; error: null }
+  | { client: null; error: Error }
+
 export function AuthProvider({ children }: { children: ReactNode }) {
+  const [startup] = useState<AuthStartup>(() => {
+    try {
+      return { client: getSupabaseClient(), error: null }
+    } catch (reason) {
+      return {
+        client: null,
+        error: reason instanceof Error ? reason : new Error('4Prep could not initialize authentication.'),
+      }
+    }
+  })
   const [session, setSession] = useState<Session | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [startupError, setStartupError] = useState<Error | null>(null)
+  const [loading, setLoading] = useState(startup.client !== null)
+  const [runtimeError, setRuntimeError] = useState<Error | null>(null)
 
   useEffect(() => {
     let active = true
-    let authClient: ReturnType<typeof getSupabaseClient>
-
-    try {
-      authClient = getSupabaseClient()
-    } catch (reason) {
-      setLoading(false)
-      setStartupError(reason instanceof Error ? reason : new Error('4Prep could not initialize authentication.'))
-      return
-    }
+    const authClient = startup.client
+    if (!authClient) return
 
     void authClient.auth.getSession()
       .then(({ data, error }) => {
@@ -41,7 +48,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .catch((reason: unknown) => {
         if (!active) return
         setLoading(false)
-        setStartupError(reason instanceof Error ? reason : new Error('4Prep could not initialize authentication.'))
+        setRuntimeError(reason instanceof Error ? reason : new Error('4Prep could not initialize authentication.'))
       })
 
     const { data } = authClient.auth.onAuthStateChange((_event, nextSession) => {
@@ -53,7 +60,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       active = false
       data.subscription.unsubscribe()
     }
-  }, [])
+  }, [startup.client])
 
   const value = useMemo<AuthContextValue>(() => ({
     user: session?.user ?? null,
@@ -84,7 +91,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     },
   }), [loading, session])
 
-  if (startupError) throw startupError
+  if (startup.error) throw startup.error
+  if (runtimeError) throw runtimeError
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }

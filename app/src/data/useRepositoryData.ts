@@ -12,6 +12,7 @@ export function useRepositoryData<T>(loader: () => Promise<T>, dependencies: Dep
 
   useEffect(() => {
     let active = true
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- Starting or retrying this async resource must immediately replace stale status with its loading state.
     setStatus('loading')
     loader()
       .then((value) => {
