@@ -19,8 +19,8 @@ export function PublishedNetCost({ university, compact = false }: { university: 
       ? university.aidInternational.sourceId
       : null
     return (
-      <span className="inline-flex flex-wrap items-center gap-1.5">
-        <span>Individual after full-need aid</span>
+      <span className="flex min-w-0 max-w-full flex-wrap items-start gap-1.5">
+        <span className="min-w-0 break-words">Individual after full-need aid</span>
         {sourceId && <SourceChip sourceId={sourceId} />}
       </span>
     )
@@ -31,8 +31,8 @@ export function PublishedNetCost({ university, compact = false }: { university: 
       ? university.aidInternational.sourceId
       : null
     return (
-      <span className="inline-flex flex-wrap items-center gap-1.5">
-        <span>Individual after comprehensive funding</span>
+      <span className="flex min-w-0 max-w-full flex-wrap items-start gap-1.5">
+        <span className="min-w-0 break-words">Individual after comprehensive funding</span>
         {sourceId && <SourceChip sourceId={sourceId} />}
       </span>
     )
@@ -53,8 +53,8 @@ export function PublishedNetCost({ university, compact = false }: { university: 
   ])]
   return (
     <span>
-      <span className="inline-flex flex-wrap items-center gap-1.5">
-        <span>{money(scenario.currency, scenario.netCost)} / year</span>
+      <span className="flex min-w-0 max-w-full flex-wrap items-start gap-1.5">
+        <span className="min-w-0 break-words">{money(scenario.currency, scenario.netCost)} / year</span>
         {sourceIds.map((sourceId) => <SourceChip key={sourceId} sourceId={sourceId} />)}
       </span>
       {scenario.publishedAid > 0 && (
