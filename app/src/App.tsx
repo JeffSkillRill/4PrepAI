@@ -1,13 +1,26 @@
 import { LogIn, Menu, Search, UserRound, X } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useAuth } from './auth/AuthProvider'
+import {
+  clearPendingAuth,
+  getAuthStorage,
+  readPendingAuth,
+  resolveAccountProfile,
+  writePendingAuth,
+  type PendingDestination,
+} from './auth/pendingAuth'
 import type { Pathway, StudentProfile, University, View } from './types'
 import { CompareScreen } from './screens/CompareScreen'
 import { IntakeScreen, ResultsScreen } from './screens/FlowScreens'
 import { ProfileScreen } from './screens/ProfileScreen'
 import { SearchScreen } from './screens/SearchScreen'
 import { SavedScreen, ToolsScreen } from './screens/ToolsSavedScreens'
-import { AuthScreen, PrivacyScreen } from './screens/AuthPrivacyScreens'
+import {
+  AuthCallbackScreen,
+  AuthScreen,
+  PrivacyScreen,
+  ResetPasswordScreen,
+} from './screens/AuthPrivacyScreens'
 import { CounselorScreen } from './screens/CounselorScreen'
 import { DesignedState, LoadingState } from './components/States'
 import {
@@ -36,6 +49,8 @@ const viewPaths: Partial<Record<View, string>> = {
   saved: '/saved',
   counselor: '/counselor',
   auth: '/login',
+  auth_callback: '/auth/callback',
+  reset_password: '/reset-password',
   privacy: '/privacy',
 }
 
@@ -85,7 +100,51 @@ export default function App() {
   const [pathway, setPathway] = useState<Pathway | null>(null)
   const [saved, setSaved] = useState<Set<string>>(new Set())
   const [privateLoading, setPrivateLoading] = useState(false)
-  const { user, loading: authLoading } = useAuth()
+  const [privateLoadFailed, setPrivateLoadFailed] = useState(false)
+  const [privateRetry, setPrivateRetry] = useState(0)
+  const profileRef = useRef<StudentProfile | null>(null)
+  const profileOwnerRef = useRef<string | null>(null)
+  const loadedUserRef = useRef<string | null>(null)
+  const authStorage = getAuthStorage()
+  const [initialPendingAuth] = useState(() => readPendingAuth(authStorage))
+  const [returnDestination, setReturnDestination] = useState<PendingDestination>(
+    () => initialPendingAuth?.destination ?? { view: 'saved', universityId: null },
+  )
+  const [shouldReturnAfterAuth, setShouldReturnAfterAuth] = useState(
+    () => initialPendingAuth !== null,
+  )
+  const { user, loading: authLoading, recordPrivacyConsent } = useAuth()
+
+  const callbackKind = (() => {
+    if (typeof window === 'undefined') return 'unknown'
+    const kind = new URLSearchParams(window.location.search).get('kind')
+    return kind === 'confirmation' || kind === 'google' ? kind : 'unknown'
+  })()
+
+  const navigateToDestination = useCallback((destination: PendingDestination) => {
+    if (destination.view === 'profile' && destination.universityId) {
+      window.history.pushState({}, '', `/universities/${encodeURIComponent(destination.universityId)}`)
+      setSelectedUniversityId(destination.universityId)
+      setView('profile')
+      return
+    }
+    const path = viewPaths[destination.view] ?? '/universities'
+    window.history.pushState({}, '', path)
+    setSelectedUniversityId(null)
+    setView(destination.view)
+  }, [])
+
+  const rememberAuth = (destination: PendingDestination) => {
+    const previous = readPendingAuth(authStorage)
+    const pending = {
+      destination,
+      profile: profileOwnerRef.current === null ? profileRef.current : null,
+      ...(previous?.consentedAt ? { consentedAt: previous.consentedAt } : {}),
+    }
+    writePendingAuth(authStorage, pending)
+    setReturnDestination(destination)
+    setShouldReturnAfterAuth(true)
+  }
 
   useEffect(() => {
     const handlePop = () => {
@@ -105,23 +164,108 @@ export default function App() {
     if (!user) {
       // eslint-disable-next-line react-hooks/set-state-in-effect -- Auth transitions must clear private in-memory data before another user's records can render.
       setSaved(new Set())
-      setProfile(null)
-      setPathway(null)
+      loadedUserRef.current = null
+      setPrivateLoading(false)
+      setPrivateLoadFailed(false)
+      if (profileOwnerRef.current !== null) {
+        profileOwnerRef.current = null
+        profileRef.current = null
+        setProfile(null)
+        setPathway(null)
+      }
       return
     }
+    if (loadedUserRef.current === user.id) return
+    loadedUserRef.current = user.id
     let active = true
+    const pending = readPendingAuth(authStorage)
+    const anonymousProfile = pending?.profile
+      ?? (profileOwnerRef.current === null ? profileRef.current : null)
+    setPrivateLoadFailed(false)
     setPrivateLoading(true)
-    Promise.all([getStudentProfile(user.id), listSavedPlanIds(user.id)])
-      .then(([nextProfile, ids]) => {
+    Promise.all([
+      getStudentProfile(user.id),
+      listSavedPlanIds(user.id),
+      pending?.consentedAt
+        ? recordPrivacyConsent(pending.consentedAt)
+        : Promise.resolve(),
+    ])
+      .then(async ([storedProfile, ids]) => {
+        const resolved = await resolveAccountProfile({
+          userId: user.id,
+          anonymousProfile,
+          storedProfile,
+          saveProfile: saveStudentProfile,
+        })
         if (!active) return
-        setProfile(nextProfile)
+        profileRef.current = resolved.profile
+        profileOwnerRef.current = user.id
+        setProfile(resolved.profile)
         setSaved(new Set(ids))
+        clearPendingAuth(authStorage)
+      })
+      .catch((reason: unknown) => {
+        loadedUserRef.current = null
+        if (active) setPrivateLoadFailed(true)
+        if (import.meta.env.DEV) console.error('Could not restore private account data:', reason)
       })
       .finally(() => {
         if (active) setPrivateLoading(false)
       })
     return () => { active = false }
-  }, [user])
+  }, [authStorage, privateRetry, recordPrivacyConsent, user])
+
+  useEffect(() => {
+    if (
+      view !== 'auth_callback'
+      || callbackKind !== 'google'
+      || authLoading
+      || privateLoading
+      || privateLoadFailed
+      || !user
+    ) return
+    clearPendingAuth(authStorage)
+    const timer = window.setTimeout(() => {
+      setShouldReturnAfterAuth(false)
+      navigateToDestination(returnDestination)
+    }, 0)
+    return () => window.clearTimeout(timer)
+  }, [
+    authLoading,
+    authStorage,
+    callbackKind,
+    navigateToDestination,
+    privateLoadFailed,
+    privateLoading,
+    returnDestination,
+    user,
+    view,
+  ])
+
+  useEffect(() => {
+    if (
+      !shouldReturnAfterAuth
+      || view !== 'auth'
+      || authLoading
+      || privateLoading
+      || privateLoadFailed
+      || !user
+    ) return
+    const timer = window.setTimeout(() => {
+      setShouldReturnAfterAuth(false)
+      navigateToDestination(returnDestination)
+    }, 0)
+    return () => window.clearTimeout(timer)
+  }, [
+    authLoading,
+    navigateToDestination,
+    privateLoadFailed,
+    privateLoading,
+    returnDestination,
+    shouldReturnAfterAuth,
+    user,
+    view,
+  ])
 
   useEffect(() => {
     if (view !== 'results' || !profile || pathway) return
@@ -129,6 +273,9 @@ export default function App() {
   }, [view, profile, pathway])
 
   const navigate = (next: View) => {
+    if (next === 'auth' && !user && view !== 'auth') {
+      rememberAuth({ view, universityId: view === 'profile' ? selectedUniversityId : null })
+    }
     const path = viewPaths[next] ?? '/universities'
     window.history.pushState({}, '', path)
     setView(next)
@@ -164,14 +311,70 @@ export default function App() {
     if (!saved.has(id)) toggleSave(id)
   }
   const completeIntake = (nextProfile: StudentProfile, nextPathway: Pathway) => {
+    profileRef.current = nextProfile
+    profileOwnerRef.current = user?.id ?? null
     setProfile(nextProfile)
     setPathway(nextPathway)
-    if (user) void saveStudentProfile(user.id, nextProfile)
+    if (user) {
+      void saveStudentProfile(user.id, nextProfile).catch((reason: unknown) => {
+        if (import.meta.env.DEV) console.error('Could not save the student profile:', reason)
+      })
+    }
     navigate('results')
   }
 
+  const prepareGoogle = (consentedAt: string) => {
+    const existing = readPendingAuth(authStorage)
+    writePendingAuth(authStorage, {
+      destination: existing?.destination ?? returnDestination,
+      profile: existing?.profile ?? (profileOwnerRef.current === null ? profileRef.current : null),
+      consentedAt,
+    })
+    setShouldReturnAfterAuth(true)
+  }
+
+  const finishAuthentication = () => {
+    setShouldReturnAfterAuth(false)
+    navigateToDestination(returnDestination)
+  }
+
+  const finishSignOut = () => {
+    clearPendingAuth(authStorage)
+    profileRef.current = null
+    profileOwnerRef.current = null
+    loadedUserRef.current = null
+    setProfile(null)
+    setPathway(null)
+    setSaved(new Set())
+    setShouldReturnAfterAuth(false)
+  }
+
+  const finishDeletion = () => {
+    finishSignOut()
+    setReturnDestination({ view: 'saved', universityId: null })
+  }
+
+  const authScreen = (
+    <AuthScreen
+      onNavigate={navigate}
+      onAuthenticated={finishAuthentication}
+      onPrepareGoogle={prepareGoogle}
+      onSignedOut={finishSignOut}
+      onAccountDeleted={finishDeletion}
+    />
+  )
+
   let screen: React.ReactNode
   if (authLoading || privateLoading) screen = <LoadingState />
+  else if (privateLoadFailed && user) screen = (
+    <DesignedState
+      state="error"
+      onReset={() => {
+        loadedUserRef.current = null
+        setPrivateRetry((current) => current + 1)
+      }}
+    />
+  )
   else if (view === 'search') screen = <SearchScreen query={query} setQuery={setQuery} saved={saved} onToggleSave={toggleSave} onOpen={openUniversity} />
   else if (view === 'profile' && selectedUniversityId) screen = <ProfileScreen universityId={selectedUniversityId} profile={profile} saved={saved.has(selectedUniversityId)} onToggleSave={() => toggleSave(selectedUniversityId)} />
   else if (view === 'profile') screen = <DesignedState state="empty" onReset={() => navigate('search')} />
@@ -182,9 +385,11 @@ export default function App() {
   else if (view === 'tools') screen = <ToolsScreen onNavigate={navigate} />
   else if (view === 'saved') screen = user
     ? <SavedScreen saved={saved} onToggleSave={toggleSave} onOpen={openUniversity} onExplore={() => navigate('search')} />
-    : <AuthScreen onNavigate={navigate} />
+    : authScreen
   else if (view === 'counselor') screen = <CounselorScreen />
-  else if (view === 'auth') screen = <AuthScreen onNavigate={navigate} />
+  else if (view === 'auth') screen = authScreen
+  else if (view === 'reset_password') screen = <ResetPasswordScreen onNavigate={navigate} />
+  else if (view === 'auth_callback') screen = <AuthCallbackScreen kind={callbackKind} onNavigate={navigate} onContinue={finishAuthentication} />
   else screen = <PrivacyScreen />
 
   return (

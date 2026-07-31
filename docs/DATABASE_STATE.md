@@ -1,6 +1,6 @@
 # 4Prep database state
 
-Last regenerated: 29 July 2026 (Asia/Tashkent), after counselor abuse protection, caching, retention, and operational logging were applied and verified on Production.
+Last regenerated: 29 July 2026 (Asia/Tashkent), after counselor hardening and the authenticated account-deletion function were deployed and checked on Production.
 
 This document describes the connected live database. The forward-only SQL files in `app/supabase/migrations/` are the source of truth.
 
@@ -161,6 +161,22 @@ Live `anon` client tests:
 
 The owner policies continue to compare `auth.uid()` to `user_id`; a signed-in user cannot select or mutate another user’s profile or saved plans.
 
+## Account deletion
+
+The `delete-account` Edge Function is active in Production with gateway JWT
+verification enabled. It accepts no client-supplied user ID: it validates the
+bearer token with Supabase Auth, deletes that exact auth user through the
+server-only service-role client, and then counts `student_profiles` and
+`saved_plans` rows for the deleted user. It reports success only when both
+counts are zero.
+
+Both private tables already reference `auth.users(id) on delete cascade`, so no
+schema migration was required and no RLS policy was weakened. An
+unauthenticated Production request returned HTTP `401`
+`UNAUTHORIZED_NO_AUTH_HEADER`. A destructive authenticated run still requires a
+disposable confirmed test account; there were no student profile or saved-plan
+rows available to delete during this verification.
+
 ## Production verification
 
 Live SQL and anonymous API checks returned:
@@ -229,6 +245,14 @@ Migrations 005 and 006 were applied from the checked-in files through Supabase S
 - Use Perplexity billing as an independent final backstop. Current official documentation describes prepaid credits and optional automatic reload, but does not document a separate hard-cap control. Keep automatic reload disabled and maintain a deliberately small prepaid balance; if Jeff’s console exposes a group spending cap, set it. Otherwise ask Perplexity support for a hard-cap option and monitor the billing dashboard.
 - Configure Supabase Auth **Site URL** to `https://app.4prep.ai` and add the same origin plus any required Vercel preview URL to **Redirect URLs**.
 - Configure production email delivery/SMTP. Supabase’s default email service is rate-limited and is not suitable for a public launch.
+- Create the Google OAuth Web client and configure its exact Supabase callback
+  URIs, then paste the client ID and secret into **Supabase → Authentication →
+  Providers → Google**. The live Auth settings check on 29 July returned
+  `google: false`. Follow `docs/AUTH_SETUP.md`; never place the client secret in
+  Vite or another client environment.
+- Publish the Google OAuth consent screen to **Production** before public
+  launch. Keep the requested scopes to OpenID, email, and profile.
 - The dashboard shows the organization on the Free plan and no database backups. Upgrade to a plan with automated backups/PITR and enable the desired retention before collecting student data.
-- Supply the public privacy/support contact and choose the account-deletion process. The app’s privacy page deliberately calls this out instead of inventing contact details.
+- Supply a public privacy/support contact. Self-service deletion is now
+  implemented and the production Edge Function is active.
 - Create/import the Vercel project, set `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`, deploy `app/`, attach `app.4prep.ai`, and configure DNS. No Vercel credentials or connected project are available in this workspace.

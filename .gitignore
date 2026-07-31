@@ -4,7 +4,9 @@ dist/
 .env.*
 !.env.example
 .DS_Store
+.~lock.*#
 *.log
 *.tsbuildinfo
 .smoke-out/
 app/dist/
+app/supabase/.temp/

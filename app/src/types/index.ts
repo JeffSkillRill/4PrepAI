@@ -8,6 +8,8 @@ export type View =
   | 'saved'
   | 'counselor'
   | 'auth'
+  | 'auth_callback'
+  | 'reset_password'
   | 'privacy'
 
 export type DevState = 'ready' | 'loading' | 'empty' | 'partial' | 'no_results' | 'refusal' | 'error' | 'offline'
