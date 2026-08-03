@@ -17,6 +17,8 @@ import type { FormEvent } from 'react'
 import { logUnmappedAuthError, mapAuthError, type AuthProblem } from '../auth/errors'
 import { useAuth } from '../auth/AuthProvider'
 import type { View } from '../types'
+import { AppLink } from '../components/AppLink'
+import { viewPaths } from '../routes'
 
 type AuthScreenProps = {
   onNavigate: (view: View) => void
@@ -163,14 +165,14 @@ export function AuthScreen({
 
   if (accountDeleted) {
     return (
-      <main className="soft-grid py-16">
+      <div className="soft-grid py-16">
         <section className="card mx-auto w-[min(520px,calc(100%-32px))] p-8 text-center">
           <CheckCircle2 size={46} className="mx-auto text-forest-600" />
           <h1 className="display mt-5 text-3xl font-extrabold">Account deleted</h1>
           <p className="mt-3 leading-6 text-muted">Your account, student profile, and saved plans were permanently deleted.</p>
-          <button onClick={() => onNavigate('search')} className={`mt-7 w-full rounded-xl bg-forest-800 px-4 py-3 font-bold text-white ${focusButtonClass}`}>Return to universities</button>
+          <AppLink href={viewPaths.search as string} onNavigate={() => onNavigate('search')} className={`mt-7 flex w-full items-center justify-center rounded-xl bg-forest-800 px-4 py-3 font-bold text-white ${focusButtonClass}`}>Return to universities</AppLink>
         </section>
-      </main>
+      </div>
     )
   }
 
@@ -230,7 +232,7 @@ export function AuthScreen({
       }
     }
     return (
-      <main className="page-container py-10 sm:py-16">
+      <div className="page-container py-10 sm:py-16">
         <section className="card mx-auto max-w-xl p-6 sm:p-10">
           <div className="text-center">
             <CheckCircle2 size={46} className="mx-auto text-forest-600" />
@@ -239,7 +241,7 @@ export function AuthScreen({
           </div>
 
           <div className="mt-7 grid gap-3 sm:grid-cols-2">
-            <button onClick={() => onNavigate('saved')} className={`rounded-xl bg-forest-800 px-5 py-3 font-bold text-white ${focusButtonClass}`}>Open saved plans</button>
+            <AppLink href={viewPaths.saved as string} onNavigate={() => onNavigate('saved')} className={`flex items-center justify-center rounded-xl bg-forest-800 px-5 py-3 font-bold text-white ${focusButtonClass}`}>Open saved plans</AppLink>
             <button
               onClick={() => void completeSignOut()}
               disabled={accountAction !== 'ready'}
@@ -325,7 +327,7 @@ export function AuthScreen({
             <ErrorNotice problem={problem} />
           </div>
         </section>
-      </main>
+      </div>
     )
   }
 
@@ -371,7 +373,7 @@ export function AuthScreen({
   }
 
   return (
-    <main className="soft-grid py-8 sm:py-16">
+    <div className="soft-grid py-8 sm:py-16">
       <section className="card mx-auto w-[min(520px,calc(100%-32px))] p-6 sm:p-9">
         <div className="grid size-13 place-items-center rounded-xl bg-forest-50 text-forest-700"><LockKeyhole /></div>
         <h1 className="display mt-5 text-3xl font-extrabold">{mode === 'sign_in' ? 'Welcome back' : 'Create your private account'}</h1>
@@ -412,9 +414,9 @@ export function AuthScreen({
                 type="checkbox"
                 checked={googleConsented}
                 onChange={(event) => setGoogleConsented(event.target.checked)}
-                className="mt-1 size-4 shrink-0 accent-forest-700 focus-visible:ring-2 focus-visible:ring-forest-400"
+                className="mt-0.5 size-6 shrink-0 accent-forest-700 focus-visible:ring-2 focus-visible:ring-forest-400"
               />
-              <span>To continue with Google, I agree to 4Prep storing my profile data. I have read the <button type="button" onClick={() => onNavigate('privacy')} className={`font-bold text-forest-700 underline ${focusButtonClass}`}>Privacy Policy</button>.</span>
+              <span>To continue with Google, I agree to 4Prep storing my profile data. I have read the <AppLink href={viewPaths.privacy as string} onNavigate={() => onNavigate('privacy')} className={`font-bold text-forest-700 underline ${focusButtonClass}`}>Privacy Policy</AppLink>.</span>
             </label>
             <button
               type="button"
@@ -423,7 +425,7 @@ export function AuthScreen({
               aria-busy={status === 'loading_google'}
               className={`mt-4 inline-flex w-full items-center justify-center gap-3 rounded-xl border border-[#dadce0] bg-white px-4 py-3 font-semibold text-[#3c4043] shadow-sm transition hover:bg-[#f8fafd] disabled:opacity-50 ${focusButtonClass}`}
             >
-              {status === 'loading_google' ? <LoaderCircle size={20} className="animate-spin" /> : <GoogleMark />}
+              {status === 'loading_google' ? <LoaderCircle size={20} /> : <GoogleMark />}
               {status === 'loading_google' ? 'Opening Google…' : 'Continue with Google'}
             </button>
 
@@ -455,13 +457,13 @@ export function AuthScreen({
                 showRequirement={mode === 'sign_up'}
               />
               {mode === 'sign_in' && (
-                <button
-                  type="button"
-                  onClick={() => onNavigate('reset_password')}
+                <AppLink
+                  href={viewPaths.reset_password as string}
+                  onNavigate={() => onNavigate('reset_password')}
                   className={`text-sm font-bold text-forest-700 underline ${focusButtonClass}`}
                 >
                   Forgot your password?
-                </button>
+                </AppLink>
               )}
               {mode === 'sign_up' && (
                 <label className="flex items-start gap-3 rounded-xl border border-line bg-canvas p-4 text-sm leading-6">
@@ -469,9 +471,9 @@ export function AuthScreen({
                     type="checkbox"
                     checked={consented}
                     onChange={(event) => setConsented(event.target.checked)}
-                    className="mt-1 size-4 shrink-0 accent-forest-700 focus-visible:ring-2 focus-visible:ring-forest-400"
+                    className="mt-0.5 size-6 shrink-0 accent-forest-700 focus-visible:ring-2 focus-visible:ring-forest-400"
                   />
-                  <span>I consent to 4Prep storing my grades, budget, language score, preferences, and saved plans to provide my pathway. I have read the <button type="button" onClick={() => onNavigate('privacy')} className={`font-bold text-forest-700 underline ${focusButtonClass}`}>Privacy Policy</button>.</span>
+                  <span>I consent to 4Prep storing my grades, budget, language score, preferences, and saved plans to provide my pathway. I have read the <AppLink href={viewPaths.privacy as string} onNavigate={() => onNavigate('privacy')} className={`font-bold text-forest-700 underline ${focusButtonClass}`}>Privacy Policy</AppLink>.</span>
                 </label>
               )}
               <ErrorNotice problem={problem} onResend={() => void resend()} />
@@ -503,7 +505,7 @@ export function AuthScreen({
           </button>
         )}
       </section>
-    </main>
+    </div>
   )
 }
 
@@ -557,7 +559,7 @@ export function ResetPasswordScreen({ onNavigate }: { onNavigate: (view: View) =
   }
 
   return (
-    <main className="soft-grid py-8 sm:py-16">
+    <div className="soft-grid py-8 sm:py-16">
       <section className="card mx-auto w-[min(520px,calc(100%-32px))] p-6 sm:p-9">
         <div className="grid size-13 place-items-center rounded-xl bg-forest-50 text-forest-700"><KeyRound /></div>
         {status === 'updated' ? (
@@ -565,14 +567,14 @@ export function ResetPasswordScreen({ onNavigate }: { onNavigate: (view: View) =
             <CheckCircle2 size={38} className="mt-6 text-forest-600" />
             <h1 className="display mt-4 text-3xl font-extrabold">Password updated</h1>
             <p className="mt-3 leading-6 text-muted">Your new password is ready. Sign in again to continue.</p>
-            <button onClick={() => onNavigate('auth')} className={`mt-7 w-full rounded-xl bg-forest-800 px-4 py-3.5 font-bold text-white ${focusButtonClass}`}>Go to sign in</button>
+            <AppLink href={viewPaths.auth as string} onNavigate={() => onNavigate('auth')} className={`mt-7 flex w-full items-center justify-center rounded-xl bg-forest-800 px-4 py-3.5 font-bold text-white ${focusButtonClass}`}>Go to sign in</AppLink>
           </>
         ) : status === 'requested' ? (
           <>
             <Mail size={34} className="mt-6 text-forest-700" />
             <h1 className="display mt-4 text-3xl font-extrabold">Check your email</h1>
             <p className="mt-3 leading-6 text-muted">If an account uses this email, a reset link will arrive shortly. Check your spam folder too.</p>
-            <button onClick={() => onNavigate('auth')} className={`mt-7 inline-flex items-center gap-2 font-bold text-forest-700 ${focusButtonClass}`}><ArrowLeft size={17} /> Back to sign in</button>
+            <AppLink href={viewPaths.auth as string} onNavigate={() => onNavigate('auth')} className={`mt-7 inline-flex items-center gap-2 font-bold text-forest-700 ${focusButtonClass}`}><ArrowLeft size={17} /> Back to sign in</AppLink>
           </>
         ) : canUpdate ? (
           <>
@@ -610,11 +612,11 @@ export function ResetPasswordScreen({ onNavigate }: { onNavigate: (view: View) =
               </button>
               <p aria-live="polite" className="sr-only">{status === 'loading' ? 'Reset request is in progress.' : ''}</p>
             </form>
-            <button onClick={() => onNavigate('auth')} className={`mt-5 inline-flex items-center gap-2 text-sm font-bold text-forest-700 ${focusButtonClass}`}><ArrowLeft size={16} /> Back to sign in</button>
+            <AppLink href={viewPaths.auth as string} onNavigate={() => onNavigate('auth')} className={`mt-5 inline-flex items-center gap-2 text-sm font-bold text-forest-700 ${focusButtonClass}`}><ArrowLeft size={16} /> Back to sign in</AppLink>
           </>
         )}
       </section>
-    </main>
+    </div>
   )
 }
 
@@ -635,31 +637,31 @@ export function AuthCallbackScreen({
 
   if (loading || (kind === 'google' && user && !hasCallbackError)) {
     return (
-      <main className="soft-grid py-16">
+      <div className="soft-grid py-16">
         <section className="card mx-auto w-[min(520px,calc(100%-32px))] p-8 text-center">
-          <LoaderCircle size={38} className="mx-auto animate-spin text-forest-700" />
+          <LoaderCircle size={38} className="mx-auto text-forest-700" />
           <h1 className="display mt-5 text-2xl font-extrabold">Finishing sign-in</h1>
           <p role="status" className="mt-2 text-muted">Please wait. Your work is being restored.</p>
         </section>
-      </main>
+      </div>
     )
   }
 
   if (hasCallbackError || kind === 'unknown' || !user) {
     return (
-      <main className="soft-grid py-16">
+      <div className="soft-grid py-16">
         <section className="card mx-auto w-[min(520px,calc(100%-32px))] p-8 text-center">
           <LockKeyhole size={38} className="mx-auto text-forest-700" />
           <h1 className="display mt-5 text-2xl font-extrabold">{kind === 'google' ? 'Google sign-in did not finish' : 'This confirmation did not finish'}</h1>
           <p role="alert" className="mt-3 leading-6 text-muted">{kind === 'google' ? 'The sign-in was cancelled or could not finish. Nothing was changed.' : 'The link may be invalid or expired. Request a new confirmation email, then try again.'}</p>
-          <button onClick={() => onNavigate('auth')} className={`mt-7 w-full rounded-xl bg-forest-800 px-4 py-3 font-bold text-white ${focusButtonClass}`}>Return to sign in</button>
+          <AppLink href={viewPaths.auth as string} onNavigate={() => onNavigate('auth')} className={`mt-7 flex w-full items-center justify-center rounded-xl bg-forest-800 px-4 py-3 font-bold text-white ${focusButtonClass}`}>Return to sign in</AppLink>
         </section>
-      </main>
+      </div>
     )
   }
 
   return (
-    <main className="soft-grid py-16">
+    <div className="soft-grid py-16">
       <section className="card mx-auto w-[min(520px,calc(100%-32px))] p-8 text-center">
         <CheckCircle2 size={46} className="mx-auto text-forest-600" />
         <h1 className="display mt-5 text-3xl font-extrabold">Your email is confirmed</h1>
@@ -668,13 +670,13 @@ export function AuthCallbackScreen({
           Continue to 4Prep
         </button>
       </section>
-    </main>
+    </div>
   )
 }
 
 export function PrivacyScreen() {
   return (
-    <main className="page-container py-12 lg:py-16">
+    <div className="page-container py-12 lg:py-16">
       <article className="card mx-auto max-w-3xl p-6 sm:p-10">
         <div className="flex items-center gap-3 text-forest-700"><ShieldCheck /><span className="text-sm font-bold uppercase tracking-[.14em]">Privacy</span></div>
         <h1 className="display mt-4 text-4xl font-extrabold">4Prep Privacy Policy</h1>
@@ -687,6 +689,6 @@ export function PrivacyScreen() {
           <section><h2 className="display text-xl font-extrabold text-ink">Data accuracy</h2><p className="mt-2">University facts show their source and retrieval date. Missing information remains marked as unknown. Always confirm application details with the university.</p></section>
         </div>
       </article>
-    </main>
+    </div>
   )
 }

@@ -9,4 +9,5 @@ dist/
 *.tsbuildinfo
 .smoke-out/
 app/dist/
+app/dist-ssr/
 app/supabase/.temp/

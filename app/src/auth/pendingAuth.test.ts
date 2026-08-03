@@ -1,6 +1,11 @@
 import { describe, expect, it, vi } from 'vitest'
 import type { StudentProfile } from '../types'
-import { resolveAccountProfile } from './pendingAuth'
+import {
+  PENDING_AUTH_STORAGE_KEY,
+  readPendingAuth,
+  resolveAccountProfile,
+  writePendingAuth,
+} from './pendingAuth'
 
 const anonymousProfile: StudentProfile = {
   country: 'Uzbekistan',
@@ -43,5 +48,34 @@ describe('resolveAccountProfile', () => {
 
     expect(saveProfile).not.toHaveBeenCalled()
     expect(result).toEqual({ profile: anonymousProfile, carried: false })
+  })
+})
+
+describe('learning pending-auth destination', () => {
+  it('round-trips the exact assignment route', () => {
+    const values = new Map<string, string>()
+    const storage = {
+      getItem: (key: string) => values.get(key) ?? null,
+      setItem: (key: string, value: string) => { values.set(key, value) },
+      removeItem: (key: string) => { values.delete(key) },
+    }
+
+    writePendingAuth(storage, {
+      destination: {
+        view: 'learn_assignment',
+        universityId: null,
+        moduleSlug: 'building-your-list',
+        lessonSlug: null,
+      },
+      profile: null,
+    })
+
+    expect(values.has(PENDING_AUTH_STORAGE_KEY)).toBe(true)
+    expect(readPendingAuth(storage)?.destination).toEqual({
+      view: 'learn_assignment',
+      universityId: null,
+      moduleSlug: 'building-your-list',
+      lessonSlug: null,
+    })
   })
 })

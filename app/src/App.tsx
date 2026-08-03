@@ -1,5 +1,5 @@
 import { LogIn, Menu, Search, UserRound, X } from 'lucide-react'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react'
 import { useAuth } from './auth/AuthProvider'
 import {
   clearPendingAuth,
@@ -22,7 +22,17 @@ import {
   ResetPasswordScreen,
 } from './screens/AuthPrivacyScreens'
 import { CounselorScreen } from './screens/CounselorScreen'
-import { DesignedState, LoadingState } from './components/States'
+import { NotFoundScreen } from './screens/NotFoundScreen'
+import { ConnectionStatus, DesignedState, LoadingState } from './components/States'
+import { AppLink } from './components/AppLink'
+import { EnvironmentBanner } from './components/EnvironmentBanner'
+import {
+  LearningAssignmentScreen,
+  LearningLessonScreen,
+  LearningModuleScreen,
+  LearningTrackScreen,
+} from './screens/LearningScreens'
+import { learningPath, readRoute, viewPaths } from './routes'
 import {
   getRankedPathway,
   getStudentProfile,
@@ -32,39 +42,22 @@ import {
   saveStudentProfile,
 } from './data/repository'
 
+const DashboardScreen = lazy(async () => {
+  const module = await import('./screens/DashboardScreen')
+  return { default: module.DashboardScreen }
+})
+
 const navItems: { label: string; view: View }[] = [
+  { label: 'Dashboard', view: 'dashboard' },
   { label: 'Search', view: 'search' },
+  { label: 'Learn', view: 'learn' },
   { label: 'Compare', view: 'compare' },
   { label: 'Counselor', view: 'counselor' },
-  { label: 'Tools', view: 'tools' },
   { label: 'Saved', view: 'saved' },
 ]
 
-const viewPaths: Partial<Record<View, string>> = {
-  search: '/universities',
-  compare: '/compare',
-  intake: '/intake',
-  results: '/results',
-  tools: '/tools',
-  saved: '/saved',
-  counselor: '/counselor',
-  auth: '/login',
-  auth_callback: '/auth/callback',
-  reset_password: '/reset-password',
-  privacy: '/privacy',
-}
-
-function readRoute(): { view: View; universityId: string | null } {
-  if (typeof window === 'undefined') return { view: 'search', universityId: null }
-  const path = window.location.pathname.replace(/\/+$/, '') || '/'
-  const profile = path.match(/^\/universities\/([^/]+)$/)
-  if (profile) return { view: 'profile', universityId: decodeURIComponent(profile[1]) }
-  const view = Object.entries(viewPaths).find(([, value]) => value === path)?.[0] as View | undefined
-  return { view: view ?? 'search', universityId: null }
-}
-
-function Logo({ onClick }: { onClick: () => void }) {
-  return <button onClick={onClick} className="flex items-center gap-2.5" aria-label="4Prep home"><span className="relative grid size-9 rotate-3 place-items-center rounded-[10px] bg-forest-800 text-white shadow"><span className="display -rotate-3 text-lg font-extrabold">4</span><span className="absolute -right-1 -top-1 size-3 rounded-full border-2 border-white bg-amber-400" /></span><span className="display text-xl font-extrabold tracking-tight text-forest-900">4Prep</span></button>
+function Logo({ href, onNavigate }: { href: string; onNavigate: () => void }) {
+  return <AppLink href={href} onNavigate={onNavigate} className="flex items-center gap-2.5" aria-label="4Prep home"><span className="relative grid size-9 rotate-3 place-items-center rounded-[10px] bg-forest-800 text-white shadow"><span className="display -rotate-3 text-lg font-extrabold">4</span><span className="absolute -right-1 -top-1 size-3 rounded-full border-2 border-white bg-amber-400" /></span><span className="display text-xl font-extrabold tracking-tight text-forest-900">4Prep</span></AppLink>
 }
 
 function Navbar({ view, query, setQuery, onNavigate }: { view: View; query: string; setQuery: (value: string) => void; onNavigate: (view: View) => void }) {
@@ -73,22 +66,23 @@ function Navbar({ view, query, setQuery, onNavigate }: { view: View; query: stri
   return (
     <header className="sticky top-0 z-40 border-b border-line bg-white/95 backdrop-blur-lg">
       <div className="page-container flex h-[72px] items-center gap-4">
-        <Logo onClick={() => onNavigate('search')} />
+        <Logo href={viewPaths[user ? 'dashboard' : 'search'] as string} onNavigate={() => onNavigate(user ? 'dashboard' : 'search')} />
         <nav className="hidden items-center gap-1 xl:flex" aria-label="Primary navigation">
-          {navItems.map((item) => <button key={item.view} onClick={() => onNavigate(item.view)} className={`rounded-lg px-3 py-2 text-sm font-bold transition ${view === item.view ? 'bg-forest-50 text-forest-800' : 'text-muted hover:bg-canvas hover:text-ink'}`}>{item.label}</button>)}
+          {navItems.map((item) => <AppLink key={item.view} href={viewPaths[item.view] as string} onNavigate={() => onNavigate(item.view)} aria-current={view === item.view ? 'page' : undefined} className={`rounded-lg px-3 py-2 text-sm font-bold transition ${view === item.view ? 'bg-forest-50 text-forest-800' : 'text-muted hover:bg-canvas hover:text-ink'}`}>{item.label}</AppLink>)}
         </nav>
         {view !== 'search' ? <label className="ml-auto hidden min-w-0 max-w-[300px] flex-1 items-center gap-2 rounded-xl border border-line bg-canvas px-3 py-2.5 md:flex focus-within:border-forest-500"><span className="sr-only">Search universities</span><Search size={17} className="shrink-0 text-forest-700" aria-hidden="true" /><input value={query} onChange={(event) => setQuery(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') onNavigate('search') }} placeholder="Search universities" className="min-w-0 flex-1 bg-transparent text-sm outline-none" /></label> : <div className="ml-auto" />}
-        <button onClick={() => onNavigate('auth')} className="hidden shrink-0 items-center gap-2 rounded-xl border border-line px-3 py-2.5 text-sm font-bold text-forest-800 sm:flex"><LogIn size={16} /> {user ? 'Account' : 'Sign in'}</button>
+        <AppLink href={viewPaths.auth as string} onNavigate={() => onNavigate('auth')} className="hidden shrink-0 items-center gap-2 rounded-xl border border-line px-3 py-2.5 text-sm font-bold text-forest-800 sm:flex"><LogIn size={16} /> {user ? 'Account' : 'Sign in'}</AppLink>
         <button onClick={() => onNavigate('intake')} className="hidden shrink-0 items-center gap-2 rounded-xl bg-forest-800 px-4 py-2.5 text-sm font-bold text-white sm:flex"><UserRound size={17} /> Build my plan</button>
-        <button onClick={() => setMenuOpen(!menuOpen)} className="grid size-10 place-items-center rounded-xl border border-line xl:hidden" aria-label="Toggle menu" aria-expanded={menuOpen}>{menuOpen ? <X size={20} /> : <Menu size={20} />}</button>
+        <button onClick={() => setMenuOpen(!menuOpen)} className="grid size-11 place-items-center rounded-xl border border-line xl:hidden" aria-label="Toggle menu" aria-expanded={menuOpen}>{menuOpen ? <X size={20} /> : <Menu size={20} />}</button>
       </div>
-      {menuOpen && <div className="border-t border-line bg-white xl:hidden"><nav className="page-container grid gap-1 py-3" aria-label="Mobile navigation">{navItems.map((item) => <button key={item.view} onClick={() => { onNavigate(item.view); setMenuOpen(false) }} className={`rounded-xl px-4 py-3 text-left font-bold ${view === item.view ? 'bg-forest-50 text-forest-800' : 'text-muted'}`}>{item.label}</button>)}<button onClick={() => { onNavigate('auth'); setMenuOpen(false) }} className="rounded-xl px-4 py-3 text-left font-bold text-muted">{user ? 'Account' : 'Sign in'}</button><button onClick={() => { onNavigate('intake'); setMenuOpen(false) }} className="mt-2 rounded-xl bg-forest-800 px-4 py-3 text-left font-bold text-white">Build my plan</button></nav></div>}
+      {menuOpen && <div className="border-t border-line bg-white xl:hidden"><nav className="page-container grid gap-1 py-3" aria-label="Mobile navigation">{navItems.map((item) => <AppLink key={item.view} href={viewPaths[item.view] as string} onNavigate={() => { onNavigate(item.view); setMenuOpen(false) }} aria-current={view === item.view ? 'page' : undefined} className={`rounded-xl px-4 py-3 text-left font-bold ${view === item.view ? 'bg-forest-50 text-forest-800' : 'text-muted'}`}>{item.label}</AppLink>)}<AppLink href={viewPaths.auth as string} onNavigate={() => { onNavigate('auth'); setMenuOpen(false) }} className="rounded-xl px-4 py-3 text-left font-bold text-muted">{user ? 'Account' : 'Sign in'}</AppLink><button onClick={() => { onNavigate('intake'); setMenuOpen(false) }} className="mt-2 rounded-xl bg-forest-800 px-4 py-3 text-left font-bold text-white">Build my plan</button></nav></div>}
     </header>
   )
 }
 
 function Footer({ onNavigate }: { onNavigate: (view: View) => void }) {
-  return <footer className="mt-8 border-t border-line bg-white"><div className="page-container grid gap-8 py-10 sm:grid-cols-[1fr_auto] sm:items-end"><div><Logo onClick={() => onNavigate('search')} /><p className="mt-4 max-w-md text-sm leading-6 text-muted">A calmer, source-backed way for Central Asian students to explore university pathways.</p></div><div className="flex flex-wrap gap-5 text-sm font-bold text-muted"><button onClick={() => onNavigate('counselor')}>Counselor</button><button onClick={() => onNavigate('privacy')}>Privacy</button><button onClick={() => onNavigate('auth')}>Account</button></div></div><div className="border-t border-line"><div className="page-container flex flex-wrap items-center justify-between gap-2 py-4 text-xs text-muted"><span>© 2026 4Prep</span><span>Verify university details before applying</span></div></div></footer>
+  const { user } = useAuth()
+  return <footer className="mt-8 border-t border-line bg-white"><div className="page-container grid gap-8 py-10 sm:grid-cols-[1fr_auto] sm:items-end"><div><Logo href={viewPaths[user ? 'dashboard' : 'search'] as string} onNavigate={() => onNavigate(user ? 'dashboard' : 'search')} /><p className="mt-4 max-w-md text-sm leading-6 text-muted">A calmer, source-backed way for Central Asian students to explore university pathways.</p></div><div className="flex flex-wrap gap-5 text-sm font-bold text-muted"><AppLink href={viewPaths.tools as string} onNavigate={() => onNavigate('tools')}>Tools</AppLink><AppLink href={viewPaths.counselor as string} onNavigate={() => onNavigate('counselor')}>Counselor</AppLink><AppLink href={viewPaths.privacy as string} onNavigate={() => onNavigate('privacy')}>Privacy</AppLink><AppLink href={viewPaths.auth as string} onNavigate={() => onNavigate('auth')}>Account</AppLink></div></div><div className="border-t border-line"><div className="page-container flex flex-wrap items-center justify-between gap-2 py-4 text-xs text-muted"><span>© 2026 4Prep</span><span>Verify university details before applying</span></div></div></footer>
 }
 
 export default function App() {
@@ -96,6 +90,8 @@ export default function App() {
   const [view, setView] = useState<View>(initial.view)
   const [query, setQuery] = useState('')
   const [selectedUniversityId, setSelectedUniversityId] = useState<string | null>(initial.universityId)
+  const [selectedModuleSlug, setSelectedModuleSlug] = useState<string | null>(initial.moduleSlug)
+  const [selectedLessonSlug, setSelectedLessonSlug] = useState<string | null>(initial.lessonSlug)
   const [profile, setProfile] = useState<StudentProfile | null>(null)
   const [pathway, setPathway] = useState<Pathway | null>(null)
   const [saved, setSaved] = useState<Set<string>>(new Set())
@@ -105,15 +101,28 @@ export default function App() {
   const profileRef = useRef<StudentProfile | null>(null)
   const profileOwnerRef = useRef<string | null>(null)
   const loadedUserRef = useRef<string | null>(null)
+  /** Identifies the newest private-data load so a superseded run cannot own the loading flag. */
+  const privateLoadRunRef = useRef(0)
+  /**
+   * `recordPrivacyConsent` gets a new identity on every auth render. Holding it in a ref keeps
+   * it out of the load effect's dependencies, which otherwise re-runs, hits the
+   * `loadedUserRef` guard, and strands `privateLoading` at true.
+   */
+  const recordPrivacyConsentRef = useRef<((consentedAt: string) => Promise<void>) | null>(null)
   const authStorage = getAuthStorage()
   const [initialPendingAuth] = useState(() => readPendingAuth(authStorage))
   const [returnDestination, setReturnDestination] = useState<PendingDestination>(
-    () => initialPendingAuth?.destination ?? { view: 'saved', universityId: null },
+    () => initialPendingAuth?.destination ?? { view: 'dashboard', universityId: null },
   )
   const [shouldReturnAfterAuth, setShouldReturnAfterAuth] = useState(
     () => initialPendingAuth !== null,
   )
   const { user, loading: authLoading, recordPrivacyConsent } = useAuth()
+
+  // Declared before the private-data effect so the ref is current when that effect first runs.
+  useEffect(() => {
+    recordPrivacyConsentRef.current = recordPrivacyConsent
+  }, [recordPrivacyConsent])
 
   const callbackKind = (() => {
     if (typeof window === 'undefined') return 'unknown'
@@ -128,9 +137,26 @@ export default function App() {
       setView('profile')
       return
     }
+    if (
+      destination.view === 'learn'
+      || destination.view === 'learn_module'
+      || destination.view === 'learn_lesson'
+      || destination.view === 'learn_assignment'
+    ) {
+      const moduleSlug = destination.moduleSlug ?? null
+      const lessonSlug = destination.lessonSlug ?? null
+      window.history.pushState({}, '', learningPath(destination.view, moduleSlug, lessonSlug))
+      setSelectedUniversityId(null)
+      setSelectedModuleSlug(moduleSlug)
+      setSelectedLessonSlug(lessonSlug)
+      setView(destination.view)
+      return
+    }
     const path = viewPaths[destination.view] ?? '/universities'
     window.history.pushState({}, '', path)
     setSelectedUniversityId(null)
+    setSelectedModuleSlug(null)
+    setSelectedLessonSlug(null)
     setView(destination.view)
   }, [])
 
@@ -151,6 +177,8 @@ export default function App() {
       const route = readRoute()
       setView(route.view)
       setSelectedUniversityId(route.universityId)
+      setSelectedModuleSlug(route.moduleSlug)
+      setSelectedLessonSlug(route.lessonSlug)
     }
     window.addEventListener('popstate', handlePop)
     return () => window.removeEventListener('popstate', handlePop)
@@ -177,7 +205,11 @@ export default function App() {
     }
     if (loadedUserRef.current === user.id) return
     loadedUserRef.current = user.id
-    let active = true
+    // Only the newest run may write results or clear the loading flag. A boolean `active`
+    // flag cannot do this: when the effect re-runs and early-returns above, the in-flight
+    // run's cleanup has already flipped it, so `privateLoading` would never be cleared.
+    const runId = ++privateLoadRunRef.current
+    const isCurrentRun = () => privateLoadRunRef.current === runId
     const pending = readPendingAuth(authStorage)
     const anonymousProfile = pending?.profile
       ?? (profileOwnerRef.current === null ? profileRef.current : null)
@@ -187,7 +219,7 @@ export default function App() {
       getStudentProfile(user.id),
       listSavedPlanIds(user.id),
       pending?.consentedAt
-        ? recordPrivacyConsent(pending.consentedAt)
+        ? (recordPrivacyConsentRef.current?.(pending.consentedAt) ?? Promise.resolve())
         : Promise.resolve(),
     ])
       .then(async ([storedProfile, ids]) => {
@@ -197,7 +229,7 @@ export default function App() {
           storedProfile,
           saveProfile: saveStudentProfile,
         })
-        if (!active) return
+        if (!isCurrentRun()) return
         profileRef.current = resolved.profile
         profileOwnerRef.current = user.id
         setProfile(resolved.profile)
@@ -205,15 +237,15 @@ export default function App() {
         clearPendingAuth(authStorage)
       })
       .catch((reason: unknown) => {
+        if (!isCurrentRun()) return
         loadedUserRef.current = null
-        if (active) setPrivateLoadFailed(true)
+        setPrivateLoadFailed(true)
         if (import.meta.env.DEV) console.error('Could not restore private account data:', reason)
       })
       .finally(() => {
-        if (active) setPrivateLoading(false)
+        if (isCurrentRun()) setPrivateLoading(false)
       })
-    return () => { active = false }
-  }, [authStorage, privateRetry, recordPrivacyConsent, user])
+  }, [authStorage, privateRetry, user])
 
   useEffect(() => {
     if (
@@ -272,19 +304,72 @@ export default function App() {
     void getRankedPathway(profile).then(setPathway)
   }, [view, profile, pathway])
 
+  useEffect(() => {
+    if (authLoading || privateLoading || !user || typeof window === 'undefined') return
+    if (window.location.pathname !== '/') return
+    window.history.replaceState({}, '', viewPaths.dashboard)
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- The bare root is the signed-in landing route after auth state resolves.
+    setView('dashboard')
+  }, [authLoading, privateLoading, user])
+
   const navigate = (next: View) => {
     if (next === 'auth' && !user && view !== 'auth') {
-      rememberAuth({ view, universityId: view === 'profile' ? selectedUniversityId : null })
+      rememberAuth({
+        view,
+        universityId: view === 'profile' ? selectedUniversityId : null,
+        moduleSlug: (
+          view === 'learn_module'
+          || view === 'learn_lesson'
+          || view === 'learn_assignment'
+        ) ? selectedModuleSlug : null,
+        lessonSlug: view === 'learn_lesson' ? selectedLessonSlug : null,
+      })
     }
     const path = viewPaths[next] ?? '/universities'
     window.history.pushState({}, '', path)
     setView(next)
     if (next !== 'profile') setSelectedUniversityId(null)
+    if (
+      next !== 'learn_module'
+      && next !== 'learn_lesson'
+      && next !== 'learn_assignment'
+    ) {
+      setSelectedModuleSlug(null)
+      setSelectedLessonSlug(null)
+    }
   }
   const openUniversity = (university: University) => {
     window.history.pushState({}, '', `/universities/${encodeURIComponent(university.id)}`)
     setSelectedUniversityId(university.id)
     setView('profile')
+  }
+  const openLearningTrack = () => {
+    window.history.pushState({}, '', learningPath('learn'))
+    setSelectedUniversityId(null)
+    setSelectedModuleSlug(null)
+    setSelectedLessonSlug(null)
+    setView('learn')
+  }
+  const openLearningModule = (moduleSlug: string) => {
+    window.history.pushState({}, '', learningPath('learn_module', moduleSlug))
+    setSelectedUniversityId(null)
+    setSelectedModuleSlug(moduleSlug)
+    setSelectedLessonSlug(null)
+    setView('learn_module')
+  }
+  const openLearningLesson = (moduleSlug: string, lessonSlug: string) => {
+    window.history.pushState({}, '', learningPath('learn_lesson', moduleSlug, lessonSlug))
+    setSelectedUniversityId(null)
+    setSelectedModuleSlug(moduleSlug)
+    setSelectedLessonSlug(lessonSlug)
+    setView('learn_lesson')
+  }
+  const openLearningAssignment = (moduleSlug: string) => {
+    window.history.pushState({}, '', learningPath('learn_assignment', moduleSlug))
+    setSelectedUniversityId(null)
+    setSelectedModuleSlug(moduleSlug)
+    setSelectedLessonSlug(null)
+    setView('learn_assignment')
   }
   const toggleSave = (id: string) => {
     if (!user) {
@@ -351,7 +436,12 @@ export default function App() {
 
   const finishDeletion = () => {
     finishSignOut()
-    setReturnDestination({ view: 'saved', universityId: null })
+    setReturnDestination({
+      view: 'dashboard',
+      universityId: null,
+      moduleSlug: null,
+      lessonSlug: null,
+    })
   }
 
   const authScreen = (
@@ -365,7 +455,7 @@ export default function App() {
   )
 
   let screen: React.ReactNode
-  if (authLoading || privateLoading) screen = <LoadingState />
+  if (authLoading || privateLoading) screen = <LoadingState kind="private" />
   else if (privateLoadFailed && user) screen = (
     <DesignedState
       state="error"
@@ -374,6 +464,11 @@ export default function App() {
         setPrivateRetry((current) => current + 1)
       }}
     />
+  )
+  else if (view === 'dashboard') screen = (
+    <Suspense fallback={<LoadingState kind="dashboard" />}>
+      <DashboardScreen userId={user?.id ?? null} profile={profile} saved={saved} onNavigate={navigate} onOpenUniversity={openUniversity} />
+    </Suspense>
   )
   else if (view === 'search') screen = <SearchScreen query={query} setQuery={setQuery} saved={saved} onToggleSave={toggleSave} onOpen={openUniversity} />
   else if (view === 'profile' && selectedUniversityId) screen = <ProfileScreen universityId={selectedUniversityId} profile={profile} saved={saved.has(selectedUniversityId)} onToggleSave={() => toggleSave(selectedUniversityId)} />
@@ -387,16 +482,69 @@ export default function App() {
     ? <SavedScreen saved={saved} onToggleSave={toggleSave} onOpen={openUniversity} onExplore={() => navigate('search')} />
     : authScreen
   else if (view === 'counselor') screen = <CounselorScreen />
+  else if (view === 'learn') screen = (
+    <LearningTrackScreen
+      userId={user?.id ?? null}
+      onOpenTrack={openLearningTrack}
+      onOpenModule={openLearningModule}
+      onOpenLesson={openLearningLesson}
+      onOpenAssignment={openLearningAssignment}
+      onSignIn={() => navigate('auth')}
+    />
+  )
+  else if (view === 'learn_module' && selectedModuleSlug) screen = (
+    <LearningModuleScreen
+      userId={user?.id ?? null}
+      moduleSlug={selectedModuleSlug}
+      onOpenTrack={openLearningTrack}
+      onOpenModule={openLearningModule}
+      onOpenLesson={openLearningLesson}
+      onOpenAssignment={openLearningAssignment}
+      onSignIn={() => navigate('auth')}
+    />
+  )
+  else if (view === 'learn_lesson' && selectedModuleSlug && selectedLessonSlug) screen = (
+    <LearningLessonScreen
+      userId={user?.id ?? null}
+      moduleSlug={selectedModuleSlug}
+      lessonSlug={selectedLessonSlug}
+      onOpenTrack={openLearningTrack}
+      onOpenModule={openLearningModule}
+      onOpenLesson={openLearningLesson}
+      onOpenAssignment={openLearningAssignment}
+      onSignIn={() => navigate('auth')}
+    />
+  )
+  else if (view === 'learn_assignment' && selectedModuleSlug) screen = (
+    <LearningAssignmentScreen
+      userId={user?.id ?? null}
+      moduleSlug={selectedModuleSlug}
+      onOpenTrack={openLearningTrack}
+      onOpenModule={openLearningModule}
+      onOpenLesson={openLearningLesson}
+      onOpenAssignment={openLearningAssignment}
+      onSignIn={() => navigate('auth')}
+    />
+  )
+  else if (
+    view === 'learn_module'
+    || view === 'learn_lesson'
+    || view === 'learn_assignment'
+  ) screen = <DesignedState state="empty" onReset={openLearningTrack} />
   else if (view === 'auth') screen = authScreen
   else if (view === 'reset_password') screen = <ResetPasswordScreen onNavigate={navigate} />
   else if (view === 'auth_callback') screen = <AuthCallbackScreen kind={callbackKind} onNavigate={navigate} onContinue={finishAuthentication} />
-  else screen = <PrivacyScreen />
+  else if (view === 'privacy') screen = <PrivacyScreen />
+  else screen = <NotFoundScreen onReturn={() => navigate('search')} />
 
   return (
     <div className="min-h-screen bg-canvas">
+      <a href="#main-content" className="skip-link">Skip to main content</a>
       <Navbar view={view} query={query} setQuery={setQuery} onNavigate={navigate} />
-      {screen}
+      <ConnectionStatus />
+      <main id="main-content" tabIndex={-1}>{screen}</main>
       <Footer onNavigate={navigate} />
+      <EnvironmentBanner />
     </div>
   )
 }

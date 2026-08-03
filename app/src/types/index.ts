@@ -1,4 +1,5 @@
 export type View =
+  | 'dashboard'
   | 'search'
   | 'profile'
   | 'compare'
@@ -7,10 +8,15 @@ export type View =
   | 'tools'
   | 'saved'
   | 'counselor'
+  | 'learn'
+  | 'learn_module'
+  | 'learn_lesson'
+  | 'learn_assignment'
   | 'auth'
   | 'auth_callback'
   | 'reset_password'
   | 'privacy'
+  | 'not_found'
 
 export type DevState = 'ready' | 'loading' | 'empty' | 'partial' | 'no_results' | 'refusal' | 'error' | 'offline'
 
@@ -147,6 +153,83 @@ export type ToolItem = {
   description: string
   tag: string
   view?: View
+}
+
+export type LearningLessonStatus = 'draft' | 'published'
+
+export type LearningSubmissionType = 'structured' | 'checklist' | 'artifact'
+
+export type LearningSubmissionStatus = 'pending' | 'submitted' | 'reviewed'
+
+export type LearningLesson = {
+  id: string
+  moduleId: string
+  slug: string
+  title: string
+  order: number
+  durationMinutes: number | null
+  body: string | null
+  status: LearningLessonStatus
+  transcript: string | null
+  mediaUrl: string | null
+  audioUrl: string | null
+}
+
+export type LearningAssignment = {
+  id: string
+  moduleId: string
+  slug: string
+  title: string
+  brief: string
+  submissionType: LearningSubmissionType
+  templateRef: string
+  rubric: Record<string, unknown> | null
+}
+
+export type LearningModule = {
+  id: string
+  trackId: string
+  moduleNumber: number
+  slug: string
+  title: string
+  summary: string
+  order: number
+  lessons: LearningLesson[]
+  assignment: LearningAssignment
+}
+
+export type LearningTrack = {
+  id: string
+  slug: string
+  title: string
+  description: string
+  order: number
+  modules: LearningModule[]
+}
+
+export type LearningSubmissionFile = {
+  id: string
+  submissionId: string
+  storagePath: string
+  originalFilename: string
+  mimeType: string
+  byteSize: number
+  createdAt: string
+}
+
+export type LearningSubmission = {
+  id: string
+  assignmentId: string
+  userId: string
+  status: LearningSubmissionStatus
+  submittedAt: string | null
+  feedbackRef: string | null
+  files: LearningSubmissionFile[]
+}
+
+export type LearningUserState = {
+  completedLessonIds: Set<string>
+  submissions: LearningSubmission[]
 }
 
 export const known = <T,>(

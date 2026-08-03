@@ -1,4 +1,4 @@
-import { AlertCircle, BookOpen, ChevronDown, Filter, Globe2, Search, SlidersHorizontal, X } from 'lucide-react'
+import { BookOpen, ChevronDown, FileSearch, Filter, Globe2, Search, SlidersHorizontal, X } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import type { University } from '../types'
 import { UniversityCard } from '../components/UniversityCard'
@@ -51,9 +51,9 @@ function FilterContent({ budget, setBudget, country, setCountry, field, setField
       <fieldset>
         <legend className="mb-3 text-sm font-bold">Country</legend>
         <div className="space-y-2.5">
-          <label className="flex cursor-pointer items-center gap-2 text-sm text-muted"><input type="radio" name="country" checked={!country} onChange={() => setCountry('')} className="size-4 accent-forest-700" /> All countries</label>
+          <label className="flex min-h-11 cursor-pointer items-center gap-2 text-sm text-muted"><input type="radio" name="country" checked={!country} onChange={() => setCountry('')} className="size-4 accent-forest-700" /> All countries</label>
           {countries.map((item) => (
-            <label key={item} className="flex cursor-pointer items-center gap-2 text-sm text-muted hover:text-ink">
+            <label key={item} className="flex min-h-11 cursor-pointer items-center gap-2 text-sm text-muted hover:text-ink">
               <input type="radio" name="country" checked={country === item} onChange={() => setCountry(item)} className="size-4 accent-forest-700" /> {flags[item]} {item}
             </label>
           ))}
@@ -105,7 +105,7 @@ export function SearchScreen({ query, setQuery, saved, onToggleSave, onOpen }: P
 
   return (
     <>
-      <section className="hero-grid relative overflow-hidden text-white">
+      <section className="hero-grid motion-resolve relative overflow-hidden text-white">
         <div className="page-container relative z-10 py-14 sm:py-20 lg:py-24">
           <div className="max-w-3xl">
             <span className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-sm font-semibold backdrop-blur"><Globe2 size={16} /> Evidence before decisions</span>
@@ -124,12 +124,17 @@ export function SearchScreen({ query, setQuery, saved, onToggleSave, onOpen }: P
         </div>
       </section>
 
-      <main className="page-container py-10 lg:py-14">
+      <div className="page-container motion-resolve py-8 sm:py-10 lg:py-14">
         <div className="mb-7 flex flex-wrap items-end justify-between gap-4">
           <div><p className="text-sm font-bold uppercase tracking-[.14em] text-forest-700">Explore your options</p><h2 className="display mt-1 text-3xl font-extrabold">Universities matched to your direction</h2></div>
           <button onClick={() => setFiltersOpen(true)} className="inline-flex items-center gap-2 rounded-xl border border-line bg-white px-4 py-2.5 text-sm font-bold lg:hidden"><Filter size={17} /> Filters</button>
         </div>
-        {unknownCostCount > 0 && <div className="mb-5 flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950"><AlertCircle size={17} className="mt-0.5 shrink-0" /><span>{unknownCostCount} result{unknownCostCount === 1 ? '' : 's'} with incomplete or different-currency cost evidence remain visible and are not filtered out.</span></div>}
+        <p className="sr-only" role="status" aria-live="polite" aria-atomic="true">
+          {filtered.length > 0
+            ? `${filtered.length} ${filtered.length === 1 ? 'university matches' : 'universities match'} the current filters.`
+            : 'No universities match the current filters. Clear filters or widen the budget, country, or field to continue.'}
+        </p>
+        {unknownCostCount > 0 && <div className="trust-static mb-5 flex items-start gap-2 rounded-xl border border-forest-100 bg-white p-4 text-sm text-forest-950"><FileSearch size={17} className="mt-0.5 shrink-0 text-forest-700" /><span><strong>Kept visible on purpose:</strong> {unknownCostCount} result{unknownCostCount === 1 ? '' : 's'} cannot be filtered by a published numeric net cost. Open the evidence to see what the university has and has not published.</span></div>}
         <div className="grid items-start gap-7 lg:grid-cols-[240px_minmax(0,1fr)]">
           <aside className="card sticky top-28 hidden p-5 lg:block">
             <div className="mb-5 flex items-center justify-between"><h3 className="display text-lg font-extrabold">Filters</h3><SlidersHorizontal size={18} className="text-forest-700" /></div>
@@ -137,9 +142,9 @@ export function SearchScreen({ query, setQuery, saved, onToggleSave, onOpen }: P
           </aside>
           {filtered.length > 0 ? <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
             {filtered.map(({ university, fitsAfterScholarship }) => <UniversityCard key={university.id} university={university} fitsAfterScholarship={fitsAfterScholarship} saved={saved.has(university.id)} onSave={() => onToggleSave(university.id)} onOpen={() => onOpen(university)} />)}
-          </div> : <DesignedState state="no_results" onReset={() => { setQuery(''); setCountry(''); setField(''); setBudget(budgetLimits.max) }} />}
+          </div> : <DesignedState state="no_results" headingLevel={2} onReset={() => { setQuery(''); setCountry(''); setField(''); setBudget(budgetLimits.max) }} />}
         </div>
-      </main>
+      </div>
 
       {filtersOpen && <div className="fixed inset-0 z-50 bg-ink/40 lg:hidden" role="dialog" aria-modal="true" aria-label="Search filters" onMouseDown={() => setFiltersOpen(false)}><aside className="absolute inset-x-0 bottom-0 max-h-[88vh] overflow-y-auto rounded-t-[28px] bg-white p-6" onMouseDown={(event) => event.stopPropagation()}><div className="mb-6 flex items-center justify-between"><h2 className="display text-2xl font-extrabold">Refine results</h2><button onClick={() => setFiltersOpen(false)} className="grid size-10 place-items-center rounded-full bg-canvas" aria-label="Close filters"><X size={20} /></button></div><FilterContent {...{ budget, setBudget, country, setCountry, field, setField, countries, fields }} /><button onClick={() => setFiltersOpen(false)} className="sticky bottom-4 mt-7 w-full rounded-xl bg-forest-800 py-3.5 font-bold text-white shadow-lg">Show results</button></aside></div>}
     </>

@@ -1,14 +1,31 @@
-import { ArrowUpRight, FileQuestion, Send, ShieldCheck, Sparkles } from 'lucide-react'
+import {
+  ArrowUpRight,
+  BadgeCheck,
+  Compass,
+  Database,
+  FileQuestion,
+  Globe2,
+  Send,
+  ShieldCheck,
+} from 'lucide-react'
 import { useState } from 'react'
 import { FunctionsHttpError } from '@supabase/supabase-js'
-import { AIResponseBlock, SourceChip } from '../components/Trust'
+import { SourceChip } from '../components/Trust'
+import { SafeMarkdown, webCitationDetails } from '../components/SafeMarkdown'
 import { getSupabaseClient } from '../data/client'
 
 type CounselorAnswer = {
-  answerType: 'verified_fact' | 'general_guidance' | 'refusal'
+  /**
+   * `refusal` means 4Prep has no verified figure for an admissions question.
+   * `out_of_scope` means the question was not an admissions question at all.
+   * They read very differently to a student, so they render differently.
+   */
+  answerType: 'verified_fact' | 'general_guidance' | 'refusal' | 'out_of_scope'
   answer: string
   recordCitations: string[]
   webCitations: string[]
+  /** Example questions returned with an out-of-scope reply. */
+  suggestions?: string[]
   requestId: string
 }
 
@@ -112,7 +129,7 @@ export function CounselorScreen() {
   }
 
   return (
-    <main>
+    <div>
       <section className="border-b border-line bg-forest-950 text-white">
         <div className="page-container py-12 sm:py-16">
           <span className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1.5 text-sm font-bold"><ShieldCheck size={16} /> Grounded by verified 4Prep records</span>
@@ -129,35 +146,81 @@ export function CounselorScreen() {
               <button disabled={loading || !message.trim()} className="mt-4 inline-flex items-center gap-2 rounded-xl bg-forest-800 px-5 py-3 font-bold text-white disabled:opacity-50">{loading ? 'Checking verified records…' : 'Ask counselor'} <Send size={17} /></button>
             </form>
 
+            {loading && (
+              <div className="mt-5 flex items-start gap-3 rounded-2xl border border-forest-100 bg-white p-5" role="status" aria-live="polite">
+                <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-forest-50 text-forest-700"><Database size={20} /></span>
+                <div><p className="font-extrabold">Checking sourced records first</p><p className="mt-1 text-sm leading-6 text-muted">The counselor will separate verified 4Prep facts from general web guidance. If neither can support the answer, it will not guess.</p></div>
+              </div>
+            )}
             {error && <p role="alert" className="mt-5 rounded-xl border border-rose-200 bg-rose-50 p-4 text-rose-900">{error}</p>}
             {answer?.answerType === 'verified_fact' && (
-              <div className="mt-6">
-                <AIResponseBlock>
-                  <p className="font-bold text-forest-900">Verified 4Prep data</p>
-                  <p className="mt-2 whitespace-pre-wrap">{answer.answer}</p>
+              <div className="motion-resolve mt-6 overflow-hidden rounded-2xl border border-forest-200 bg-white">
+                <div className="flex items-center gap-2 bg-forest-800 px-5 py-3 text-sm font-extrabold text-white"><BadgeCheck size={18} /> Verified 4Prep fact</div>
+                <div className="p-5">
+                  <p className="whitespace-pre-wrap text-sm leading-7 text-ink">{answer.answer}</p>
                   <div className="mt-4 flex flex-wrap gap-2">{answer.recordCitations.map((id) => <SourceChip key={id} sourceId={id} />)}</div>
-                </AIResponseBlock>
+                </div>
               </div>
             )}
             {answer?.answerType === 'general_guidance' && (
-              <div className="mt-6 rounded-2xl border border-sky-200 bg-sky-50 p-5">
-                <p className="flex items-center gap-2 font-bold text-sky-950"><Sparkles size={17} /> General information — not verified 4Prep data</p>
-                <p className="mt-3 whitespace-pre-wrap text-sm leading-7 text-sky-950">{answer.answer}</p>
-                {answer.webCitations.length > 0 && <ul className="mt-4 space-y-2 text-sm">{answer.webCitations.map((url) => <li key={url}><a href={url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 font-bold text-sky-800 underline">Web source <ArrowUpRight size={13} /></a></li>)}</ul>}
+              <div className="motion-resolve mt-6 overflow-hidden rounded-2xl border border-sky-200 bg-white">
+                <div className="flex items-center gap-2 bg-sky-100 px-5 py-3 text-sm font-extrabold text-sky-950"><Globe2 size={18} /> General web guidance · not verified 4Prep data</div>
+                <div className="p-5">
+                  <SafeMarkdown text={answer.answer} className="text-sm leading-7 text-sky-950" />
+                  {answer.webCitations.length > 0 && <ul className="mt-4 space-y-2 text-sm">{answer.webCitations.map((url, index) => {
+                    const citation = webCitationDetails(url, index)
+                    return (
+                      <li key={`${url}-${index}`}>
+                        {citation ? (
+                          <a href={citation.href} target="_blank" rel="noreferrer" aria-label={citation.accessibleName} className="inline-flex min-h-11 items-center gap-1 font-bold text-sky-800 underline">
+                            {citation.label} <ArrowUpRight size={13} />
+                          </a>
+                        ) : <span className="inline-flex min-h-11 items-center text-muted">Source {index + 1}: unavailable link</span>}
+                      </li>
+                    )
+                  })}</ul>}
+                </div>
+              </div>
+            )}
+            {answer?.answerType === 'out_of_scope' && (
+              <div className="soft-grid mt-6 rounded-2xl border border-forest-200 bg-white p-6">
+                <Compass size={36} className="text-forest-700" />
+                <h2 className="display mt-4 text-2xl font-extrabold">That is outside what I advise on</h2>
+                <p className="mt-3 leading-7 text-muted">{answer.answer}</p>
+                {answer.suggestions && answer.suggestions.length > 0 && (
+                  <>
+                    <p className="mt-6 text-sm font-bold text-forest-900">Try asking instead:</p>
+                    <ul className="mt-3 grid gap-2">
+                      {answer.suggestions.map((suggestion) => (
+                        <li key={suggestion}>
+                          <button
+                            type="button"
+                            onClick={() => { setMessage(suggestion); setAnswer(null) }}
+                            className="w-full rounded-xl border border-line px-4 py-3 text-left text-sm leading-6 text-forest-900 transition hover:border-forest-500 hover:bg-forest-50"
+                          >
+                            {suggestion}
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  </>
+                )}
               </div>
             )}
             {answer?.answerType === 'refusal' && (
-              <div className="soft-grid mt-6 rounded-2xl border border-amber-200 bg-white p-6">
-                <FileQuestion size={36} className="text-amber-700" />
-                <h2 className="display mt-4 text-2xl font-extrabold">Verified answer unavailable</h2>
+              <div className="trust-static soft-grid mt-6 rounded-2xl border border-forest-100 bg-white p-6">
+                <FileQuestion size={36} className="text-forest-700" />
+                <p className="mt-4 text-xs font-extrabold uppercase tracking-[.13em] text-forest-700">Honest refusal · no guess</p>
+                <h2 className="display mt-1 text-2xl font-extrabold">Verified answer unavailable</h2>
                 <p className="mt-3 leading-7 text-muted">{answer.answer}</p>
-                <p className="mt-4 text-xs text-muted">No database or web citation is attached because no verified figure was used.</p>
+                <p className="mt-4 rounded-xl bg-canvas p-3 text-xs leading-5 text-muted">No citation is attached because no verified figure was used. Confirm the requested detail with the university office named above.</p>
               </div>
             )}
           </div>
           <aside className="card p-5">
             <h2 className="font-extrabold">What the counselor will do</h2>
             <ul className="mt-4 space-y-3 text-sm leading-6 text-muted">
+              <li>• Answer only questions about US admissions and studying abroad.</li>
               <li>• Retrieve relevant verified records first.</li>
               <li>• Attach database sources to university figures.</li>
               <li>• Refuse when a requested figure is unknown.</li>
@@ -167,6 +230,6 @@ export function CounselorScreen() {
           </aside>
         </div>
       </section>
-    </main>
+    </div>
   )
 }

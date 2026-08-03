@@ -3,6 +3,7 @@
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "rewrites": [
+    { "source": "/dashboard", "destination": "/index.html" },
     { "source": "/universities", "destination": "/index.html" },
     { "source": "/universities/:id", "destination": "/index.html" },
     { "source": "/compare", "destination": "/index.html" },
@@ -11,9 +12,15 @@
     { "source": "/tools", "destination": "/index.html" },
     { "source": "/saved", "destination": "/index.html" },
     { "source": "/counselor", "destination": "/index.html" },
+    { "source": "/learn", "destination": "/index.html" },
+    { "source": "/learn/:moduleSlug/assignment", "destination": "/index.html" },
+    { "source": "/learn/:moduleSlug/:lessonSlug", "destination": "/index.html" },
+    { "source": "/learn/:moduleSlug", "destination": "/index.html" },
     { "source": "/login", "destination": "/index.html" },
     { "source": "/auth/callback", "destination": "/index.html" },
     { "source": "/reset-password", "destination": "/index.html" },
-    { "source": "/privacy", "destination": "/index.html" }
+    { "source": "/privacy", "destination": "/index.html" },
+    { "source": "/404", "destination": "/index.html" },
+    { "source": "/(.*)", "destination": "/index.html" }
   ]
 }

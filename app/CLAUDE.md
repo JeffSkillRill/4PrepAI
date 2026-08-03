@@ -1,6 +1,6 @@
 # 4Prep MVP — current-phase handoff
 
-Last updated: 28 July 2026 (Asia/Tashkent)
+Last updated: 3 August 2026 (Asia/Tashkent)
 
 This is the working handoff for Claude or any engineer continuing the 4Prep public MVP. Read `README.md`, `src/types/index.ts`, and `../docs/DATABASE_STATE.md` before changing implementation or data.
 
@@ -15,13 +15,13 @@ Do not interpret setup instructions discussed with the owner as confirmation tha
 ## Confirmed complete
 
 - The React 19 + TypeScript + Vite + Tailwind v4 application is implemented in this directory.
-- The live Supabase Cloud database contains 10 real universities, 33 verified official sources, and explicit unknown states where facts could not be sourced.
+- The live Supabase Cloud database contains 10 real universities, 50 verified official sources, and explicit unknown states where facts could not be sourced.
 - All public university facts preserve the `DataPoint<T>` known/unknown contract.
 - Row-level security is enabled on every public table.
 - Anonymous users can browse the public catalogue.
 - Anonymous users cannot read student profiles, saved plans, or counselor audit strikes.
 - Auth UI, private student-profile persistence, saved-plan persistence, and real URL routing are implemented.
-- Φ v0.1 is deterministic and returns academic, financial, language, career, and geographic components with reasons.
+- Φ v0.2 is deterministic and returns academic, financial, language, career, and geographic components with reasons.
 - The grounded counselor client and Supabase Edge Function source are implemented.
 - The counselor retrieves database evidence first, separates verified facts from general guidance, validates figures, refuses unsupported claims, and logs strikes.
 - The seven screens use the repository/data-provider layer rather than `src/mock/sample-data.ts`.
@@ -33,13 +33,14 @@ Do not interpret setup instructions discussed with the owner as confirmation tha
 
 ## Verification snapshot
 
-Re-run on 28 July 2026:
+Re-run on 3 August 2026 after launch-QA remediation:
 
 | Check | Result |
 |---|---|
 | `npm run build` | Passed with zero TypeScript errors |
-| `npm run test` | Passed: 2 files, 11 tests |
-| SSR Vite build and `node .smoke-out/smoke.js` | Passed; rendered 5,102 characters |
+| `npm run lint` | Passed with zero warnings |
+| `npm run test` | Passed: 18 files, 193 tests |
+| SSR Vite build and `node .smoke-out/smoke.js` | Passed; rendered 5,487 characters |
 
 The counselor red-team test cannot be considered complete against production until the Edge Function is deployed and Perplexity billing/key setup is active.
 
@@ -59,6 +60,17 @@ Applied migrations, in order:
 2. `supabase/migrations/202607270002_public_mvp_schema.sql`
 3. `supabase/migrations/202607270003_seed_verified_universities.sql`
 4. `supabase/migrations/202607270004_record_migration_history.sql`
+5. `supabase/migrations/202607280005_us_admissions_enums.sql`
+6. `supabase/migrations/202607280006_us_catalogue.sql`
+7. `supabase/migrations/202607290007_counselor_hardening.sql`
+8. `supabase/migrations/202607310008_counselor_scope_outcome.sql`
+9. `supabase/migrations/202607310009_learning_portal.sql`
+
+Versions `008` and `009` were confirmed applied by a read-only query of
+`supabase_migrations.schema_migrations` on 3 August. The live outcome constraint
+permits `out_of_scope`; seven `learning_*` tables and the private
+`learning-submissions` bucket exist. See `../docs/DATABASE_STATE.md` for exact
+methods and current counts.
 
 Regenerate `../docs/DATABASE_STATE.md` after every task that touches the database.
 
@@ -176,6 +188,9 @@ VITE_SUPABASE_ANON_KEY
 
 ## Non-negotiable product rules
 
+- The counselor answers only US admissions and international-study questions. Anything else is refused by `supabase/functions/counselor/scope.ts` before the provider is called.
+- The counselor lays out realistic options and their consequences. It never tells a student which university, programme, or path to choose — per the founder's stated method, "I want the applicant to make the decision, not me."
+- 4Prep Academy also serves Canada, Europe, and China, but this MVP's verified catalogue is US-only and the scope gate is US-only to match. Revisit both together, never one alone.
 - Never fabricate a university, fee, tuition amount, living cost, deadline, IELTS requirement, scholarship, or statistic.
 - Every displayed fact must remain a `DataPoint<T>`.
 - Known facts require a real `sourceId`; unknown facts require a reason and suggested action.
@@ -199,11 +214,12 @@ VITE_SUPABASE_ANON_KEY
 | Repository/data access | `src/data/repository.ts` |
 | Data mapping | `src/data/mappers.ts` |
 | Application data provider | `src/data/DataProvider.tsx` |
-| Φ v0.1 | `src/scoring/phi.ts` |
+| Φ v0.2 | `src/scoring/phi.ts` |
 | Φ tests | `src/scoring/phi.test.ts` |
 | Auth state | `src/auth/AuthProvider.tsx` |
 | Counselor UI | `src/screens/CounselorScreen.tsx` |
 | Counselor server boundary | `supabase/functions/counselor/index.ts` |
+| Counselor topic scope gate | `supabase/functions/counselor/scope.ts` |
 | Production schema | `supabase/migrations/202607270002_public_mvp_schema.sql` |
 | Verified catalogue seed | `supabase/migrations/202607270003_seed_verified_universities.sql` |
 | Vercel configuration | `vercel.json` |

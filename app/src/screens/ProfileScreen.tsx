@@ -1,13 +1,13 @@
-import { Bookmark, BookmarkCheck, CalendarDays, Check, CircleDollarSign, Clock3, Languages, MapPin, Sparkles } from 'lucide-react'
+import { Bookmark, BookmarkCheck, CalendarDays, Check, Clock3, Languages, MapPin } from 'lucide-react'
 import { useMemo } from 'react'
 import type { StudentProfile } from '../types'
-import { DataValue, ExpandableFit, FitBreakdown, MissingValue, SampleNotice } from '../components/Trust'
+import { DataValue, ExpandableFit, FitBreakdown, HonestGapCluster, MissingValue, SampleNotice } from '../components/Trust'
 import { DesignedState, LoadingState } from '../components/States'
 import { getUniversity } from '../data/repository'
 import { useRepositoryData } from '../data/useRepositoryData'
 import { computeFit } from '../scoring/phi'
 import { UniversityVisual } from '../components/UniversityVisual'
-import { PublishedNetCost } from '../components/CostSummary'
+import { CostSummary, PublishedNetCost } from '../components/CostSummary'
 
 export function ProfileScreen({ universityId, profile, saved, onToggleSave }: { universityId: string; profile: StudentProfile | null; saved: boolean; onToggleSave: () => void }) {
   const { data, status, reload } = useRepositoryData(() => getUniversity(universityId), [universityId])
@@ -16,19 +16,18 @@ export function ProfileScreen({ universityId, profile, saved, onToggleSave }: { 
     ...(profile ? { fit: computeFit(profile, data) } : {}),
   } : null, [data, profile])
 
-  if (status === 'loading') return <LoadingState />
+  if (status === 'loading') return <LoadingState kind="profile" />
   if (status === 'error' || status === 'offline') return <DesignedState state={status} onReset={reload} />
   if (!university) return <DesignedState state="empty" onReset={reload} />
 
   return (
-    <main>
+    <div>
       <section className="relative h-[390px] min-h-[340px] overflow-hidden bg-forest-900 sm:h-[440px]">
         <UniversityVisual university={university} className="absolute inset-0" />
         <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-black/10" />
         <div className="page-container absolute inset-x-0 bottom-0 pb-8 text-white sm:pb-10">
           <div className="flex flex-col items-start justify-between gap-5 md:flex-row md:items-end">
             <div className="max-w-3xl"><p className="flex items-center gap-2 text-sm font-semibold text-white/80"><MapPin size={17} /> {university.city}, {university.country} {university.flag}</p><h1 className="display mt-3 text-4xl font-extrabold leading-tight sm:text-5xl">{university.name}</h1><p className="mt-3 text-lg text-white/80">{university.tagline}</p></div>
-            {university.fit && <ExpandableFit fit={university.fit} />}
           </div>
         </div>
       </section>
@@ -39,16 +38,39 @@ export function ProfileScreen({ universityId, profile, saved, onToggleSave }: { 
         </div>
       </nav>
 
-      <div className="page-container grid items-start gap-8 py-10 lg:grid-cols-[minmax(0,1fr)_340px]">
+      <div className="page-container motion-resolve pt-6">
+        {university.fit ? (
+          <div className="max-w-md"><ExpandableFit fit={university.fit} /></div>
+        ) : (
+          <MissingValue
+            title="Your fit isn’t calculated yet"
+            reason="We haven’t got your profile yet, so we can’t score this university for you."
+            action="Complete the intake to see all five fit components."
+            kind="profile"
+          />
+        )}
+      </div>
+
+      <div className="page-container grid items-start gap-8 py-8 lg:grid-cols-[minmax(0,1fr)_340px]">
         <div className="space-y-8">
           <SampleNotice verification={university.verification} />
+          <HonestGapCluster items={[
+            { label: 'Published cost of attendance', point: university.totalCostOfAttendance },
+            { label: 'Mandatory fees', point: university.fees },
+            { label: 'Room and board', point: university.roomBoard },
+            { label: 'International aid', point: university.aidInternational },
+            { label: 'F-1 financial certification', point: university.financialCertification },
+            { label: 'Application deadline', point: university.deadline },
+            { label: 'Duolingo requirement', point: university.duolingo },
+            { label: 'GPA expectation', point: university.gpa },
+          ]} />
           <section id="overview" className="card scroll-mt-36 p-6 sm:p-8">
             <p className="text-sm font-bold uppercase tracking-[.14em] text-forest-700">Overview</p>
             <h2 className="display mt-2 text-3xl font-extrabold">Why this could fit your plan</h2>
             <p className="mt-4 leading-7 text-muted">{university.description}</p>
             <div className="mt-6 grid gap-3 sm:grid-cols-3">{university.highlights.map((highlight) => <div key={highlight} className="flex items-start gap-2 rounded-xl bg-forest-50 p-4 text-sm font-semibold text-forest-900"><Check size={17} className="mt-0.5 shrink-0 text-forest-600" />{highlight}</div>)}</div>
             <div className="mt-8 border-t border-line pt-7"><h3 className="display text-xl font-extrabold">4Prep fit report</h3>
-              {university.fit ? <><p className="mt-1 text-sm text-muted">Calculated only from the profile you entered—not an admission prediction.</p><FitBreakdown fit={university.fit} /></> : <div className="mt-4"><MissingValue title="Your fit isn’t calculated yet" reason="We haven’t got your profile yet, so we can’t score this university for you." action="Complete the intake to see all five fit components." /></div>}
+              {university.fit ? <><p className="mt-1 text-sm text-muted">Calculated only from the profile you entered—not an admission prediction.</p><FitBreakdown fit={university.fit} /></> : <div className="mt-4"><MissingValue title="Your fit isn’t calculated yet" reason="We haven’t got your profile yet, so we can’t score this university for you." action="Complete the intake to see all five fit components." kind="profile" /></div>}
             </div>
           </section>
 
@@ -60,15 +82,8 @@ export function ProfileScreen({ universityId, profile, saved, onToggleSave }: { 
           <section id="costs" className="card scroll-mt-36 p-6 sm:p-8">
             <p className="text-sm font-bold uppercase tracking-[.14em] text-forest-700">Costs</p><h2 className="display mt-2 text-3xl font-extrabold">Build a complete budget</h2>
             <p className="mt-3 text-sm leading-6 text-muted">Sticker cost and aid-adjusted cost are shown separately. The net figure uses only a numeric institutional award published for international students and never assumes you will receive it.</p>
-            <div className="mt-6 grid gap-4 sm:grid-cols-2">
-              <Fact icon={<CircleDollarSign />} label="Published cost of attendance" value={<DataValue point={university.totalCostOfAttendance} />} />
-              <Fact icon={<Sparkles />} label="Aid-adjusted net-cost scenario" value={<PublishedNetCost university={university} />} />
-              <Fact icon={<CircleDollarSign />} label="Tuition" value={<DataValue point={university.tuition} />} />
-              <Fact icon={<CircleDollarSign />} label="Mandatory fees" value={<DataValue point={university.fees} />} />
-              <Fact icon={<MapPin />} label="Room and board" value={<DataValue point={university.roomBoard} />} />
-              <Fact icon={<Sparkles />} label="Aid for international students" value={<DataValue point={university.aidInternational} />} />
-              <Fact icon={<CircleDollarSign />} label="Application fee" value={<DataValue point={university.applicationFee} />} />
-              <Fact icon={<CircleDollarSign />} label="F-1 financial certification" value={<DataValue point={university.financialCertification} />} />
+            <div className="mt-6">
+              <CostSummary university={university} />
             </div>
           </section>
 
@@ -88,7 +103,7 @@ export function ProfileScreen({ universityId, profile, saved, onToggleSave }: { 
             </div>
           </section>
 
-          <section id="scholarships" className="card scroll-mt-36 p-6 sm:p-8"><p className="text-sm font-bold uppercase tracking-[.14em] text-forest-700">Scholarships</p><h2 className="display mt-2 text-3xl font-extrabold">International funding evidence</h2><div className="mt-5 rounded-2xl bg-amber-50 p-5"><DataValue point={university.aidInternational} className="font-bold" /><p className="mt-3 text-sm leading-6 text-muted">Competitive merit awards and need-based grants are not guaranteed. Open the source, confirm international eligibility, and get a personal aid offer before treating the displayed net-cost scenario as your price.</p></div></section>
+          <section id="scholarships" className="card scroll-mt-36 p-6 sm:p-8"><p className="text-sm font-bold uppercase tracking-[.14em] text-forest-700">Scholarships</p><h2 className="display mt-2 text-3xl font-extrabold">International funding evidence</h2><div className="mt-5 rounded-2xl bg-forest-50 p-5"><DataValue point={university.aidInternational} className="font-bold" /><p className="mt-3 text-sm leading-6 text-muted">Competitive merit awards and need-based grants are not guaranteed. Open the source, confirm international eligibility, and get a personal aid offer before treating the displayed net-cost scenario as your price.</p></div></section>
         </div>
 
         <aside className="card sticky top-36 overflow-hidden">
@@ -98,12 +113,12 @@ export function ProfileScreen({ universityId, profile, saved, onToggleSave }: { 
           </div>
         </aside>
       </div>
-    </main>
+    </div>
   )
 }
 
 function Fact({ icon, label, value }: { icon: React.ReactNode; label: string; value: React.ReactNode }) {
-  return <div className="rounded-xl border border-line p-4"><div className="flex items-center gap-2 text-sm font-bold text-muted"><span className="text-forest-600 [&>svg]:size-18">{icon}</span>{label}</div><div className="mt-3 font-bold text-ink">{value}</div></div>
+  return <div className="rounded-xl border border-line p-4"><div className="flex items-center gap-2 text-sm font-bold text-muted"><span className="text-forest-600 [&>svg]:size-5">{icon}</span>{label}</div><div className="mt-3 font-bold text-ink">{value}</div></div>
 }
 
 function Summary({ label, value }: { label: string; value: React.ReactNode }) {

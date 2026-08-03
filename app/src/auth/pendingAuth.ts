@@ -5,6 +5,8 @@ export const PENDING_AUTH_STORAGE_KEY = '4prep.pending-auth'
 export type PendingDestination = {
   view: View
   universityId: string | null
+  moduleSlug?: string | null
+  lessonSlug?: string | null
 }
 
 export type PendingAuth = {
@@ -17,6 +19,7 @@ type StorageLike = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>
 
 const blockedDestinations = new Set<View>(['auth', 'auth_callback', 'reset_password'])
 const validDestinations = new Set<View>([
+  'dashboard',
   'search',
   'profile',
   'compare',
@@ -25,6 +28,10 @@ const validDestinations = new Set<View>([
   'tools',
   'saved',
   'counselor',
+  'learn',
+  'learn_module',
+  'learn_lesson',
+  'learn_assignment',
   'privacy',
 ])
 
@@ -40,12 +47,31 @@ export function getAuthStorage(): Storage | null {
 function isDestination(value: unknown): value is PendingDestination {
   if (!value || typeof value !== 'object') return false
   const destination = value as Partial<PendingDestination>
-  return (
+  const hasValidParts = (
     typeof destination.view === 'string'
     && validDestinations.has(destination.view as View)
     && !blockedDestinations.has(destination.view as View)
     && (destination.universityId === null || typeof destination.universityId === 'string')
+    && (
+      destination.moduleSlug === undefined
+      || destination.moduleSlug === null
+      || typeof destination.moduleSlug === 'string'
+    )
+    && (
+      destination.lessonSlug === undefined
+      || destination.lessonSlug === null
+      || typeof destination.lessonSlug === 'string'
+    )
   )
+  if (!hasValidParts) return false
+  if (destination.view === 'profile') return typeof destination.universityId === 'string'
+  if (destination.view === 'learn_module' || destination.view === 'learn_assignment') {
+    return typeof destination.moduleSlug === 'string'
+  }
+  if (destination.view === 'learn_lesson') {
+    return typeof destination.moduleSlug === 'string' && typeof destination.lessonSlug === 'string'
+  }
+  return true
 }
 
 function isStudentProfile(value: unknown): value is StudentProfile {
@@ -79,7 +105,11 @@ export function readPendingAuth(storage: StorageLike | null): PendingAuth | null
     if (parsed.profile !== null && !isStudentProfile(parsed.profile)) return null
     if (parsed.consentedAt !== undefined && typeof parsed.consentedAt !== 'string') return null
     return {
-      destination: parsed.destination,
+      destination: {
+        ...parsed.destination,
+        moduleSlug: parsed.destination.moduleSlug ?? null,
+        lessonSlug: parsed.destination.lessonSlug ?? null,
+      },
       profile: parsed.profile ?? null,
       ...(parsed.consentedAt ? { consentedAt: parsed.consentedAt } : {}),
     }

@@ -1,4 +1,15 @@
-import type { Pathway, Source, StudentProfile, University, UniversityFilters, Verification } from '../types'
+import type {
+  LearningAssignment,
+  LearningSubmission,
+  LearningTrack,
+  LearningUserState,
+  Pathway,
+  Source,
+  StudentProfile,
+  University,
+  UniversityFilters,
+  Verification,
+} from '../types'
 import { computeFit, PHI_WEIGHTS } from '../scoring/phi'
 import {
   bestPublishedCostScenario,
@@ -9,10 +20,18 @@ import { pathwayMilestones } from './static-content'
 import { getSupabaseClient } from './client'
 import {
   mapSource,
+  mapLearningSubmission,
+  mapLearningTrack,
+  type RawLearningSubmission,
+  type RawLearningTrack,
   mapUniversity,
   type RawSource,
   type RawUniversity,
 } from './mappers'
+import {
+  sanitizeLearningFilename,
+  validateLearningSubmissionFile,
+} from '../learning/logic'
 
 const universitySelect = `
   id,name,city,country,flag,tagline,description,photo_seed,highlights,source_id,
@@ -21,6 +40,28 @@ const universitySelect = `
   programs(id,name,degree,field,program_facts(kind,value,numeric_value,currency,amount_period,source_id,unknown_reason,suggested_action)),
   university_scholarships(scholarships(id,name,amount_value,amount_numeric,currency,amount_period,amount_source_id,amount_unknown_reason,amount_suggested_action))
 `
+
+const learningTrackSelect = `
+  id,slug,title,description,sort_order,
+  learning_modules(
+    id,track_id,module_number,slug,title,summary,sort_order,
+    learning_lessons(
+      id,module_id,slug,title,sort_order,duration_minutes,body,status,transcript,media_url,audio_url
+    ),
+    learning_assignments(
+      id,module_id,slug,title,brief,submission_type,template_ref,rubric
+    )
+  )
+`
+
+const learningSubmissionSelect = `
+  id,assignment_id,user_id,status,submitted_at,feedback_ref,
+  learning_submission_files(
+    id,submission_id,storage_path,original_filename,mime_type,byte_size,created_at
+  )
+`
+
+const LEARNING_SUBMISSIONS_BUCKET = 'learning-submissions'
 
 function throwIfError(error: { message: string } | null) {
   if (error) throw new Error(`4Prep data request failed: ${error.message}`)
@@ -161,3 +202,229 @@ export async function removePlan(userId: string, universityId: string): Promise<
     .eq('university_id', universityId)
   throwIfError(error)
 }
+
+export async function getLearningTrack(
+  slug = 'application-year',
+): Promise<LearningTrack | null> {
+  const { data, error } = await getSupabaseClient()
+    .from('learning_tracks')
+    .select(learningTrackSelect)
+    .eq('slug', slug)
+    .maybeSingle()
+  throwIfError(error)
+  return data ? mapLearningTrack(data as unknown as RawLearningTrack) : null
+}
+
+export async function getLearningUserState(userId: string): Promise<LearningUserState> {
+  const [progressResult, submissionResult] = await Promise.all([
+    getSupabaseClient()
+      .from('learning_progress')
+      .select('lesson_id')
+      .eq('user_id', userId),
+    getSupabaseClient()
+      .from('learning_submissions')
+      .select(learningSubmissionSelect)
+      .eq('user_id', userId)
+      .order('submitted_at', { ascending: true }),
+  ])
+  throwIfError(progressResult.error)
+  throwIfError(submissionResult.error)
+  return {
+    completedLessonIds: new Set((progressResult.data ?? []).map((row) => row.lesson_id)),
+    submissions: ((submissionResult.data ?? []) as unknown as RawLearningSubmission[])
+      .map(mapLearningSubmission),
+  }
+}
+
+export async function markLearningLessonComplete(
+  userId: string,
+  lessonId: string,
+): Promise<void> {
+  const { error } = await getSupabaseClient()
+    .from('learning_progress')
+    .upsert({
+      user_id: userId,
+      lesson_id: lessonId,
+      completed_at: new Date().toISOString(),
+    }, { onConflict: 'user_id,lesson_id' })
+  throwIfError(error)
+}
+
+type UploadProgress = (percent: number) => void
+
+type LearningSubmissionUpload = {
+  userId: string
+  assignment: LearningAssignment
+  file: File
+  onProgress?: UploadProgress
+}
+
+function encodedStoragePath(path: string): string {
+  return path.split('/').map(encodeURIComponent).join('/')
+}
+
+async function uploadLearningObject(
+  path: string,
+  file: File,
+  onProgress?: UploadProgress,
+): Promise<void> {
+  const client = getSupabaseClient()
+  const { data, error } = await client.auth.getSession()
+  if (error) throw error
+  if (!data.session) throw new Error('Please sign in before uploading homework.')
+
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
+  const publishableKey = import.meta.env.VITE_SUPABASE_ANON_KEY
+  if (!supabaseUrl || !publishableKey) {
+    throw new Error('Homework upload is not configured.')
+  }
+
+  if (typeof XMLHttpRequest === 'undefined') {
+    onProgress?.(0)
+    const { error: uploadError } = await client.storage
+      .from(LEARNING_SUBMISSIONS_BUCKET)
+      .upload(path, file, { contentType: file.type, upsert: false })
+    if (uploadError) throw uploadError
+    onProgress?.(100)
+    return
+  }
+
+  await new Promise<void>((resolve, reject) => {
+    const request = new XMLHttpRequest()
+    request.open(
+      'POST',
+      `${supabaseUrl}/storage/v1/object/${LEARNING_SUBMISSIONS_BUCKET}/${encodedStoragePath(path)}`,
+    )
+    request.setRequestHeader('Authorization', `Bearer ${data.session.access_token}`)
+    request.setRequestHeader('apikey', publishableKey)
+    request.setRequestHeader('Content-Type', file.type)
+    request.setRequestHeader('x-upsert', 'false')
+    request.upload.addEventListener('progress', (event) => {
+      if (!event.lengthComputable) return
+      onProgress?.(Math.min(99, Math.round((event.loaded / event.total) * 100)))
+    })
+    request.addEventListener('load', () => {
+      if (request.status >= 200 && request.status < 300) {
+        onProgress?.(100)
+        resolve()
+        return
+      }
+      reject(new Error(`Homework upload failed (${request.status}).`))
+    })
+    request.addEventListener('error', () => reject(new Error('The connection dropped during upload.')))
+    request.addEventListener('abort', () => reject(new Error('The upload was cancelled.')))
+    onProgress?.(0)
+    request.send(file)
+  })
+}
+
+async function getLearningSubmission(
+  userId: string,
+  assignmentId: string,
+): Promise<LearningSubmission | null> {
+  const { data, error } = await getSupabaseClient()
+    .from('learning_submissions')
+    .select(learningSubmissionSelect)
+    .eq('user_id', userId)
+    .eq('assignment_id', assignmentId)
+    .maybeSingle()
+  throwIfError(error)
+  return data ? mapLearningSubmission(data as unknown as RawLearningSubmission) : null
+}
+
+export async function submitLearningAssignment({
+  userId,
+  assignment,
+  file,
+  onProgress,
+}: LearningSubmissionUpload): Promise<LearningSubmission> {
+  const validationError = validateLearningSubmissionFile(file)
+  if (validationError) throw new Error(validationError)
+
+  const client = getSupabaseClient()
+  const existing = await getLearningSubmission(userId, assignment.id)
+  const { data: submissionRow, error: submissionError } = await client
+    .from('learning_submissions')
+    .upsert({
+      assignment_id: assignment.id,
+      user_id: userId,
+      status: 'pending',
+    }, { onConflict: 'user_id,assignment_id' })
+    .select('id')
+    .single()
+  throwIfError(submissionError)
+  if (!submissionRow) throw new Error('The submission record could not be created.')
+  const submissionId = submissionRow.id
+
+  const uniquePrefix = typeof crypto !== 'undefined' && 'randomUUID' in crypto
+    ? crypto.randomUUID()
+    : `${Date.now()}`
+  const storagePath = [
+    userId,
+    assignment.slug,
+    `${uniquePrefix}-${sanitizeLearningFilename(file.name)}`,
+  ].join('/')
+
+  let uploaded = false
+  try {
+    await uploadLearningObject(storagePath, file, onProgress)
+    uploaded = true
+
+    const { error: fileError } = await client.from('learning_submission_files').insert({
+      submission_id: submissionId,
+      storage_path: storagePath,
+      original_filename: file.name,
+      mime_type: file.type.toLowerCase(),
+      byte_size: file.size,
+    })
+    throwIfError(fileError)
+
+    const { error: completionError } = await client
+      .from('learning_submissions')
+      .update({
+        status: 'pending',
+        submitted_at: new Date().toISOString(),
+        feedback_ref: null,
+      })
+      .eq('id', submissionId)
+      .eq('user_id', userId)
+    throwIfError(completionError)
+  } catch (reason) {
+    if (uploaded) {
+      await Promise.allSettled([
+        client.storage.from(LEARNING_SUBMISSIONS_BUCKET).remove([storagePath]),
+        client.from('learning_submission_files').delete().eq('storage_path', storagePath),
+      ])
+    }
+    if (!existing) {
+      await client.from('learning_submissions').delete().eq('id', submissionId)
+    }
+    throw reason
+  }
+
+  const saved = await getLearningSubmission(userId, assignment.id)
+  if (!saved) throw new Error('The upload finished, but the submission record could not be reopened.')
+  return saved
+}
+
+export async function downloadLearningSubmissionFile(storagePath: string): Promise<Blob> {
+  const { data, error } = await getSupabaseClient()
+    .storage
+    .from(LEARNING_SUBMISSIONS_BUCKET)
+    .download(storagePath)
+  if (error) throw new Error(`4Prep data request failed: ${error.message}`)
+  return data
+}
+
+export type ReviewedLearningSubmissionWriteBackContext = {
+  submission: LearningSubmission
+  profileTarget: 'student_profiles' | 'saved_plans'
+}
+
+export type ReviewedLearningSubmissionWriteBack = (
+  context: ReviewedLearningSubmissionWriteBackContext,
+) => Promise<void>
+
+// Deliberately unwired. A later reviewed-artifact parser must supply this adapter;
+// uploads in this release never mutate student_profiles or saved_plans.
+export const reviewedLearningSubmissionWriteBack: ReviewedLearningSubmissionWriteBack | null = null

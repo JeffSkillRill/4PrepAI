@@ -1,24 +1,69 @@
 # 4Prep database state
 
-Last regenerated: 29 July 2026 (Asia/Tashkent), after counselor hardening and the authenticated account-deletion function were deployed and checked on Production.
+Last regenerated: 3 August 2026 (Asia/Tashkent).
 
-This document describes the connected live database. The forward-only SQL files in `app/supabase/migrations/` are the source of truth.
+This document is the launch source of truth for the connected production database. It distinguishes facts observed live from repository definitions and items that still require an authenticated QA environment.
 
-## Connection and project
+## How this state was observed
 
-- Project name: `4PrepAi`
-- Project reference: `pubhgajlqhdbpwqahtki`
-- Branch/environment: `main` — Production
-- Hosting: Supabase Cloud, Northeast Asia (Tokyo), AWS `ap-northeast-1`
-- Compute: Nano
-- Organization plan shown in the dashboard: Free
-- Project URL: `https://pubhgajlqhdbpwqahtki.supabase.co`
-- Secret names used by the system: `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `PPLX_API_KEY`, `PPLX_MODEL`, `COUNSELOR_IP_SALT`
-- No password, API key, service-role key, or other secret is included here.
+No database or external-system write was made while regenerating this document.
 
-## Live row counts
+| Fact group | Observation method on 3 August 2026 |
+|---|---|
+| Applied migrations | Read-only `SELECT version FROM supabase_migrations.schema_migrations ORDER BY version` through the linked Supabase Management API. |
+| Counselor outcome constraint | Read-only `pg_catalog` query using `pg_get_constraintdef` for `public.counselor_requests.counselor_requests_outcome_check`. |
+| Learning tables | Read-only `information_schema.tables` query for `public.learning_%` base tables. |
+| Storage buckets | Read-only `storage.buckets` query for ID, visibility, file limit, and MIME allow-list. |
+| Row counts | Direct read-only `count(*)` queries against the named public tables and `storage.objects`. |
+| Provenance and RLS design | Checked-in forward migrations and client contracts. These definitions are not a substitute for two-account live RLS tests. |
+| Function deployment and authenticated behavior | Not changed or re-deployed in this remediation. The 3 August independent launch audit is the latest signed-out function evidence; authenticated behavior remains unverified. |
 
-| Table | Rows |
+The linked project metadata identifies project `4PrepAi`, reference `pubhgajlqhdbpwqahtki`. The project URL is `https://pubhgajlqhdbpwqahtki.supabase.co`. The repository and local `.env` identify this as Production. Region, plan, backups, SMTP, and OAuth dashboard settings were not refreshed in this regeneration and must not be inferred from schema queries.
+
+No password, API key, service-role key, or other secret is included here.
+
+## Applied migrations
+
+Production `supabase_migrations.schema_migrations` returned these versions, in order:
+
+1. `202607240001`
+2. `202607270002`
+3. `202607270003`
+4. `202607270004`
+5. `202607280005`
+6. `202607280006`
+7. `202607290007`
+8. `202607310008`
+9. `202607310009`
+
+These correspond to the nine checked-in files under `app/supabase/migrations/`.
+
+**`202607310008` is applied.** It is not a blocking pre-deploy step. **`202607310009` is also applied.** There are no checked-in pending migrations as of this snapshot.
+
+## Counselor outcome constraint
+
+The live constraint is validated and its exact definition is:
+
+```sql
+CHECK (outcome = ANY (ARRAY[
+  'started'::text,
+  'local_response'::text,
+  'cache_hit'::text,
+  'live_call'::text,
+  'out_of_scope'::text,
+  'rate_limited'::text,
+  'provider_failure'::text,
+  'server_failure'::text
+]))
+```
+
+Therefore the counselor's `outcome: 'out_of_scope'` update is permitted in Production. Finding F-05's conditional failure is not present in the observed schema.
+
+## Live row-count snapshot
+
+Counts are time-specific and will drift with real use.
+
+| Table | Rows observed 3 August 2026 |
 |---|---:|
 | `sources` | 50 |
 | `universities` | 10 |
@@ -28,231 +73,110 @@ This document describes the connected live database. The forward-only SQL files 
 | `requirements` | 60 |
 | `scholarships` | 10 |
 | `university_scholarships` | 10 |
-| `student_profiles` | 0 |
-| `saved_plans` | 0 |
+| `student_profiles` | 1 |
+| `saved_plans` | 4 |
 | `counselor_strikes` | 4 |
-| `counselor_requests` | 18 |
-| `counselor_cache` | 2 |
+| `counselor_requests` | 28 |
+| `counselor_cache` | 8 |
+| `learning_tracks` | 1 |
+| `learning_modules` | 11 |
+| `learning_lessons` | 11 |
+| `learning_assignments` | 11 |
+| `learning_progress` | 0 |
+| `learning_submissions` | 0 |
+| `learning_submission_files` | 0 |
+| `storage.objects` | 0 |
 
-The live country query returned 10 `United States` rows and zero rows whose country differs from `United States`. All former Central Asian and European universities, their dependent catalogue rows, and their now-orphaned sources were deleted by the forward migration.
+Private-table counts are recorded only as totals; no student row or uploaded object was read.
 
-Deleting the former universities cascades to `saved_plans`. The pre-migration and post-migration Production checks both returned zero saved plans, so no user plan was lost during this cutover.
+## Learning Portal state
 
-The counselor operational rows are verification traffic from 29 July 2026. They are intentionally short-lived and are covered by the seven-day pruning function described below.
+The following seven `public` base tables exist live:
 
-## US catalogue and evidence coverage
+- `learning_assignments`
+- `learning_lessons`
+- `learning_modules`
+- `learning_progress`
+- `learning_submission_files`
+- `learning_submissions`
+- `learning_tracks`
 
-“Sourced” and “unknown” cover the 17 admissions records stored for each university: 11 university facts and six requirements. Every known record has a non-null `source_id`; every unknown has a non-null reason and suggested next action. Scholarship amount unknowns are audited separately below because scholarship amounts use their own known-or-unknown constraint.
+The live `learning-submissions` Storage bucket exists. It is private (`public = false`), has a `10,485,760` byte (10 MiB) file limit, and allows the MIME types defined by migration `202607310009` for PDF, DOCX, CSV/Excel, and the supported image formats.
 
-| University | Tier | Sourced | Explicit unknowns |
-|---|---|---:|---:|
-| Harvard University | Need-blind / full need | 15 | 2 |
-| Yale University | Need-blind / full need | 13 | 4 |
-| Princeton University | Need-blind / full need | 15 | 2 |
-| Berea College | Private, unusually deep international funding | 12 | 5 |
-| Illinois Wesleyan University | Private, published international merit | 14 | 3 |
-| Clark University | Private, published international merit | 15 | 2 |
-| University of Southern Mississippi | Public, published international merit | 17 | 0 |
-| University of Alabama | Public, published international merit | 16 | 1 |
-| University of Nebraska at Kearney | Public, published international merit | 16 | 1 |
-| Houston City College | Community college / 2+2 transfer | 12 | 5 |
+The published curriculum contains one track with eleven modules, eleven lessons, and eleven assignments. There are currently no saved progress rows, submissions, submission-file rows, or Storage objects.
 
-All 50 source rows are `verified`, use official university URLs, and have retrieval date `2026-07-28`. Every monetary figure in the US catalogue uses `USD`; no mixed-currency US record exists.
+The existence of the tables, policies, and bucket does not prove cross-user isolation. Owner-only table access, owner-only Storage access, upload validation, persistence, and deletion cleanup still require two disposable accounts in a non-production environment.
 
-### Why this mix
+## Catalogue and provenance contract
 
-- Harvard, Yale, and Princeton represent the very small need-blind/full-demonstrated-need tier for international applicants. Φ does not invent a personal aid amount for them; it labels the result as individualized.
-- Berea, Illinois Wesleyan, and Clark add private options whose official pages publish material international funding or merit opportunities rather than leaving aid implicit.
-- Southern Miss, Alabama, and UNK add public options with published international merit awards and lower starting prices than the private sticker-price tier.
-- Houston City College adds a 60-credit Computer Science Associate of Science designed for university transfer. Its published one-year F-1 budget is `$22,980`, with `$7,980` assigned to tuition/fees in the official budget. Although still above an `$8,000` all-in budget, it is the catalogue’s lowest published-cost route and the only deliberate 2+2 option; students must plan separately for living costs and confirm any Foundation aid.
+Migration `202607280006_us_catalogue.sql` is the checked-in catalogue definition. The live table counts align with its ten-university US catalogue and fifty official source records.
 
-This spread avoids presenting ten versions of the same unaffordable pathway. It also prevents a low-budget student from seeing only four-year sticker prices while keeping every affordability claim honest.
+The trust boundary remains:
 
-## Facts, requirements, and enums
+- Known university facts require a display value and a non-null verified source ID.
+- Unknown facts require a null value/source plus a reason and a suggested next action.
+- Numeric value, currency, and period metadata may accompany only known records.
+- Scholarship identity is sourced; its amount independently follows the known-or-explicitly-unknown rule.
+- Client data maps through `DataPoint<T>` and renders known values with source chips or unknown values with reason/action guidance.
+- No missing value may be represented as zero, a bare dash, or an invented estimate.
 
-`university_fact_kind` now contains:
+The database holds no acceptance-rate field. A percentage cannot be accepted merely because the same digits occur in a currency or score record.
 
-`tuition`, `living_cost`, `application_fee`, `deadline`, `scholarship`, `language`, `intake`, `room_board`, `fees`, `total_cost_of_attendance`, `aid_international`, `test_policy`, `financial_certification`.
-
-`requirement_kind` now contains:
-
-`ielts`, `toefl`, `duolingo`, `sat`, `act`, `gpa`.
-
-The new enum values were added with `ALTER TYPE ... ADD VALUE` in migration `202607280005`. They are used only by the following migration, avoiding PostgreSQL’s same-transaction enum limitation.
-
-The existing known-or-explicitly-unknown checks were not weakened:
-
-- A known `university_facts` or `requirements` row requires a display value and real `source_id`, and cannot carry an unknown reason/action.
-- An unknown row requires a null value/source plus both `unknown_reason` and `suggested_action`.
-- Numeric value, currency, and amount period are structured metadata for known records; clients do not parse display text to invent numbers.
-- Scholarship identity always has a source. Its amount independently obeys the same known-or-explicitly-unknown model.
-
-Every university has one sourced programme with name, field, and degree. `program_facts` is intentionally empty because no unsourced duration or programme-level tuition was carried forward; university-level costs are shown instead.
-
-## Core table and relationship summary
+## Core table groups
 
 ### Public catalogue
 
-- `sources`: official evidence URL, retrieval date, and verification state.
-- `universities`: identity and summary, with a required source.
-- `university_facts`: one row per university/fact kind, with the known-or-unknown check.
-- `programs`: university, programme name, degree, field, and required source.
-- `program_facts`: optional sourced/unknown structured programme facts.
-- `requirements`: one row per university/requirement kind, with the known-or-unknown check.
-- `scholarships`: sourced scholarship identity plus independently sourced or explicitly unknown amount.
-- `university_scholarships`: sourced university-to-scholarship link.
-- `verified_universities`: security-invoker view that exposes only universities whose owning source is `verified`.
+- `sources`
+- `universities`
+- `university_facts`
+- `programs`
+- `program_facts`
+- `requirements`
+- `scholarships`
+- `university_scholarships`
+- `verified_universities` security-invoker view
 
-Catalogue foreign keys cascade from a deleted university to facts, programmes, requirements, scholarship links, and saved plans. The migration explicitly deletes now-unlinked scholarships and orphaned sources after the old catalogue is removed.
+### Private student data
 
-### Private and audit data
+- `student_profiles`
+- `saved_plans`
+- `learning_progress`
+- `learning_submissions`
+- `learning_submission_files`
+- objects under `learning-submissions/{user_id}/...`
 
-- `student_profiles`: one row per `auth.users.id`; includes destination, field, academic score, budget, `language_test`, language score, pathway preference, intake, consent, and timestamps.
-- `saved_plans`: unique `(user_id, university_id)` relationship.
-- `counselor_strikes`: server-written audit entries for untraceable counselor figures.
-- `counselor_requests`: one operational row per Edge Function invocation. Columns are `request_id`, nullable `user_id`, hash-only `caller_key`, constrained `outcome`, optional hash-only `cache_key`, `created_at`, and `completed_at`.
-- `counselor_cache`: validated cache entries keyed by a SHA-256 hash, with `response_payload`, `created_at`, and atomic `hit_count`.
+### Counselor operational data
 
-`student_profiles.language_test` accepts `ielts`, `toefl`, or `duolingo` when present. The score constraint is conditional on the selected scale: IELTS `0–9`, TOEFL `0–120`, and Duolingo `10–160`. A null test requires a null score. User-entered profile values do not carry source IDs.
+- `counselor_strikes`
+- `counselor_requests`
+- `counselor_cache`
 
-## Counselor operational controls
+Migration `202607290007` defines caller rate limiting, cache operations, service-role-only operational access, and seven-day pruning. Migration `202607310008` adds `out_of_scope` to the outcome constraint. The checked-in counselor source keeps anonymous access deliberate through `[functions.counselor] verify_jwt = false`.
 
-The counselor remains available to anonymous visitors; `[functions.counselor] verify_jwt = false` is deliberate. Abuse and cost controls run inside the Edge Function before Perplexity:
+The repository now uses `counselor-cache-v2` after tightening figure validation. That source change was not deployed in this remediation, so the production function must not be described as running v2 until a separate deployment is observed.
 
-- Anonymous callers: 8 accepted requests per rolling minute and 40 per rolling hour.
-- Authenticated callers: 20 accepted requests per rolling minute and 200 per rolling hour.
-- The rate-limit decision is serialized per caller with a PostgreSQL transaction advisory lock, so concurrent requests cannot race past the count.
-- Signed-in callers use `auth.uid()` as their caller key. Anonymous callers use `SHA-256(COUNSELOR_IP_SALT + client IP)` from the gateway-controlled `x-forwarded-for` header. Raw IPs are never stored.
-- A caller-supplied `x-forwarded-for` spoofing check produced the same stored hash for two different supplied values, confirming the Supabase gateway overwrites that header.
-- Outcomes are constrained to `started`, `local_response`, `cache_hit`, `live_call`, `rate_limited`, `provider_failure`, and `server_failure`.
-- The live verification outcome totals are 13 `local_response`, 2 `cache_hit`, 1 `live_call`, and 2 `rate_limited`.
+## Row-level security and deletion evidence
 
-The cache TTL is 24 hours. Keys hash the normalized lowercase/collapsed-whitespace question, sorted matched university IDs, `CACHE_VERSION`, Φ version, prompt version, and a sorted snapshot of every supplied grounding record. A source/value/status correction therefore produces a different key even before a manual version bump. Only validated `verified_fact` and `general_guidance` payloads are cached; refusals are never cached.
+The checked-in migrations define public read access for catalogue/curriculum rows and owner-only access for profiles, saved plans, progress, submissions, submission-file metadata, and Storage objects. Counselor request/cache tables are service-role-only; strike reads are limited to the owning user.
 
-`CACHE_VERSION` is the manual invalidation switch and must be bumped with any catalogue migration or behavior change that should invalidate all prior answers.
+Historical signed-out checks established that anonymous catalogue reads succeed and anonymous private-table reads fail. They do not establish User A versus User B isolation.
 
-Perplexity calls have a 25-second `AbortController` timeout and zero automatic retries. Timeout, non-2xx, malformed JSON, missing/invalid structured fields, and provider outages all return the existing grounded refusal without partial output.
+The checked-in `delete-account` function authenticates the bearer token, derives the user ID server-side, deletes the exact auth user, removes uploaded objects, and checks for remaining profile, plan, learning, and Storage records. The deployed function version was not compared with the working tree on 3 August. No authenticated destructive test was run against Production.
 
-`public.prune_counselor_operational_data()` deletes request and cache rows older than seven days. Its live verification returned zero deletions because all operational rows were current. Run it daily from a trusted scheduler or database administrator session:
+## Launch implications
 
-```sql
-select * from public.prune_counselor_operational_data();
-```
+- F-03 is closed by direct schema observation: the Learning Portal schema and bucket are live.
+- F-05 is closed as a schema-state concern: `202607310008` is applied and `out_of_scope` is permitted.
+- Applying migrations `008` or `009` is **not** a current launch action and must not be repeated.
+- Production deployment of the counselor validation change and the current `delete-account` source still requires a separate, explicitly authorized deployment step.
+- Auth, account deletion, learning persistence, file isolation, and cross-user RLS remain launch blockers until tested with two disposable non-production accounts.
 
-## Row-level security verification
+## Needs Jeff
 
-RLS policies and grants were not changed by the US migrations.
-
-| Table group | Anonymous visitor | Authenticated user |
-|---|---|---|
-| All public catalogue tables | read | read |
-| `student_profiles` | no privilege | own row only |
-| `saved_plans` | no privilege | own rows only |
-| `counselor_strikes` | no privilege | own strikes readable; service role writes |
-| `counselor_requests` | no privilege | no privilege; service role only |
-| `counselor_cache` | no privilege | no privilege; service role only |
-
-Live `anon` client tests:
-
-- `universities`: success, exact count `10`.
-- `student_profiles`: PostgreSQL `42501`, `permission denied for table student_profiles`.
-- `counselor_requests` on 29 July: HTTP `401`, PostgreSQL `42501`, `permission denied for table counselor_requests`.
-- `counselor_cache` on 29 July: HTTP `401`, PostgreSQL `42501`, `permission denied for table counselor_cache`.
-
-The owner policies continue to compare `auth.uid()` to `user_id`; a signed-in user cannot select or mutate another user’s profile or saved plans.
-
-## Account deletion
-
-The `delete-account` Edge Function is active in Production with gateway JWT
-verification enabled. It accepts no client-supplied user ID: it validates the
-bearer token with Supabase Auth, deletes that exact auth user through the
-server-only service-role client, and then counts `student_profiles` and
-`saved_plans` rows for the deleted user. It reports success only when both
-counts are zero.
-
-Both private tables already reference `auth.users(id) on delete cascade`, so no
-schema migration was required and no RLS policy was weakened. An
-unauthenticated Production request returned HTTP `401`
-`UNAUTHORIZED_NO_AUTH_HEADER`. A destructive authenticated run still requires a
-disposable confirmed test account; there were no student profile or saved-plan
-rows available to delete during this verification.
-
-## Production verification
-
-Live SQL and anonymous API checks returned:
-
-- Universities: `10`.
-- Universities where `country <> 'United States'`: `0`.
-- Student profiles: `0`.
-- Saved plans: `0`.
-- Counselor strikes: `4`.
-- Counselor requests: `18`.
-- Counselor cache entries: `2`, both with `hit_count = 1`.
-- Migrations recorded through `202607290007`.
-- Fact coverage: exactly the sourced/unknown counts in the table above.
-
-Counselor production checks returned:
-
-- Southern Mississippi tuition: `verified_fact`, `$12,794 / year for a nonresident undergraduate (2026-27)`, citation `us-usm-coa`.
-- The identical second request: `cache_hit`, identical content/citations, and cache `hit_count` incremented from 0 to 1.
-- Berea minimum GPA, repeated twice: two fresh `local_response` refusals with no citations and `cache_key = null`; no provider call and no cache row.
-- Anonymous burst: 8 accepted requests followed by HTTP `429`, `Retry-After: 60`, and the designed refusal; the audit contained no `live_call` or `provider_failure` for the burst.
-- General essay guidance: one `live_call`, then an identical `cache_hit`; the second request made no Perplexity call.
-
-Three stored figures were reopened and matched against the cited official page:
-
-1. Princeton: `$94,624` 2026–27 total cost of attendance; the page also lists `$68,140` tuition, `$13,010` housing, `$9,110` food, and `$314` fees — [Princeton Fees & Payment Options](https://admission.princeton.edu/cost-aid/fees-payment-options).
-2. UNK: `$35,064` before aid, `$4,797` International Loper Scholarship, `$30,267` after aid, with the same `$35,064` serving as the published pre-aid minimum support for I-20 issuance — [UNK international costs](https://www.unk.edu/international/international-admissions/costs.php).
-3. Houston City College: `$22,980` liquid financial support for a self-sponsored first-time F-1 student — [HCC financial requirements](https://www.hccs.edu/student-life--services/international-student-services/financial-requirements-for-international-students/).
-
-## Explicit unknown audit
-
-These are intentionally unknown in Production; no value was inferred or estimated.
-
-- **Harvard:** current undergraduate I-20 financial-certification amount; minimum first-year GPA; individualized need-aid award amount.
-- **Yale:** current application fee; one official total 2026–27 COA figure; undergraduate I-20 financial-certification amount; minimum first-year GPA; individualized need-aid award amount.
-- **Princeton:** undergraduate I-20 financial-certification amount; minimum first-year GPA; individualized need-aid award amount.
-- **Berea:** separately itemized mandatory fees; next international deadline; next intake term; post-aid I-20 financial-certification amount; minimum international first-year GPA.
-- **Illinois Wesleyan:** one official 2026–27 international COA total; current 2026–27 financial-certification amount; minimum international first-year GPA.
-- **Clark:** exact post-scholarship I-20 financial-certification amount; minimum international first-year GPA.
-- **University of Alabama:** official 2026–27 nonresident undergraduate COA. The current international page instead publishes the I-20 funding total, which is stored separately.
-- **UNK:** mandatory-fee component separated from the published `$18,193` tuition-and-fees bundle.
-- **Houston City College:** international institutional/Foundation aid eligibility and amount; Duolingo acceptance/minimum; SAT expectation; ACT expectation; minimum GPA; Foundation scholarship amount.
-- **Southern Miss:** no explicit unknown among the 17 required university facts and requirements.
-
-Each database row contains the corresponding reason and next action (for example, contact the relevant admissions, financial-aid, international-student, testing, or student-accounts office). The migration contains the complete wording.
-
-## Applied migrations
-
-Applied to the live Production branch in order and recorded in `supabase_migrations.schema_migrations`:
-
-1. `202607240001_initial_schema.sql`
-2. `202607270002_public_mvp_schema.sql`
-3. `202607270003_seed_verified_universities.sql`
-4. `202607270004_record_migration_history.sql`
-5. `202607280005_us_admissions_enums.sql`
-6. `202607280006_us_catalogue.sql`
-7. `202607290007_counselor_hardening.sql`
-
-Migrations 005 and 006 were applied from the checked-in files through Supabase SQL Editor. Migration 007 was applied from its checked-in file with linked `supabase db push` after a dry run showed it as the only pending migration. Linked database lint returned no schema errors. Migration 006 runs as a single transaction and aborts unless `saved_plans` is still zero.
-
-## ⚠ Needs Jeff
-
-- Review the explicit unknown audit and request the listed current figures from each university. Update them only through a new forward migration with official source rows; do not edit migration 006.
-- Schedule `select * from public.prune_counselor_operational_data();` daily with Supabase Cron or another trusted scheduler. The cleanup function exists and was live-tested, but migration 007 does not enable a scheduler extension automatically.
-- Review `counselor_requests` outcome totals and `counselor_cache.hit_count` after real traffic. Tune the named rate constants if legitimate students frequently receive 429s; do not remove the hourly limit.
-- Bump `CACHE_VERSION` whenever a catalogue migration should invalidate all cached answers. Record fingerprints already invalidate changed university records, but the manual bump is the broad safety switch.
-- Use Perplexity billing as an independent final backstop. Current official documentation describes prepaid credits and optional automatic reload, but does not document a separate hard-cap control. Keep automatic reload disabled and maintain a deliberately small prepaid balance; if Jeff’s console exposes a group spending cap, set it. Otherwise ask Perplexity support for a hard-cap option and monitor the billing dashboard.
-- Configure Supabase Auth **Site URL** to `https://app.4prep.ai` and add the same origin plus any required Vercel preview URL to **Redirect URLs**.
-- Configure production email delivery/SMTP. Supabase’s default email service is rate-limited and is not suitable for a public launch.
-- Create the Google OAuth Web client and configure its exact Supabase callback
-  URIs, then paste the client ID and secret into **Supabase → Authentication →
-  Providers → Google**. The live Auth settings check on 29 July returned
-  `google: false`. Follow `docs/AUTH_SETUP.md`; never place the client secret in
-  Vite or another client environment.
-- Publish the Google OAuth consent screen to **Production** before public
-  launch. Keep the requested scopes to OpenID, email, and profile.
-- The dashboard shows the organization on the Free plan and no database backups. Upgrade to a plan with automated backups/PITR and enable the desired retention before collecting student data.
-- Supply a public privacy/support contact. Self-service deletion is now
-  implemented and the production Edge Function is active.
-- Create/import the Vercel project, set `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`, deploy `app/`, attach `app.4prep.ai`, and configure DNS. No Vercel credentials or connected project are available in this workspace.
+- Provision a separate Supabase QA project and follow `docs/QA_ENVIRONMENT.md`. Do not reuse Production for routine development or QA.
+- Provide two disposable confirmed QA accounts and mailboxes for cross-user and deletion tests.
+- After code review, deploy the updated counselor function and invalidate/avoid old counselor cache entries through its v2 cache namespace. Re-run the red-team table without weakening figure provenance.
+- Compare and deploy the current `delete-account` function only after the QA project proves table, Storage, and deletion cleanup end to end.
+- Verify production SMTP, Google OAuth, Auth redirect URLs, privacy contact, plan, backups/PITR, Vercel deployment, and DNS in their respective dashboards.
+- Schedule `select * from public.prune_counselor_operational_data();` daily from a trusted scheduler.
+- Review real counselor request/cache metrics before changing rate limits.

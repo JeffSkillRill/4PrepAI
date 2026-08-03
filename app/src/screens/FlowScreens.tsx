@@ -6,6 +6,7 @@ import { DesignedState, LoadingState } from '../components/States'
 import { getRankedPathway } from '../data/repository'
 import { UniversityVisual } from '../components/UniversityVisual'
 import { PublishedNetCost } from '../components/CostSummary'
+import { AppLink } from '../components/AppLink'
 
 const questions = [
   { eyebrow: 'Your destination', title: 'Where would you like to study?', detail: 'This catalogue is currently dedicated to United States pathways.', icon: MapPin, options: ['🇺🇸 United States'] },
@@ -75,14 +76,14 @@ export function IntakeScreen({ onComplete }: { onComplete: (profile: StudentProf
     else setStep((value) => value + 1)
   }
 
-  if (status === 'loading') return <LoadingState />
+  if (status === 'loading') return <LoadingState kind="form" />
   if (status === 'error' || status === 'offline') return <DesignedState state={status} onReset={() => setStatus('ready')} />
 
   return (
-    <main className="soft-grid min-h-[calc(100vh-106px)] py-10 sm:py-16">
+    <div className="soft-grid min-h-[calc(100vh-106px)] py-10 sm:py-16">
       <div className="mx-auto w-[min(640px,calc(100%-32px))]">
         <div className="mb-5 flex items-center justify-between text-sm"><span className="font-bold text-forest-800">Build your pathway</span><span className="text-muted">Step {step + 1} of {questions.length}</span></div>
-        <div className="h-2 overflow-hidden rounded-full bg-forest-100"><div className="h-full rounded-full bg-forest-600 transition-all duration-300" style={{ width: `${((step + 1) / questions.length) * 100}%` }} /></div>
+        <div className="h-2 overflow-hidden rounded-full bg-forest-100"><div className="motion-progress h-full w-full rounded-full bg-forest-600" style={{ transform: `scaleX(${(step + 1) / questions.length})` }} /></div>
         <section className="card mt-6 p-6 sm:p-9">
           <div className="grid size-16 place-items-center rounded-2xl bg-forest-50 text-forest-700"><Icon size={30} /></div>
           <p className="mt-6 text-sm font-bold uppercase tracking-[.14em] text-forest-700">{question.eyebrow}</p>
@@ -98,14 +99,14 @@ export function IntakeScreen({ onComplete }: { onComplete: (profile: StudentProf
         </section>
         <p className="mt-5 text-center text-xs leading-5 text-muted">Sign in to save these private answers. They are used only to calculate your pathway.</p>
       </div>
-    </main>
+    </div>
   )
 }
 
 export function ResultsScreen({ pathway, saved, onSave, onOpen }: { pathway: Pathway; saved: Set<string>; onSave: (id: string) => void; onOpen: (university: University) => void }) {
   const ranked = pathway.ranked.slice(0, 3)
   return (
-    <main className="page-container py-10 lg:py-14">
+    <div className="page-container motion-resolve py-8 sm:py-10 lg:py-14">
       <section className="relative overflow-hidden rounded-[28px] bg-forest-900 p-6 text-white shadow-card sm:p-9 lg:p-11">
         <div className="absolute -right-20 -top-24 size-80 rounded-full bg-forest-500/30 blur-3xl" />
         <div className="relative grid gap-8 lg:grid-cols-[1fr_340px] lg:items-center">
@@ -115,11 +116,11 @@ export function ResultsScreen({ pathway, saved, onSave, onOpen }: { pathway: Pat
       </section>
 
       <section className="mt-12"><div className="flex flex-wrap items-end justify-between gap-4"><div><p className="text-sm font-bold uppercase tracking-[.14em] text-forest-700">Ranked shortlist</p><h2 className="display mt-2 text-3xl font-extrabold">Your strongest starting points</h2></div><p className="max-w-md text-sm leading-6 text-muted">Every fit opens into the same five scored components with plain-language reasons.</p></div>
-        <div className="mt-6 grid gap-6 lg:grid-cols-3">{ranked.map((university, index) => <article key={university.id} className="card interactive-card overflow-hidden"><div className="relative aspect-[2/1] overflow-hidden bg-forest-800"><UniversityVisual university={university} className="absolute inset-0" /><div className="image-scrim absolute inset-0" /><span className="absolute left-3 top-3 rounded-full bg-white px-3 py-1 text-xs font-extrabold text-forest-900">Choice {index + 1}</span><div className="absolute inset-x-4 bottom-4 text-white"><h3 className="display text-2xl font-extrabold">{university.name}</h3><p className="mt-1 text-sm text-white/80">{university.city}, {university.country}</p></div></div><div className="p-5">{university.fit && <ExpandableFit fit={university.fit} compact />}<div className="mt-4 text-xs"><span className="block font-bold uppercase tracking-wide text-muted">Aid-adjusted net-cost scenario</span><div className="mt-1 font-bold"><PublishedNetCost university={university} compact /></div></div><p className="mt-4 text-sm leading-6 text-muted">{university.fit?.summary}</p><div className="mt-5 grid grid-cols-[1fr_auto] gap-2"><button onClick={() => onOpen(university)} className="inline-flex items-center justify-center gap-2 rounded-xl bg-forest-50 py-3 text-sm font-bold text-forest-800 transition hover:bg-forest-100">Review evidence <ArrowRight size={16} /></button><button onClick={() => onSave(university.id)} disabled={saved.has(university.id)} className="grid size-11 place-items-center rounded-xl border border-line text-forest-800 disabled:bg-forest-50" aria-label={saved.has(university.id) ? `${university.name} already saved` : `Save ${university.name}`}>{saved.has(university.id) ? <BookmarkCheck size={18} /> : <Bookmark size={18} />}</button></div></div></article>)}</div>
+        <div className="mt-6 grid gap-6 lg:grid-cols-3">{ranked.map((university, index) => <article key={university.id} className="card interactive-card overflow-hidden"><div className="relative aspect-[2/1] overflow-hidden bg-forest-800"><UniversityVisual university={university} className="absolute inset-0" /><div className="image-scrim absolute inset-0" /><span className="absolute left-3 top-3 rounded-full bg-white px-3 py-1 text-xs font-extrabold text-forest-900">Choice {index + 1}</span><div className="absolute inset-x-4 bottom-4 text-white"><h3 className="display text-2xl font-extrabold">{university.name}</h3><p className="mt-1 text-sm text-white/80">{university.city}, {university.country}</p></div></div><div className="p-5">{university.fit && <ExpandableFit fit={university.fit} compact />}<div className="mt-4 text-xs"><span className="block font-bold uppercase tracking-wide text-muted">Aid-adjusted net-cost scenario</span><div className="mt-1 font-bold"><PublishedNetCost university={university} compact /></div></div><p className="mt-4 text-sm leading-6 text-muted">{university.fit?.summary}</p><div className="mt-5 grid grid-cols-[1fr_auto] gap-2"><AppLink href={`/universities/${encodeURIComponent(university.id)}`} onNavigate={() => onOpen(university)} className="inline-flex items-center justify-center gap-2 rounded-xl bg-forest-50 py-3 text-sm font-bold text-forest-800 transition hover:bg-forest-100">Review evidence <ArrowRight size={16} /></AppLink><button onClick={() => onSave(university.id)} disabled={saved.has(university.id)} className="grid size-11 place-items-center rounded-xl border border-line text-forest-800 disabled:bg-forest-50" aria-label={saved.has(university.id) ? `${university.name} already saved` : `Save ${university.name}`}>{saved.has(university.id) ? <BookmarkCheck size={18} /> : <Bookmark size={18} />}</button></div></div></article>)}</div>
       </section>
 
       <section className="mt-14"><p className="text-sm font-bold uppercase tracking-[.14em] text-forest-700">Step by step</p><h2 className="display mt-2 text-3xl font-extrabold">Your application runway</h2><div className="timeline-line relative mt-8 grid gap-4 md:grid-cols-3 xl:grid-cols-6">{pathway.milestones.map((item, index) => <article key={item.month} className="relative rounded-2xl border border-line bg-white p-4 pt-14 shadow-soft"><span className="absolute left-4 top-3 z-10 grid size-10 place-items-center rounded-full bg-forest-700 text-xs font-extrabold text-white ring-4 ring-canvas">{index + 1}</span><p className="text-xs font-bold uppercase tracking-[.14em] text-forest-700">Step {item.month}</p><h3 className="mt-2 font-extrabold">{item.title}</h3><p className="mt-2 text-sm leading-5 text-muted">{item.detail}</p></article>)}</div></section>
-    </main>
+    </div>
   )
 }
 

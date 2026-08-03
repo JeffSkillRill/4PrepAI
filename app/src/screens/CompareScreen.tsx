@@ -1,4 +1,4 @@
-import { Check, MapPin, Plus, X } from 'lucide-react'
+import { Check, ChevronDown, MapPin, Plus, X } from 'lucide-react'
 import { useMemo } from 'react'
 import type { StudentProfile, University } from '../types'
 import { DataValue, ExpandableFit, MissingValue } from '../components/Trust'
@@ -7,7 +7,7 @@ import { listUniversities } from '../data/repository'
 import { useRepositoryData } from '../data/useRepositoryData'
 import { computeFit } from '../scoring/phi'
 import { UniversityVisual } from '../components/UniversityVisual'
-import { PublishedNetCost } from '../components/CostSummary'
+import { CostSummary, PublishedNetCost } from '../components/CostSummary'
 
 type Row = {
   label: string
@@ -17,7 +17,7 @@ type Row = {
 function CompareHeader({ university }: { university: University }) {
   return (
     <div className="w-full min-w-0 overflow-hidden rounded-xl border border-line bg-white text-left">
-      <div className="relative aspect-[2.2/1] overflow-hidden bg-forest-800"><UniversityVisual university={university} className="absolute inset-0" /><button className="absolute right-2 top-2 grid size-7 place-items-center rounded-full bg-white/90" aria-label={`Remove ${university.name}`}><X size={14} /></button></div>
+      <div className="relative aspect-[2.2/1] overflow-hidden bg-forest-800"><UniversityVisual university={university} className="absolute inset-0" /><button className="absolute right-2 top-2 grid size-11 place-items-center rounded-full bg-white/90" aria-label={`Remove ${university.name}`}><X size={16} /></button></div>
       <div className="p-3"><h3 className="display text-base font-extrabold leading-tight">{university.name}</h3><p className="mt-1 flex items-center gap-1 text-xs text-muted"><MapPin size={12} />{university.city}, {university.country}</p></div>
     </div>
   )
@@ -30,9 +30,9 @@ export function CompareScreen({ profile }: { profile: StudentProfile | null }) {
     fit: computeFit(profile, university),
   } : university), [data, profile])
   const rows: Row[] = [
-    { label: '4Prep fit', render: (university) => university.fit ? <ExpandableFit fit={university.fit} compact /> : <MissingValue title="Your fit isn’t calculated yet" reason="No profile has been entered yet." action="Complete the intake to compare fit across these universities." /> },
-    { label: 'Cost of attendance', render: (university) => <DataValue point={university.totalCostOfAttendance} /> },
+    { label: '4Prep fit', render: (university) => university.fit ? <ExpandableFit fit={university.fit} compact /> : <MissingValue title="Your fit isn’t calculated yet" reason="No profile has been entered yet." action="Complete the intake to compare fit across these universities." kind="profile" /> },
     { label: 'Aid-adjusted net-cost scenario', render: (university) => <PublishedNetCost university={university} compact /> },
+    { label: 'Cost of attendance', render: (university) => <DataValue point={university.totalCostOfAttendance} /> },
     { label: 'Tuition', render: (university) => <DataValue point={university.tuition} /> },
     { label: 'Mandatory fees', render: (university) => <DataValue point={university.fees} /> },
     { label: 'Room and board', render: (university) => <DataValue point={university.roomBoard} /> },
@@ -51,12 +51,12 @@ export function CompareScreen({ profile }: { profile: StudentProfile | null }) {
     { label: 'Highlights', render: (university) => <ul className="space-y-2 text-sm">{university.highlights.map((highlight) => <li key={highlight} className="flex gap-2"><Check size={15} className="mt-0.5 shrink-0 text-forest-600" />{highlight}</li>)}</ul> },
   ]
 
-  if (status === 'loading') return <LoadingState />
+  if (status === 'loading') return <LoadingState kind="compare" />
   if (status === 'error' || status === 'offline') return <DesignedState state={status} onReset={reload} />
   if (compared.length === 0) return <DesignedState state="empty" onReset={reload} />
 
   return (
-    <main className="page-container py-10 lg:py-14">
+    <div className="page-container motion-resolve py-8 sm:py-10 lg:py-14">
       <div className="flex flex-wrap items-end justify-between gap-5">
         <div><p className="text-sm font-bold uppercase tracking-[.14em] text-forest-700">Compare</p><h1 className="display mt-2 text-4xl font-extrabold sm:text-5xl">See the trade-offs clearly</h1><p className="mt-4 max-w-2xl leading-7 text-muted">Every figure keeps its source. Fit opens into all five components instead of appearing as a bare score.</p></div>
         <button className="inline-flex items-center gap-2 rounded-xl border border-forest-200 bg-forest-50 px-4 py-3 font-bold text-forest-800 transition hover:bg-forest-100"><Plus size={18} /> Add university</button>
@@ -67,14 +67,27 @@ export function CompareScreen({ profile }: { profile: StudentProfile | null }) {
             <div className="bg-canvas p-4">
               <CompareHeader university={university} />
             </div>
-            <dl className="divide-y divide-line">
-              {rows.map((row, index) => (
-                <div key={row.label} className={`p-5 ${index % 2 === 0 ? 'bg-white' : 'bg-canvas/50'}`}>
-                  <dt className="text-xs font-bold uppercase tracking-[.12em] text-muted">{row.label}</dt>
-                  <dd className="mt-2 text-sm leading-6 text-ink">{row.render(university)}</dd>
-                </div>
-              ))}
-            </dl>
+            <div className="space-y-4 p-4">
+              <section>
+                <p className="mb-2 text-xs font-bold uppercase tracking-[.12em] text-muted">Five-part fit</p>
+                {university.fit ? <ExpandableFit fit={university.fit} compact /> : <MissingValue title="Your fit isn’t calculated yet" reason="No profile has been entered yet." action="Complete intake to compare the five fit reasons." kind="profile" />}
+              </section>
+              <CostSummary university={university} compact />
+              <CompareMobileSection title="Admissions and timing">
+                <MobileFact label="Next intake" value={<DataValue point={university.intake} />} />
+                <MobileFact label="Deadline" value={<DataValue point={university.deadline} />} />
+                <MobileFact label="Test policy" value={<DataValue point={university.testPolicy} />} />
+                <MobileFact label="TOEFL" value={<DataValue point={university.toefl} />} />
+                <MobileFact label="IELTS" value={<DataValue point={university.ielts} />} />
+                <MobileFact label="Duolingo" value={<DataValue point={university.duolingo} />} />
+                <MobileFact label="GPA" value={<DataValue point={university.gpa} />} />
+              </CompareMobileSection>
+              <CompareMobileSection title="Why it is on the list">
+                <ul className="grid gap-2 text-sm">
+                  {university.highlights.map((highlight) => <li key={highlight} className="flex gap-2"><Check size={15} className="mt-0.5 shrink-0 text-forest-600" />{highlight}</li>)}
+                </ul>
+              </CompareMobileSection>
+            </div>
           </article>
         ))}
       </div>
@@ -86,6 +99,31 @@ export function CompareScreen({ profile }: { profile: StudentProfile | null }) {
           </table>
         </div>
       </div>
-    </main>
+    </div>
+  )
+}
+
+function CompareMobileSection({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <details className="group rounded-xl border border-line bg-white">
+      <summary className="flex min-h-12 cursor-pointer list-none items-center px-4 py-3 text-sm font-bold text-forest-800">
+        {title}
+        <ChevronDown size={16} className="ml-auto transition group-open:rotate-180" />
+      </summary>
+      <div className="motion-disclosure">
+        <div className="overflow-hidden">
+          <div className="grid gap-3 border-t border-line p-4">{children}</div>
+        </div>
+      </div>
+    </details>
+  )
+}
+
+function MobileFact({ label, value }: { label: string; value: React.ReactNode }) {
+  return (
+    <div>
+      <p className="text-xs font-bold uppercase tracking-[.1em] text-muted">{label}</p>
+      <div className="mt-1 text-sm leading-6">{value}</div>
+    </div>
   )
 }

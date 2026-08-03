@@ -2,6 +2,7 @@ import type { AuthChangeEvent, Session, User } from '@supabase/supabase-js'
 import { createContext, useContext, useEffect, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
 import { getSupabaseClient } from '../data/client'
+import { destructiveOperationsAllowed } from '../data/environment'
 
 type AuthContextValue = {
   user: User | null
@@ -157,13 +158,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (error) throw error
     },
     deleteAccount: async () => {
+      if (!destructiveOperationsAllowed({
+        development: import.meta.env.DEV,
+        supabaseUrl: import.meta.env.VITE_SUPABASE_URL as string | undefined,
+        explicitOverride: import.meta.env.VITE_ALLOW_PRODUCTION_DESTRUCTIVE_OPERATIONS === 'true',
+      })) {
+        throw new Error('Account deletion is blocked in local development while connected to the production Supabase project.')
+      }
       const client = getSupabaseClient()
-      const { data, error } = await client.functions.invoke<{ deleted: boolean; orphanedRows: number }>(
+      const { data, error } = await client.functions.invoke<{
+        deleted: boolean
+        orphanedRows: number
+        orphanedObjects: number
+      }>(
         'delete-account',
         { body: { confirmation: 'delete-my-account' } },
       )
       if (error) throw error
-      if (!data?.deleted || data.orphanedRows !== 0) {
+      if (!data?.deleted || data.orphanedRows !== 0 || data.orphanedObjects !== 0) {
         throw new Error('Account deletion did not complete.')
       }
       await client.auth.signOut({ scope: 'local' })
