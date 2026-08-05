@@ -550,8 +550,4 @@ comment on table public.learning_submission_files is
 comment on table public.learning_progress is
   'Private owner-only lesson completion records.';
 
-insert into supabase_migrations.schema_migrations (version, statements, name) values
-  ('202607310009', array['Applied from the checked-in migration.'], 'learning_portal')
-on conflict (version) do nothing;
-
 commit;

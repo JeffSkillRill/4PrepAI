@@ -393,14 +393,4 @@ insert into public.university_scholarships (university_id, scholarship_id, sourc
   ('unk', 'unk-loper', 'us-unk-scholarship'),
   ('hcc', 'hcc-foundation', 'us-hcc-faq');
 
-insert into supabase_migrations.schema_migrations (version, statements, name)
-values (
-  '202607280006',
-  array['Applied from the checked-in migration through Supabase SQL Editor.'],
-  'us_catalogue'
-)
-on conflict (version) do update
-set statements = excluded.statements,
-    name = excluded.name;
-
 commit;

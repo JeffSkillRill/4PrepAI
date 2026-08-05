@@ -3,6 +3,7 @@ import type { LearningModule, LearningSubmission } from '../types'
 import {
   deriveLearningModuleStates,
   MAX_SUBMISSION_FILE_BYTES,
+  sanitizeLearningFilename,
   validateLearningSubmissionFile,
 } from './logic'
 
@@ -89,6 +90,10 @@ describe('learning module unlock logic', () => {
 })
 
 describe('learning submission file validation', () => {
+  it('removes URL-reserved delimiters from stored object filenames', () => {
+    expect(sanitizeLearningFilename('essay?draft#1%ready.pdf')).toBe('essay-draft-1-ready.pdf')
+  })
+
   it('accepts an allowed type at the storage size cap', () => {
     expect(validateLearningSubmissionFile({
       name: 'work.pdf',

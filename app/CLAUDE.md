@@ -6,9 +6,11 @@ This is the working handoff for Claude or any engineer continuing the 4Prep publ
 
 ## Current phase
 
-**Phase: production enablement and launch QA.**
+**Phase: production enablement, launch QA, and the authorised Prompt 12 operator work.**
 
-The core MVP implementation and production database foundation are complete. The remaining work depends mainly on third-party accounts, billing, secrets, deployment, DNS, and dashboard configuration. The owner plans to purchase or activate the required services on 28 July 2026 but had not completed those purchases when this report was written.
+On 3 August 2026, the product owner explicitly reversed two earlier scope rules: the admin console and homework feedback are now authorised under the sequenced Prompt 12 plan. Prompt 12.1 admin foundation is in scope now; homework feedback remains deferred until Prompt 12.3 and its safety constraints. The other exclusions below still bind.
+
+The core MVP implementation and production database foundation are complete. The remaining work depends mainly on third-party accounts, billing, secrets, deployment, DNS, and dashboard configuration. Their current external state is time-sensitive and must be rechecked rather than inferred from an earlier setup plan.
 
 Do not interpret setup instructions discussed with the owner as confirmation that a dashboard change was completed. Re-check each external system.
 
@@ -24,12 +26,12 @@ Do not interpret setup instructions discussed with the owner as confirmation tha
 - Φ v0.2 is deterministic and returns academic, financial, language, career, and geographic components with reasons.
 - The grounded counselor client and Supabase Edge Function source are implemented.
 - The counselor retrieves database evidence first, separates verified facts from general guidance, validates figures, refuses unsupported claims, and logs strikes.
-- The seven screens use the repository/data-provider layer rather than `src/mock/sample-data.ts`.
+- Student product screens use the repository/data-provider layer rather than `src/mock/sample-data.ts`.
 - Known S1/S2/S3/M1/M2/M3 issues were addressed in the implementation.
 - Privacy and consent UI exists, but final public contact and deletion-process details are still required.
 - Repository hygiene, migrations, `.env.example`, Vercel configuration, tests, and local documentation are present.
-- Baseline implementation was committed locally as `e0d8b64 feat: ship sourced public MVP foundation`.
-- Nothing was pushed to GitHub and no pull request was opened.
+- Repository history includes the earlier `e0d8b64 feat: ship sourced public MVP foundation` baseline.
+- At this snapshot, `HEAD` and `origin/main` are both `e84622329f5c88af502abddaa460b031bb203937`. The current Prompt 12 worktree changes are uncommitted and unpushed.
 
 ## Verification snapshot
 
@@ -39,8 +41,12 @@ Re-run on 3 August 2026 after launch-QA remediation:
 |---|---|
 | `npm run build` | Passed with zero TypeScript errors |
 | `npm run lint` | Passed with zero warnings |
-| `npm run test` | Passed: 18 files, 193 tests |
+| `npm run test` | Passed: 21 files, 243 tests |
 | SSR Vite build and `node .smoke-out/smoke.js` | Passed; rendered 5,487 characters |
+
+The separate `admin/` deployable also passed its build and zero-warning lint;
+its Vitest suite passed 3 files and 13 tests. These are local source checks,
+not evidence that migration `012` or `admin-api` is live.
 
 The counselor red-team test cannot be considered complete against production until the Edge Function is deployed and Perplexity billing/key setup is active.
 
@@ -54,7 +60,7 @@ The counselor red-team test cannot be considered complete against production unt
 - Current documented plan: Free
 - Detailed schema, provenance rules, RLS policies, row counts, seeds, and migration history: `../docs/DATABASE_STATE.md`
 
-Applied migrations, in order:
+Migration files, in order:
 
 1. `supabase/migrations/202607240001_initial_schema.sql`
 2. `supabase/migrations/202607270002_public_mvp_schema.sql`
@@ -65,12 +71,20 @@ Applied migrations, in order:
 7. `supabase/migrations/202607290007_counselor_hardening.sql`
 8. `supabase/migrations/202607310008_counselor_scope_outcome.sql`
 9. `supabase/migrations/202607310009_learning_portal.sql`
+10. `supabase/migrations/202608030010_learning_storage_upload_policy.sql`
+11. `supabase/migrations/202608030011_learning_storage_update_preflight.sql`
+12. `supabase/migrations/202608030012_admin_foundation.sql`
 
-Versions `008` and `009` were confirmed applied by a read-only query of
-`supabase_migrations.schema_migrations` on 3 August. The live outcome constraint
-permits `out_of_scope`; seven `learning_*` tables and the private
-`learning-submissions` bucket exist. See `../docs/DATABASE_STATE.md` for exact
-methods and current counts.
+Versions `008` and `009` were confirmed applied to Production by a read-only
+query of `supabase_migrations.schema_migrations` on 3 August. Migrations `010`
+and `011` are applied and live-proved in QA. Together they
+adapt the existing owner-only create and update policies to the Storage API's
+`contentLength` preflight metadata without relaxing ownership. Neither is
+recorded as applied to Production. Migration `012` is locally validated but is
+not applied to QA or Production.
+The live outcome constraint permits `out_of_scope`; seven `learning_*` tables
+and the private `learning-submissions` bucket exist. See
+`../docs/DATABASE_STATE.md` for exact methods and current counts.
 
 Regenerate `../docs/DATABASE_STATE.md` after every task that touches the database.
 
@@ -173,6 +187,14 @@ VITE_SUPABASE_ANON_KEY
 - Update the privacy page with those real operational details.
 - Do not invent a contact address or process.
 
+### 8. Admin foundation
+
+- Review and apply migration `012` to QA; Codex must not apply it.
+- Configure `ADMIN_IP_SALT` and the exact `ADMIN_ALLOWED_ORIGINS` only as Edge Function secrets.
+- Grant one trusted existing Auth user through reviewed SQL; there is no browser grant path.
+- Deploy `admin-api`, then deploy `admin/` separately with only the URL and anon key.
+- Complete the non-admin, revoked-admin, audit-row, signed-URL-expiry, and shared-stage live checks in `../docs/ADMIN.md`.
+
 ## Recommended next execution order
 
 1. Activate Perplexity API billing and create the production key.
@@ -184,7 +206,8 @@ VITE_SUPABASE_ANON_KEY
 7. Add the real privacy contact and deletion procedure.
 8. Run full production QA: build, tests, SSR smoke, mobile at 375 px, logged-out browsing, signup/email confirmation, persistence, cross-user RLS, and counselor red-team refusal.
 9. Regenerate `../docs/DATABASE_STATE.md` after any database change.
-10. Commit locally only unless the owner explicitly changes the no-push instruction.
+10. Apply/deploy and live-prove the Prompt 12.1 admin foundation in QA following `../docs/ADMIN.md`.
+11. Commit locally only unless the owner explicitly changes the no-push instruction.
 
 ## Non-negotiable product rules
 
@@ -202,7 +225,7 @@ VITE_SUPABASE_ANON_KEY
 - Unsupported figures must produce an honest refusal, not a web substitute or estimate.
 - Keep API keys server-side and out of Git.
 - Maintain strict TypeScript with zero build errors.
-- Do not build the four out-of-scope AI engines, an admin console, verification queue, outcome ledger, or desktop redesign.
+- The admin console and Prompt 12.3 homework feedback are authorised scope reversals dated 3 August 2026. Do not build the remaining out-of-scope AI engines, verification queue, outcome ledger, or a student-app desktop redesign.
 
 ## Key files
 
@@ -224,6 +247,11 @@ VITE_SUPABASE_ANON_KEY
 | Verified catalogue seed | `supabase/migrations/202607270003_seed_verified_universities.sql` |
 | Vercel configuration | `vercel.json` |
 | Environment variable template | `.env.example` |
+| Shared student/admin stage model | `../shared/dashboard-stage.ts` |
+| Admin browser app | `../admin/` |
+| Privileged admin function | `supabase/functions/admin-api/index.ts` |
+| Admin authorization helper | `supabase/functions/_shared/adminAuth.ts` |
+| Admin operations runbook | `../docs/ADMIN.md` |
 
 ## Safe handoff note
 

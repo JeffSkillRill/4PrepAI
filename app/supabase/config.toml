@@ -30,3 +30,8 @@ verify_jwt = false
 
 [functions.delete-account]
 verify_jwt = true
+
+[functions.admin-api]
+# The function performs its own uniform JWT/admin-grant check so missing,
+# expired, non-admin, and revoked callers all receive the same audited 403.
+verify_jwt = false

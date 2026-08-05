@@ -12,13 +12,3 @@ alter type public.university_fact_kind add value if not exists 'total_cost_of_at
 alter type public.university_fact_kind add value if not exists 'aid_international';
 alter type public.university_fact_kind add value if not exists 'test_policy';
 alter type public.university_fact_kind add value if not exists 'financial_certification';
-
-insert into supabase_migrations.schema_migrations (version, statements, name)
-values (
-  '202607280005',
-  array['Applied from the checked-in migration through Supabase SQL Editor.'],
-  'us_admissions_enums'
-)
-on conflict (version) do update
-set statements = excluded.statements,
-    name = excluded.name;

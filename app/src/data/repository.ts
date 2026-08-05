@@ -62,6 +62,7 @@ const learningSubmissionSelect = `
 `
 
 const LEARNING_SUBMISSIONS_BUCKET = 'learning-submissions'
+const PRIVATE_OBJECT_CACHE_CONTROL_SECONDS = '0'
 
 function throwIfError(error: { message: string } | null) {
   if (error) throw new Error(`4Prep data request failed: ${error.message}`)
@@ -283,7 +284,11 @@ async function uploadLearningObject(
     onProgress?.(0)
     const { error: uploadError } = await client.storage
       .from(LEARNING_SUBMISSIONS_BUCKET)
-      .upload(path, file, { contentType: file.type, upsert: false })
+      .upload(path, file, {
+        cacheControl: PRIVATE_OBJECT_CACHE_CONTROL_SECONDS,
+        contentType: file.type,
+        upsert: false,
+      })
     if (uploadError) throw uploadError
     onProgress?.(100)
     return
@@ -298,6 +303,7 @@ async function uploadLearningObject(
     request.setRequestHeader('Authorization', `Bearer ${data.session.access_token}`)
     request.setRequestHeader('apikey', publishableKey)
     request.setRequestHeader('Content-Type', file.type)
+    request.setRequestHeader('Cache-Control', `max-age=${PRIVATE_OBJECT_CACHE_CONTROL_SECONDS}`)
     request.setRequestHeader('x-upsert', 'false')
     request.upload.addEventListener('progress', (event) => {
       if (!event.lengthComputable) return
@@ -411,7 +417,11 @@ export async function downloadLearningSubmissionFile(storagePath: string): Promi
   const { data, error } = await getSupabaseClient()
     .storage
     .from(LEARNING_SUBMISSIONS_BUCKET)
-    .download(storagePath)
+    .download(
+      storagePath,
+      { cacheNonce: crypto.randomUUID() },
+      { cache: 'no-store' },
+    )
   if (error) throw new Error(`4Prep data request failed: ${error.message}`)
   return data
 }

@@ -1,4 +1,5 @@
--- Verification harness for 202607310009_learning_portal.sql.
+-- Verification harness for 202607310009_learning_portal.sql and
+-- migrations 202608030010 and 202608030011.
 --
 -- Run this immediately after the migration body inside one transaction, with
 -- the migration's own BEGIN/COMMIT lines removed. The final deliberate
@@ -93,7 +94,7 @@ values (
   'learning-submissions',
   '00000000-0000-4000-8000-0000000000a1/is-this-possible/homework.pdf',
   '00000000-0000-4000-8000-0000000000a1',
-  '{"mimetype":"application/pdf","size":128}'::jsonb
+  '{"mimetype":"application/pdf","contentLength":128}'::jsonb
 );
 
 insert into learning_submission_files (
@@ -120,6 +121,16 @@ insert into learning_verification
 select 'owner_storage_select', count(*)::text
 from storage.objects
 where name = '00000000-0000-4000-8000-0000000000a1/is-this-possible/homework.pdf';
+
+with changed as (
+  update storage.objects
+  set metadata = '{"mimetype":"application/pdf","contentLength":128}'::jsonb
+  where name = '00000000-0000-4000-8000-0000000000a1/is-this-possible/homework.pdf'
+  returning id
+)
+insert into learning_verification
+select 'owner_storage_update', count(*)::text
+from changed;
 
 reset role;
 select set_config(
@@ -158,6 +169,16 @@ select 'cross_user_storage_read', count(*)::text
 from storage.objects
 where name = '00000000-0000-4000-8000-0000000000a1/is-this-possible/homework.pdf';
 
+with changed as (
+  update storage.objects
+  set metadata = '{"mimetype":"application/pdf","contentLength":128}'::jsonb
+  where name = '00000000-0000-4000-8000-0000000000a1/is-this-possible/homework.pdf'
+  returning id
+)
+insert into learning_verification
+select 'cross_user_storage_update', count(*)::text
+from changed;
+
 do $verification$
 begin
   begin
@@ -177,7 +198,7 @@ begin
       'learning-submissions',
       '00000000-0000-4000-8000-0000000000b2/is-this-possible/bad.exe',
       '00000000-0000-4000-8000-0000000000b2',
-      '{"mimetype":"application/octet-stream","size":128}'::jsonb
+      '{"mimetype":"application/octet-stream","contentLength":128}'::jsonb
     );
     raise exception 'invalid MIME unexpectedly succeeded';
   exception when insufficient_privilege then
@@ -191,7 +212,7 @@ begin
       'learning-submissions',
       '00000000-0000-4000-8000-0000000000b2/is-this-possible/mismatch.exe',
       '00000000-0000-4000-8000-0000000000b2',
-      '{"mimetype":"application/pdf","size":128}'::jsonb
+      '{"mimetype":"application/pdf","contentLength":128}'::jsonb
     );
     raise exception 'mismatched extension unexpectedly succeeded';
   exception when insufficient_privilege then
@@ -203,9 +224,23 @@ begin
     insert into storage.objects (bucket_id, name, owner_id, metadata)
     values (
       'learning-submissions',
+      '00000000-0000-4000-8000-0000000000b2/is-this-possible/empty.pdf',
+      '00000000-0000-4000-8000-0000000000b2',
+      '{"mimetype":"application/pdf","contentLength":0}'::jsonb
+    );
+    raise exception 'empty object unexpectedly succeeded';
+  exception when insufficient_privilege then
+    insert into learning_verification
+    values ('storage_empty', 'denied');
+  end;
+
+  begin
+    insert into storage.objects (bucket_id, name, owner_id, metadata)
+    values (
+      'learning-submissions',
       '00000000-0000-4000-8000-0000000000b2/is-this-possible/too-large.pdf',
       '00000000-0000-4000-8000-0000000000b2',
-      '{"mimetype":"application/pdf","size":10485761}'::jsonb
+      '{"mimetype":"application/pdf","contentLength":10485761}'::jsonb
     );
     raise exception 'oversized object unexpectedly succeeded';
   exception when insufficient_privilege then

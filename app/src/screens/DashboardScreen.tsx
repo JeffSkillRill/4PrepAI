@@ -4,6 +4,7 @@ import {
   BookOpenCheck,
   ClipboardList,
   Compass,
+  Flag,
   LayoutDashboard,
   ShieldCheck,
   Wrench,
@@ -17,7 +18,7 @@ import type {
   University,
   View,
 } from '../types'
-import { ExpandableFit, MissingValue } from '../components/Trust'
+import { ExpandableFit } from '../components/Trust'
 import { DesignedState, LoadingState, useOnlineStatus } from '../components/States'
 import {
   getLearningTrack,
@@ -32,7 +33,9 @@ import {
 import {
   deriveDashboardNextAction,
   deriveDashboardStage,
+  hasRecordedFeedbackReference,
   type DashboardNextAction,
+  type DashboardStage,
 } from '../dashboard/logic'
 import { AppLink } from '../components/AppLink'
 import { viewPaths } from '../routes'
@@ -44,6 +47,7 @@ type DashboardData = {
   learningUserState: LearningUserState
   catalogueUnavailable: boolean
   learningUnavailable: boolean
+  learningUserStateUnavailable: boolean
 }
 
 const emptyLearningState: LearningUserState = {
@@ -91,6 +95,7 @@ function useDashboardData(userId: string, profile: StudentProfile | null) {
           : emptyLearningState,
         catalogueUnavailable: catalogueResult.status === 'rejected',
         learningUnavailable: trackResult.status === 'rejected' || userStateResult.status === 'rejected',
+        learningUserStateUnavailable: userStateResult.status === 'rejected',
       })
       setStatus('ready')
     })
@@ -155,10 +160,13 @@ function SignedInDashboard({
   const { data } = resource
   const submitted = data.learningUserState.submissions.filter((item) => item.submittedAt)
   const signals = {
-    hasProfile: Boolean(profile),
-    savedCount: saved.size,
+    hasCompletedIntake: Boolean(profile),
+    savedPlanCount: saved.size,
     completedLessonCount: data.learningUserState.completedLessonIds.size,
-    submissionCount: submitted.length,
+    submittedHomeworkCount: submitted.length,
+    feedbackReceivedCount: submitted.filter((item) => (
+      hasRecordedFeedbackReference(item.feedbackRef)
+    )).length,
   }
   const stage = deriveDashboardStage(signals)
   const nextAction = deriveDashboardNextAction(signals)
@@ -173,11 +181,12 @@ function SignedInDashboard({
     : []
   const continueModule = findLearningContinueModule(learningStates)
 
-  if (stage === 'empty') {
+  if (stage.id === 'not_started' && !data.learningUserStateUnavailable) {
     return (
       <DashboardEmpty
         learningUnavailable={data.learningUnavailable}
         onNavigate={onNavigate}
+        stage={stage}
       />
     )
   }
@@ -201,14 +210,25 @@ function SignedInDashboard({
       </section>
 
       <div className="mt-6 grid gap-5 lg:grid-cols-2">
-        <DashboardCard icon={<ClipboardList />} eyebrow="Your pathway" title={profile ? 'Profile saved' : 'Profile not completed'}>
+        <DashboardCard icon={<Flag />} eyebrow="Where you are" title={data.learningUserStateUnavailable ? 'Stage could not be checked' : stage.label}>
+          {data.learningUserStateUnavailable ? (
+            <UnavailableNote>Your private lesson and homework records could not be loaded, so 4Prep will not guess your stage. Reconnect and retry.</UnavailableNote>
+          ) : (
+            <>
+              <p className="text-sm leading-6 text-muted">{stage.description}</p>
+              <p className="mt-3 text-xs font-bold uppercase tracking-[.1em] text-forest-700">Recorded actions only · not a grade or admission prediction</p>
+            </>
+          )}
+        </DashboardCard>
+
+        <DashboardCard icon={<ClipboardList />} eyebrow="What you are working toward" title={profile ? 'Your study goal' : 'Intake not completed'}>
           {profile ? (
             <>
               <dl className="grid grid-cols-2 gap-3 text-sm">
-                <DashboardFact label="Subject" value={profile.field} />
+                <DashboardFact label="Destination" value={profile.country} />
+                <DashboardFact label="Field" value={profile.field} />
+                <DashboardFact label="Budget" value={formatBudget(profile)} />
                 <DashboardFact label="Intake" value={profile.intake} />
-                <DashboardFact label="Budget" value={profile.budgetMax && profile.budgetCurrency ? `${profile.budgetCurrency} ${profile.budgetMax.toLocaleString()}` : 'Still unresolved'} />
-                <DashboardFact label="Language" value={profile.languageTest && profile.languageScore !== null ? `${profile.languageTest.toUpperCase()} ${profile.languageScore}` : 'Not entered'} />
               </dl>
               {topRoute?.fit ? (
                 <div className="mt-4">
@@ -216,14 +236,13 @@ function SignedInDashboard({
                   <ExpandableFit fit={topRoute.fit} compact />
                 </div>
               ) : null}
+              <AppLink href={viewPaths.intake as string} onNavigate={() => onNavigate('intake')} className="mt-4 inline-flex items-center gap-2 font-bold text-forest-700">Change intake answers <ArrowRight size={17} /></AppLink>
             </>
           ) : (
-            <MissingValue
-              title="Your pathway needs your intake"
-              reason="There is no student profile saved for this account."
-              action="Complete the intake before any personal fit is calculated."
-              kind="profile"
-            />
+            <>
+              <p className="text-sm leading-6 text-muted">There is no completed intake saved for this account, so 4Prep cannot show a destination, field, budget, or intake goal yet.</p>
+              <AppLink href={viewPaths.intake as string} onNavigate={() => onNavigate('intake')} className="mt-4 inline-flex items-center gap-2 font-bold text-forest-700">Complete intake <ArrowRight size={17} /></AppLink>
+            </>
           )}
         </DashboardCard>
 
@@ -246,7 +265,7 @@ function SignedInDashboard({
           <AppLink href={viewPaths[saved.size > 0 ? 'saved' : 'search'] as string} onNavigate={() => onNavigate(saved.size > 0 ? 'saved' : 'search')} className="mt-4 inline-flex items-center gap-2 font-bold text-forest-700">{saved.size > 0 ? 'Open saved plans' : 'Explore universities'} <ArrowRight size={17} /></AppLink>
         </DashboardCard>
 
-        <DashboardCard icon={<BookOpenCheck />} eyebrow="Learning portal" title={`${signals.completedLessonCount} lessons complete · ${signals.submissionCount} homework submitted`}>
+        <DashboardCard icon={<BookOpenCheck />} eyebrow="Learning portal" title={`${signals.completedLessonCount} lessons complete · ${signals.submittedHomeworkCount} homework submitted`}>
           {data.learningUnavailable ? (
             <UnavailableNote>Learning progress could not be checked. Nothing was changed; reconnect and retry from the Learning Portal.</UnavailableNote>
           ) : (
@@ -273,16 +292,18 @@ function SignedInDashboard({
 function DashboardEmpty({
   learningUnavailable,
   onNavigate,
+  stage,
 }: {
   learningUnavailable: boolean
   onNavigate: (view: View) => void
+  stage: DashboardStage
 }) {
   return (
     <div className="page-container motion-resolve py-8 sm:py-12">
       <section className="soft-grid rounded-[28px] border border-line bg-white p-6 shadow-soft sm:p-10">
-        <p className="text-sm font-extrabold uppercase tracking-[.14em] text-forest-700">Your dashboard is ready</p>
+        <p className="text-sm font-extrabold uppercase tracking-[.14em] text-forest-700">Your stage · {stage.label}</p>
         <h1 className="display mt-2 max-w-2xl text-3xl font-extrabold sm:text-5xl">Start with facts, not empty metrics</h1>
-        <p className="mt-4 max-w-2xl leading-7 text-muted">There is no profile, saved university, completed lesson, or homework submission for this account yet. We will not fill the space with guessed chances, invented deadlines, or a readiness score.</p>
+        <p className="mt-4 max-w-2xl leading-7 text-muted">{stage.description} Your intake is not complete, so there is no study goal to show yet. We will not fill the space with guessed chances, invented deadlines, or a readiness score.</p>
       </section>
       <div className="mt-6 grid gap-4 lg:grid-cols-3">
         <EmptyStep step="1" title="Tell us about your plan" body="Create the profile used by the five-part fit explanation." action="Start intake" href={viewPaths.intake as string} onClick={() => onNavigate('intake')} />
@@ -361,6 +382,11 @@ function DashboardCard({
 
 function DashboardFact({ label, value }: { label: string; value: string }) {
   return <div className="rounded-xl bg-canvas p-3"><dt className="text-xs font-bold text-muted">{label}</dt><dd className="mt-1 break-words font-bold">{value}</dd></div>
+}
+
+function formatBudget(profile: StudentProfile): string {
+  if (profile.budgetMax === null || !profile.budgetCurrency) return 'Still working it out'
+  return `${profile.budgetCurrency} ${profile.budgetMax.toLocaleString()}`
 }
 
 function EmptyStep({

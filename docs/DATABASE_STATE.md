@@ -18,7 +18,7 @@ No database or external-system write was made while regenerating this document.
 | Provenance and RLS design | Checked-in forward migrations and client contracts. These definitions are not a substitute for two-account live RLS tests. |
 | Function deployment and authenticated behavior | Not changed or re-deployed in this remediation. The 3 August independent launch audit is the latest signed-out function evidence; authenticated behavior remains unverified. |
 
-The linked project metadata identifies project `4PrepAi`, reference `pubhgajlqhdbpwqahtki`. The project URL is `https://pubhgajlqhdbpwqahtki.supabase.co`. The repository and local `.env` identify this as Production. Region, plan, backups, SMTP, and OAuth dashboard settings were not refreshed in this regeneration and must not be inferred from schema queries.
+The production observation identified project `4PrepAi`, reference `pubhgajlqhdbpwqahtki`, at `https://pubhgajlqhdbpwqahtki.supabase.co`. The current ignored local app configuration points to the separate QA ref `forrvcsttklmpmfhxums` for Prompt 12 testing, so neither `.env` nor a remembered CLI link may be used to infer the target of a future command. Confirm the exact project ref before every database action. Region, plan, backups, SMTP, and OAuth dashboard settings were not refreshed in this regeneration and must not be inferred from schema queries.
 
 No password, API key, service-role key, or other secret is included here.
 
@@ -36,9 +36,9 @@ Production `supabase_migrations.schema_migrations` returned these versions, in o
 8. `202607310008`
 9. `202607310009`
 
-These correspond to the nine checked-in files under `app/supabase/migrations/`.
+These correspond to the first nine checked-in files under `app/supabase/migrations/`.
 
-**`202607310008` is applied.** It is not a blocking pre-deploy step. **`202607310009` is also applied.** There are no checked-in pending migrations as of this snapshot.
+**`202607310008` is applied.** It is not a blocking pre-deploy step. **`202607310009` is also applied.** Migrations `202608030010` and `202608030011` are checked in after this production snapshot and are not applied to Production. They correct the Learning Portal create/update policies' Storage preflight metadata key while preserving the existing owner-only boundary. Migration `202608030012` adds the admin control plane and is not applied to QA or Production.
 
 ## Counselor outcome constraint
 
@@ -103,9 +103,9 @@ The following seven `public` base tables exist live:
 
 The live `learning-submissions` Storage bucket exists. It is private (`public = false`), has a `10,485,760` byte (10 MiB) file limit, and allows the MIME types defined by migration `202607310009` for PDF, DOCX, CSV/Excel, and the supported image formats.
 
-The published curriculum contains one track with eleven modules, eleven lessons, and eleven assignments. There are currently no saved progress rows, submissions, submission-file rows, or Storage objects.
+The publicly readable curriculum metadata contains one track with eleven modules, eleven lessons, and eleven assignments; all eleven lesson authoring slots remain `draft`. There are currently no saved progress rows, submissions, submission-file rows, or Storage objects.
 
-The existence of the tables, policies, and bucket does not prove cross-user isolation. Owner-only table access, owner-only Storage access, upload validation, persistence, and deletion cleanup still require two disposable accounts in a non-production environment.
+The existence of the Production tables, policies, and bucket does not itself prove cross-user isolation. In the separate QA project, migrations `010` and `011` are applied and two disposable accounts completed the full mirrored table/Storage isolation run with distinct real rows and objects. Production still needs a separately authorised migration/deployment and validation step; account deletion cleanup remains pending in QA.
 
 ## Catalogue and provenance contract
 
@@ -168,13 +168,15 @@ The checked-in `delete-account` function authenticates the bearer token, derives
 - F-03 is closed by direct schema observation: the Learning Portal schema and bucket are live.
 - F-05 is closed as a schema-state concern: `202607310008` is applied and `out_of_scope` is permitted.
 - Applying migrations `008` or `009` is **not** a current launch action and must not be repeated.
+- Migrations `010` and `011` are proved in QA but still require a separately authorised Production review/application.
+- Migration `012` is locally validated and intentionally unapplied; `docs/ADMIN.md` is its QA handoff.
 - Production deployment of the counselor validation change and the current `delete-account` source still requires a separate, explicitly authorized deployment step.
-- Auth, account deletion, learning persistence, file isolation, and cross-user RLS remain launch blockers until tested with two disposable non-production accounts.
+- Cross-user learning-table and Storage isolation is proved in QA. Auth-provider round trips, account deletion cleanup, and Production deployment evidence remain launch blockers.
 
 ## Needs Jeff
 
-- Provision a separate Supabase QA project and follow `docs/QA_ENVIRONMENT.md`. Do not reuse Production for routine development or QA.
-- Provide two disposable confirmed QA accounts and mailboxes for cross-user and deletion tests.
+- Review/apply migration `012` and deploy/live-prove `admin-api` in QA following `docs/ADMIN.md`; do not use Production for routine development or QA.
+- Complete the disposable-account deletion check in QA; two-account cross-user table/Storage isolation is already complete.
 - After code review, deploy the updated counselor function and invalidate/avoid old counselor cache entries through its v2 cache namespace. Re-run the red-team table without weakening figure provenance.
 - Compare and deploy the current `delete-account` function only after the QA project proves table, Storage, and deletion cleanup end to end.
 - Verify production SMTP, Google OAuth, Auth redirect URLs, privacy contact, plan, backups/PITR, Vercel deployment, and DNS in their respective dashboards.

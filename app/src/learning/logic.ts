@@ -112,7 +112,7 @@ export function validateLearningSubmissionFile(
 export function sanitizeLearningFilename(filename: string): string {
   const sanitized = filename
     .normalize('NFKD')
-    .replace(/[^\w.,'!$@=;:+?()&*-]+/g, '-')
+    .replace(/[^\w.,'!$@=;:+()&*-]+/g, '-')
     .replace(/-+/g, '-')
     .replace(/^-|-$/g, '')
   return sanitized || 'submission'

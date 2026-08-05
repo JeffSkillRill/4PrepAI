@@ -6,7 +6,7 @@ Curriculum content lives in Supabase tables, matching the catalogue’s editable
 
 ## Scope and deliberate boundaries
 
-This release is a delivery system, not authored curriculum. It contains the ordered module metadata and assignment briefs supplied by the founder, one empty `draft` lesson authoring slot per module, blank templates, progress, sequential unlocks with an explicit jump-ahead escape hatch, and pending homework storage. It contains no grading, validation, rubric execution, AI feedback, counselor calls, payment logic, entitlement logic, or profile write-back.
+This release is a delivery system, not authored curriculum. It contains the ordered module metadata and assignment briefs supplied by the founder, one empty `draft` lesson authoring slot per module, blank templates, progress, sequential unlocks with an explicit jump-ahead escape hatch, and pending homework storage. Prompt 12.1 now adds source for an operator review queue and audited read-only homework access, but that admin boundary is not deployed. There is still no grading, rubric execution, AI feedback, counselor call, payment logic, entitlement logic, or profile write-back.
 
 The brief calls the course “ten modules” but provides rows numbered 0 through 10. The migration preserves all 11 supplied rows exactly rather than dropping one or inventing a reconciliation.
 
@@ -36,7 +36,7 @@ A lesson may remain a fully empty draft. Changing a lesson to `published` requir
 {user_id}/{assignment_slug}/{unique-prefix}-{sanitized-original-filename}
 ```
 
-Storage object policies require the first folder and `owner_id` to match `auth.uid()` for select, insert, update, and delete. Both the bucket and object-write policies cap each object at 10 MiB and accept only PDF, DOCX, CSV, XLSX, JPEG, PNG, WEBP, GIF, HEIC, and HEIF MIME types; the object policy also requires a matching filename extension. The database metadata table repeats the MIME and byte-size constraints, and the UI performs the same check early so a student sees the rules before choosing a file.
+Storage object policies require the first folder and `owner_id` to match `auth.uid()` for select, insert, update, and delete. Both the bucket and object-write policies cap each object at 10 MiB and accept only PDF, DOCX, CSV, XLSX, JPEG, PNG, WEBP, GIF, HEIC, and HEIF MIME types; the object policy also requires a matching filename extension. Migrations `202608030010_learning_storage_upload_policy.sql` and `202608030011_learning_storage_update_preflight.sql` preserve those checks while accepting the Storage API's `contentLength` create/update preflight metadata as well as the completed object's `size` metadata. The database metadata table repeats the MIME and byte-size constraints, and the UI performs the same check early so a student sees the rules before choosing a file.
 
 Assignment templates are static, blank application assets in `app/public/learning-templates/`. The interface exposes a template download only to a signed-in student who has reached the module or accepted the jump-ahead warning; no plan or payment state exists.
 
@@ -55,7 +55,7 @@ The existing hand-rolled route parser now owns these refresh-safe paths:
 
 ## Progress, unlocks, and submissions
 
-The first module is available immediately. Each later module becomes available when the previous module has a submission timestamp; the record remains `pending` because review is not part of this release. A locked module can be opened after a clear warning, so course order never becomes a deadline-blocking hard lock.
+The first module is available immediately. Each later module becomes available when the previous module has a submission timestamp; the record remains `pending` because Prompt 12.1 adds read-only access but no grading or feedback state transition. A locked module can be opened after a clear warning, so course order never becomes a deadline-blocking hard lock.
 
 Lesson completion writes only to `learning_progress`. Uploads use an `XMLHttpRequest` adapter inside the repository so the interface can show real byte progress on a slow connection. A failed upload keeps the selected local file in the control, states that the work was not lost, and offers the same upload action as a retry.
 
@@ -69,7 +69,7 @@ The updated `delete-account` function:
 4. removes the prefetched objects through the Storage API; and
 5. recounts all five row groups and relists the prefix, returning success only when `orphanedRows` and `orphanedObjects` are both zero.
 
-The source change must be deployed only after migration `009` is applied; deploying it against the current live schema would make account deletion depend on tables and a bucket that do not yet exist.
+Migration `009` is applied in Production and QA. Deploying the current function source remains a separate, explicitly authorized step; authenticated deletion and Storage cleanup still require disposable-account proof in QA.
 
 ## Profile write-back seam
 
@@ -90,9 +90,13 @@ const reviewedLearningSubmissionWriteBack: ReviewedLearningSubmissionWriteBack |
 
 The `null` adapter is intentional. A later reviewed-artifact parser can implement this contract, but uploads in this release never mutate `student_profiles` or `saved_plans`.
 
-## Verification without a live migration
+## Verification status
 
-Production currently records migrations only through `202607290007`; `202607310008_counselor_scope_outcome.sql` and `202607310009_learning_portal.sql` remain pending. Because this machine has no Docker, Deno, or Supabase CLI, migration `009` was validated through the connected database in one rollback-only transaction: the migration body was run after `BEGIN`, two synthetic users exercised RLS and storage policies, deletion cascades plus the same privileged object-removal step were checked, and a deliberate final exception rolled back every change.
+Production and QA both record migrations through `202607310009`. The original migration was also validated in one rollback-only transaction: the migration body was run after `BEGIN`, two synthetic users exercised RLS and storage policies, deletion cascades plus the same privileged object-removal step were checked, and a deliberate final exception rolled back every change.
+
+A real QA Storage API upload reached the authenticated object INSERT but initially failed its RLS check. Supabase's current uploader supplies `metadata.contentLength` during the preflight permission check, while migration `009` required only `metadata.size`. Migration `010` permits the real owner upload without weakening its other checks; migration `011` makes the same narrow correction for owner update. Both are applied and live-proved in QA. The rollback harness exercises the preflight key, owner/cross-user update, and zero-length/oversized denial.
+
+The completed two-account QA run used distinct owner rows and objects in both directions. All cross-user table reads/updates/deletes returned zero, malicious inserts and foreign-prefix uploads were denied, Storage listing exposed nothing, and exact download/update/remove failed closed. Both owners retained their distinct progress rows and original file hashes. Private student downloads now add a unique cache nonce and `cache: 'no-store'`; uploads use a zero-second cache TTL so switching accounts in one browser cannot reuse the previous user's cached private bytes.
 
 The observed verification payload was:
 
@@ -136,7 +140,7 @@ The follow-up live query returned:
 }
 ```
 
-This proves the migration SQL, RLS behavior, storage-object policy predicates, cascades, and expected cleanup result without changing Production. It does not replace an end-to-end Storage API upload or an invocation of the newly deployed `delete-account` function; those checks remain mandatory immediately after migrations `008` and `009` are deliberately applied in order and the function is deployed.
+This rollback run proves the migration SQL, RLS behavior, storage-object policy predicates, cascades, and expected cleanup result without changing Production. A separate QA run has since completed real two-account Storage API upload, download, update, list, and removal-isolation checks after migrations `010` and `011`; see `QA_ENVIRONMENT.md`. Account-deletion cleanup through the deployed `delete-account` function remains pending and must not be inferred from either test.
 
 ## Human authoring and launch checklist
 
@@ -152,8 +156,8 @@ Before the portal is shown to a real student, a human must supply or approve eve
 - Founder review of every blank template’s headers, field order, terminology, and mobile usability. No example student, university, date, deadline, score, fee, cost, aid amount, or visa figure is present.
 - Founder approval of the 10 MiB per-file limit and the accepted MIME list, including whether HEIC/HEIF should remain accepted for the target devices.
 - Privacy-policy wording for homework files, resubmission versions, retention, backups, deletion, and who can access the private bucket after review tooling exists.
-- A support route for failed uploads and inaccessible media; the UI currently offers retry but no notification email or instructor queue.
+- A support route for failed uploads and inaccessible media; the student UI currently offers retry but no notification email. Prompt 12.1 contains an undeployed operator review queue, not a student-to-operator support channel.
 - Any language simplification or translation beyond the current English interface.
-- A deliberate Production rollout: apply `008`, then `009`; upload/deploy the matching application and `delete-account` function; run real two-account API checks; and record the resulting deployment and migration versions.
+- A deliberate Production rollout: confirm `008` and `009` remain applied, review and apply `010` then `011`, deploy the matching application and `delete-account` function, run separately authorised post-deploy owner/Storage checks, and record the resulting deployment and migration versions.
 
 No review promise, review timeline, score, grade, certificate, or profile update should be authored until those later systems actually exist.

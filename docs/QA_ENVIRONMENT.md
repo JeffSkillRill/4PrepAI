@@ -2,17 +2,17 @@
 
 Last updated: 3 August 2026 (Asia/Tashkent).
 
-This is the non-production environment Jeff must provision before account-based launch QA can be completed. No QA project exists in the verified repository state, so its project ref, URL, anon key, service-role key, database password, and frontend origin are all **unknown**.
+The non-production Supabase project exists at project ref `forrvcsttklmpmfhxums`, with local frontend origin `http://127.0.0.1:5173`. Its anon key is kept only in ignored local configuration; service-role credentials and database passwords are not recorded here. Migrations through `202608030011` are applied. Migration `202608030012` is written for the admin foundation but is not applied.
 
-## Jeff must provision
+## QA configuration checklist
 
-1. Create a separate Supabase cloud project clearly named as QA or staging. It must not reuse production project `pubhgajlqhdbpwqahtki`.
-2. Record its project ref and URL in Jeff's password manager or deployment configuration, not in Git.
+1. Keep the separate QA project isolated from production project `pubhgajlqhdbpwqahtki`.
+2. Keep its credentials in Jeff's password manager or ignored deployment configuration, not in Git.
 3. Configure Auth Site URL and redirect URLs for the QA frontend origin and local `http://127.0.0.1:5173` callback/reset routes.
 4. Configure a test-capable SMTP sender and Google OAuth client for QA. Their secrets stay in Supabase/Google dashboards.
 5. Set Edge Function secrets in the QA project only. Do not expose service-role or provider keys through `VITE_` variables.
-6. Deploy the `counselor` and `delete-account` functions to QA after the migrations below are applied.
-7. Provide two disposable, confirmed QA accounts with mailboxes Jeff controls. Do not create them in Production.
+6. Deploy the `counselor` and `delete-account` functions to QA after the student-app migrations through `011` are applied. Migration `012` and `admin-api` follow their separate reviewed handoff in `docs/ADMIN.md`.
+7. Use the two disposable QA accounts already created for isolation testing. Do not reuse them in Production.
 
 ## Migration order
 
@@ -27,8 +27,13 @@ Apply the checked-in migrations to an empty QA project in this exact order:
 7. `202607290007_counselor_hardening.sql`
 8. `202607310008_counselor_scope_outcome.sql`
 9. `202607310009_learning_portal.sql`
+10. `202608030010_learning_storage_upload_policy.sql`
+11. `202608030011_learning_storage_update_preflight.sql`
+12. `202608030012_admin_foundation.sql`
 
 Use a dry run first and confirm the target project ref before applying anything. Do not copy production data into QA.
+
+Migrations `010` and `011` change only the existing Storage INSERT and UPDATE policies' size metadata lookup. Supabase's create and update preflights supply `contentLength`, while completed object metadata and the rollback harness may supply `size`. Bucket, authenticated owner, user-path prefix, MIME, extension, and 10 MiB checks remain in force. Migration `012` must be applied only when Jeff is ready to deploy and test the admin foundation; see `docs/ADMIN.md`.
 
 `app/supabase/seed.sql` is intentionally empty. The verified ten-university catalogue is created by migrations `003` and `006`; the one-track, eleven-module Learning Portal curriculum is created by migration `009`. No synthetic admissions figure should be added for QA.
 
@@ -64,10 +69,29 @@ Run every check both through the UI and, where appropriate, with the signed-in u
 - User A cannot read, update, delete, download, or list User B's corresponding data or object paths.
 - Repeat the same checks from User B against User A.
 - Signed-out requests cannot read either user's private rows or Storage objects.
-- Public catalogue and published curriculum remain readable signed out.
+- Public catalogue and publicly readable curriculum metadata remain readable signed out.
 - A malicious client-supplied user ID cannot redirect a write or deletion to the other account.
 
 Any cross-user read or mutation is a P0 and blocks launch.
+
+## Two-account isolation evidence — 3 August 2026
+
+The Prompt 12.1 precondition is complete in QA. Two disposable accounts created distinct profiles, saved plans, submissions, submission-file rows, and real Storage objects through the student app. Because every seeded lesson is still a draft and the normal completion control is therefore unavailable, each real owner progress row was created through a temporary QA-only completion control wired to the production repository method; that control was removed immediately after the proof and is not part of the shipped UI.
+
+Each direction passed the same 22-check signed-in probe after both progress rows existed:
+
+- cross-user profile, saved plan, progress, submission, and submission-file SELECT returned zero rows;
+- cross-user profile, progress, submission, and submission-file UPDATE returned zero rows;
+- cross-user profile, saved plan, progress, submission, and submission-file DELETE returned zero rows;
+- malicious foreign-user progress, saved-plan, and submission INSERT was denied by RLS;
+- target Storage prefix LIST returned zero items;
+- foreign-prefix upload was denied;
+- exact target-object download and update were denied;
+- exact target-object remove returned no object.
+
+Owner inventory after the attack probes remained intact in both accounts, including their distinct progress lesson IDs and unchanged SHA-256 file hashes. Signed-out baseline checks returned 401 for private tables, returned no private bucket listing, and preserved public catalogue/curriculum reads.
+
+One apparent cross-user Storage download was traced to the same browser reusing the previous account's one-hour cached private response. A cache-nonce plus `cache: 'no-store'` forced a real request and RLS denied it. The student download path now uses a unique nonce/no-store request and private uploads use a zero-second cache TTL. This was an application privacy defect even though the fresh server authorization boundary held.
 
 ## Required auth and deletion checks
 
@@ -93,13 +117,15 @@ Record exact pass/fail evidence. Do not infer a pass from policy text or a rollb
 
 ## Completion evidence
 
-The QA environment is ready only when Jeff records:
+The student-app QA baseline through migration `011` is ready only when Jeff records:
 
 - the QA project ref and frontend origin;
-- applied migration versions through `202607310009`;
+- applied migration versions through `202608030011`;
 - deployed function versions;
 - two-account isolation results;
 - auth/email/OAuth results;
 - deletion row and Storage cleanup results;
 - counselor red-team results;
 - confirmation that no test touched Production.
+
+Prompt 12.1 admin QA is a separate readiness gate. It additionally requires migration `012`, `admin-api`, the dedicated admin account/grant, the deployed `admin/` origin, and every active/non-admin/revoked/audit/signed-URL/stage check listed in `docs/ADMIN.md`.
