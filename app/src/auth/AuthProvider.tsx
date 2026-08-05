@@ -23,7 +23,7 @@ type AuthContextValue = {
 
 const AuthContext = createContext<AuthContextValue | null>(null)
 
-const PRIVACY_CONSENT_VERSION = '2026-07-29'
+const PRIVACY_CONSENT_VERSION = '2026-08-05'
 
 type AuthStartup =
   | { client: ReturnType<typeof getSupabaseClient>; error: null }

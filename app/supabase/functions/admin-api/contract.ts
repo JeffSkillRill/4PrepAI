@@ -6,6 +6,7 @@ export type AdminGoal = {
 }
 
 export const ADMIN_FILE_URL_TTL_SECONDS = 60
+export const SUPPORT_MESSAGE_MAX_LENGTH = 2000
 
 export type ProfileGoalRow = {
   country: string | null
@@ -118,4 +119,20 @@ export function safeDownloadFilename(filename: string): string {
     .trim()
     .slice(0, 180)
   return cleaned && /[\p{L}\p{N}]/u.test(cleaned) ? cleaned : 'homework-file'
+}
+
+export function cleanSupportMessage(value: unknown): string | null {
+  if (typeof value !== 'string' || value.includes('\0')) return null
+  const body = value.trim()
+  return body.length > 0 && body.length <= SUPPORT_MESSAGE_MAX_LENGTH ? body : null
+}
+
+export function supportThreadIsWaiting(lastSenderRole: string | null): boolean {
+  return lastSenderRole === 'student'
+}
+
+export function supportMessagePreview(body: string, maxLength = 120): string {
+  const flattened = body.replace(/\s+/g, ' ').trim()
+  if (flattened.length <= maxLength) return flattened
+  return `${flattened.slice(0, Math.max(1, maxLength - 1)).trimEnd()}…`
 }

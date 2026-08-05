@@ -14,6 +14,8 @@ import type {
   AdminStudentResponse,
   AdminSubmission,
   AdminSubmissionFile,
+  AdminSupportInboxResponse,
+  AdminSupportThreadResponse,
 } from '../types'
 
 type LoadState<T> =
@@ -47,6 +49,7 @@ export function AdminConsole({
   })
   const [query, setQuery] = useState('')
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null)
+  const [workspace, setWorkspace] = useState<'cohort' | 'support'>('cohort')
 
   const loadCohort = useCallback(async () => {
     setCohort({ status: 'loading', data: null })
@@ -99,7 +102,13 @@ export function AdminConsole({
       </header>
 
       <main className="admin-main">
-        <section aria-labelledby="work-queue-title">
+        <nav className="workspace-tabs" aria-label="Admin workspace">
+          <button type="button" aria-current={workspace === 'cohort' ? 'page' : undefined} onClick={() => setWorkspace('cohort')}>Cohort</button>
+          <button type="button" aria-current={workspace === 'support' ? 'page' : undefined} onClick={() => setWorkspace('support')}>Support inbox</button>
+        </nav>
+
+        {workspace === 'cohort' ? <>
+          <section aria-labelledby="work-queue-title">
           <div className="section-heading">
             <div>
               <p className="eyebrow">Pilot cohort</p>
@@ -108,9 +117,9 @@ export function AdminConsole({
             </div>
           </div>
           <MetricGrid metrics={session.metrics} definitions={session.definitions} />
-        </section>
+          </section>
 
-        <section className="panel roster-panel" aria-labelledby="roster-title">
+          <section className="panel roster-panel" aria-labelledby="roster-title">
           <div className="roster-toolbar">
             <div>
               <h2 id="roster-title">Students</h2>
@@ -138,18 +147,227 @@ export function AdminConsole({
               onSelect={setSelectedStudentId}
             />
           ) : null}
-        </section>
+          </section>
 
-        {selectedStudentId ? (
-          <StudentDetail
-            key={selectedStudentId}
-            studentId={selectedStudentId}
-            onClose={() => setSelectedStudentId(null)}
-            onNotAvailable={onNotAvailable}
-          />
-        ) : null}
+          {selectedStudentId ? (
+            <StudentDetail
+              key={selectedStudentId}
+              studentId={selectedStudentId}
+              onClose={() => setSelectedStudentId(null)}
+              onNotAvailable={onNotAvailable}
+            />
+          ) : null}
+        </> : (
+          <SupportInbox onNotAvailable={onNotAvailable} />
+        )}
       </main>
     </div>
+  )
+}
+
+function SupportInbox({ onNotAvailable }: { onNotAvailable: () => void }) {
+  const [resource, setResource] = useState<LoadState<AdminSupportInboxResponse>>({
+    status: 'loading',
+    data: null,
+  })
+  const [selectedThreadId, setSelectedThreadId] = useState<string | null>(null)
+  const [refreshError, setRefreshError] = useState(false)
+
+  const loadInbox = useCallback(async (silent = false) => {
+    if (!silent) setResource({ status: 'loading', data: null })
+    try {
+      setResource({ status: 'ready', data: await adminApi.chatInbox() })
+      setRefreshError(false)
+    } catch (reason) {
+      if (reason instanceof NotAvailableError) {
+        onNotAvailable()
+        return
+      }
+      if (silent) setRefreshError(true)
+      else setResource({ status: 'error', data: null })
+    }
+  }, [onNotAvailable])
+
+  useEffect(() => {
+    const initial = window.setTimeout(() => void loadInbox(), 0)
+    const interval = window.setInterval(() => {
+      if (document.visibilityState === 'visible') void loadInbox(true)
+    }, 15_000)
+    return () => {
+      window.clearTimeout(initial)
+      window.clearInterval(interval)
+    }
+  }, [loadInbox])
+
+  const waiting = resource.data?.threads.filter((thread) => thread.waiting).length ?? 0
+  return (
+    <section aria-labelledby="support-inbox-title">
+      <div className="section-heading support-heading">
+        <div>
+          <p className="eyebrow">Human platform help</p>
+          <h1 id="support-inbox-title">Support inbox</h1>
+          <p className="muted">Oldest waiting thread first. Reply only about 4Prep being broken or confusing; route admissions questions to the grounded counselor.</p>
+        </div>
+        <p className="support-waiting-count"><strong>{waiting}</strong> waiting</p>
+      </div>
+
+      <div className="support-layout">
+        <section className="panel support-list" aria-label="Support threads">
+          {refreshError ? <p className="refresh-warning" role="status">Latest refresh failed; showing the last confirmed inbox.</p> : null}
+          {resource.status === 'loading' ? <InlineLoading label="Loading support inbox" /> : null}
+          {resource.status === 'error' ? <InlineError onRetry={() => void loadInbox()}>The support inbox could not be loaded.</InlineError> : null}
+          {resource.status === 'ready' && resource.data.threads.length === 0 ? <p className="empty-note">No support threads yet.</p> : null}
+          {resource.status === 'ready' ? (
+            <ul>
+              {resource.data.threads.map((thread) => (
+                <li key={thread.threadId}>
+                  <button
+                    type="button"
+                    className={selectedThreadId === thread.threadId ? 'selected' : undefined}
+                    aria-pressed={selectedThreadId === thread.threadId}
+                    onClick={() => setSelectedThreadId(thread.threadId)}
+                  >
+                    <span className="support-list-topline">
+                      <strong>{thread.email ?? 'Email not recorded'}</strong>
+                      <span className={`status-badge ${thread.waiting ? 'status-submitted' : 'status-reviewed'}`}>{thread.waiting ? 'Waiting' : 'Replied'}</span>
+                    </span>
+                    <span className="support-preview">{thread.preview}</span>
+                    <span className="support-context">{thread.stage.label} · {formatDateTime(thread.lastMessageAt)}</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          ) : null}
+        </section>
+
+        {selectedThreadId ? (
+          <SupportThread
+            key={selectedThreadId}
+            threadId={selectedThreadId}
+            onNotAvailable={onNotAvailable}
+            onInboxChanged={() => void loadInbox(true)}
+          />
+        ) : (
+          <section className="panel support-placeholder">
+            <p>Select a thread to read and reply.</p>
+          </section>
+        )}
+      </div>
+    </section>
+  )
+}
+
+function SupportThread({
+  threadId,
+  onNotAvailable,
+  onInboxChanged,
+}: {
+  threadId: string
+  onNotAvailable: () => void
+  onInboxChanged: () => void
+}) {
+  const [resource, setResource] = useState<LoadState<AdminSupportThreadResponse>>({
+    status: 'loading',
+    data: null,
+  })
+  const [draft, setDraft] = useState('')
+  const [replying, setReplying] = useState(false)
+  const [replyError, setReplyError] = useState<string | null>(null)
+  const [announcement, setAnnouncement] = useState('')
+  const [refreshError, setRefreshError] = useState(false)
+
+  const loadThread = useCallback(async (silent = false) => {
+    if (!silent) setResource({ status: 'loading', data: null })
+    try {
+      setResource({ status: 'ready', data: await adminApi.chatThread(threadId) })
+      setRefreshError(false)
+    } catch (reason) {
+      if (reason instanceof NotAvailableError) {
+        onNotAvailable()
+        return
+      }
+      if (silent) setRefreshError(true)
+      else setResource({ status: 'error', data: null })
+    }
+  }, [onNotAvailable, threadId])
+
+  useEffect(() => {
+    const initial = window.setTimeout(() => void loadThread(), 0)
+    const interval = window.setInterval(() => {
+      if (document.visibilityState === 'visible') void loadThread(true)
+    }, 15_000)
+    return () => {
+      window.clearTimeout(initial)
+      window.clearInterval(interval)
+    }
+  }, [loadThread])
+
+  const reply = async (event: React.FormEvent) => {
+    event.preventDefault()
+    const body = draft.trim()
+    if (!body || body.length > 2000) return
+    setReplying(true)
+    setReplyError(null)
+    try {
+      await adminApi.chatReply(threadId, body)
+      setDraft('')
+      setAnnouncement('Reply sent and confirmed.')
+      await loadThread(true)
+      onInboxChanged()
+    } catch (reason) {
+      if (reason instanceof NotAvailableError) {
+        onNotAvailable()
+        return
+      }
+      setReplyError('The reply was not confirmed and is not shown as sent. Try again.')
+    } finally {
+      setReplying(false)
+    }
+  }
+
+  if (resource.status === 'loading') return <section className="panel support-thread"><InlineLoading label="Loading thread" /></section>
+  if (resource.status === 'error') return <section className="panel support-thread"><InlineError onRetry={() => void loadThread()}>The thread could not be loaded.</InlineError></section>
+
+  const data = resource.data
+  return (
+    <section className="panel support-thread" aria-labelledby="support-thread-title">
+      {refreshError ? <p className="refresh-warning" role="status">Latest refresh failed; showing the last confirmed messages.</p> : null}
+      <header>
+        <div>
+          <p className="eyebrow">Private student thread</p>
+          <h2 id="support-thread-title">{data.thread.email ?? 'Email not recorded'}</h2>
+          <p className="muted compact">{data.thread.stage.label} · {data.thread.stage.description}</p>
+        </div>
+      </header>
+      <ol className="support-messages" aria-live="polite" aria-label="Support messages">
+        {data.messages.map((message) => (
+          <li key={message.id} className={message.senderRole === 'admin' ? 'from-admin' : 'from-student'}>
+            <article>
+              <strong>{message.senderRole === 'admin' ? '4Prep support' : 'Student'}</strong>
+              <p>{message.body}</p>
+              <time dateTime={message.createdAt}>{formatDateTime(message.createdAt)}</time>
+            </article>
+          </li>
+        ))}
+      </ol>
+      <form onSubmit={(event) => void reply(event)} className="support-reply">
+        <label htmlFor={`support-reply-${threadId}`}>Reply about the platform</label>
+        <textarea
+          id={`support-reply-${threadId}`}
+          rows={4}
+          maxLength={2000}
+          value={draft}
+          onChange={(event) => setDraft(event.target.value)}
+          placeholder="A clear human reply — no admissions advice or unsourced figures"
+        />
+        <div>
+          <span>{(2000 - draft.length).toLocaleString()} characters left</span>
+          <button className="primary-button" type="submit" disabled={replying || !draft.trim()}>{replying ? 'Sending…' : 'Send reply'}</button>
+        </div>
+        {replyError ? <p className="inline-error" role="alert">{replyError}</p> : null}
+      </form>
+      <p className="sr-only" aria-live="assertive">{announcement}</p>
+    </section>
   )
 }
 

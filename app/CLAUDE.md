@@ -1,6 +1,6 @@
 # 4Prep MVP — current-phase handoff
 
-Last updated: 3 August 2026 (Asia/Tashkent)
+Last updated: 5 August 2026 (Asia/Tashkent)
 
 This is the working handoff for Claude or any engineer continuing the 4Prep public MVP. Read `README.md`, `src/types/index.ts`, and `../docs/DATABASE_STATE.md` before changing implementation or data.
 
@@ -8,7 +8,13 @@ This is the working handoff for Claude or any engineer continuing the 4Prep publ
 
 **Phase: production enablement, launch QA, and the authorised Prompt 12 operator work.**
 
-On 3 August 2026, the product owner explicitly reversed two earlier scope rules: the admin console and homework feedback are now authorised under the sequenced Prompt 12 plan. Prompt 12.1 admin foundation is in scope now; homework feedback remains deferred until Prompt 12.3 and its safety constraints. The other exclusions below still bind.
+On 3 August 2026, the product owner explicitly reversed two earlier scope rules: the admin console and homework feedback are authorised under Prompt 12. On 5 August the owner deferred lesson video and AI homework feedback, and explicitly chose to implement only the existing admin foundation plus Prompt 12.4 human support chat before Production promotion. Do not resume 12.2 or 12.3 without a new owner instruction. The other exclusions below still bind.
+
+The 5 August QA migration-history mismatch for versions `202608040013`–`015` was resolved by exporting their recorded statement bundles and restoring exact normalized-SHA-matching source files. The owner then applied `202608050013_support_chat.sql` to QA, and a read-only linked list confirmed the local/remote match. The reviewed chain was subsequently applied to Production as described below.
+
+The owner also deployed the updated QA functions on 5 August; a read-only function list confirmed active `admin-api` version 2 (`verify_jwt=false`, with its own server-side admin boundary) and `delete-account` version 1 (`verify_jwt=true`). The owner then reported successful two-user isolation, admin audit, offline retry, rate-limit, disposable-account deletion, and 375 px checks in QA.
+
+After QA chat checks passed, the owner applied the reviewed Production migration chain through `202608050013`; a read-only linked list confirmed the Production match. Four inspected, userless orphan counselor strikes were removed first so migration `014` could establish its intended request-retention cascade. Production functions and an admin grant were then deployed/configured, and ignored local browser environments were switched to the matching Production URL/anon project. The canonical CLI was relinked to QA for safety. Production live browser proof remains pending.
 
 The core MVP implementation and production database foundation are complete. The remaining work depends mainly on third-party accounts, billing, secrets, deployment, DNS, and dashboard configuration. Their current external state is time-sensitive and must be rechecked rather than inferred from an earlier setup plan.
 
@@ -74,14 +80,16 @@ Migration files, in order:
 10. `supabase/migrations/202608030010_learning_storage_upload_policy.sql`
 11. `supabase/migrations/202608030011_learning_storage_update_preflight.sql`
 12. `supabase/migrations/202608030012_admin_foundation.sql`
+13. `supabase/migrations/202608050013_support_chat.sql`
 
 Versions `008` and `009` were confirmed applied to Production by a read-only
 query of `supabase_migrations.schema_migrations` on 3 August. Migrations `010`
 and `011` are applied and live-proved in QA. Together they
 adapt the existing owner-only create and update policies to the Storage API's
 `contentLength` preflight metadata without relaxing ownership. Neither is
-recorded as applied to Production. Migration `012` is locally validated but is
-not applied to QA or Production.
+recorded as applied to Production. Migration `012` was applied and exercised in
+QA on 3 August but is not applied to Production. Migration `013` is source-only
+and was not applied to QA or Production in the 5 August implementation pass.
 The live outcome constraint permits `out_of_scope`; seven `learning_*` tables
 and the private `learning-submissions` bucket exist. See
 `../docs/DATABASE_STATE.md` for exact methods and current counts.
@@ -189,11 +197,17 @@ VITE_SUPABASE_ANON_KEY
 
 ### 8. Admin foundation
 
-- Review and apply migration `012` to QA; Codex must not apply it.
+- Migration `012` and the core admin console were observed in QA on 3 August; recheck rather than reapplying the migration.
 - Configure `ADMIN_IP_SALT` and the exact `ADMIN_ALLOWED_ORIGINS` only as Edge Function secrets.
 - Grant one trusted existing Auth user through reviewed SQL; there is no browser grant path.
 - Deploy `admin-api`, then deploy `admin/` separately with only the URL and anon key.
 - Complete the non-admin, revoked-admin, audit-row, signed-URL-expiry, and shared-stage live checks in `../docs/ADMIN.md`.
+
+### 9. Human support chat
+
+- Review/apply migration `013` in QA, then deploy the updated `admin-api` and `delete-account` functions.
+- Prove two-student isolation, audited admin reads, offline queue/retry, the helpful rate limit, 375 px behavior, and account-deletion cascade using `../docs/SUPPORT_CHAT.md`.
+- Schedule `prune_expired_support_threads()` daily before Production; the admin inbox's opportunistic prune is not a substitute for the retention job.
 
 ## Recommended next execution order
 
@@ -206,7 +220,7 @@ VITE_SUPABASE_ANON_KEY
 7. Add the real privacy contact and deletion procedure.
 8. Run full production QA: build, tests, SSR smoke, mobile at 375 px, logged-out browsing, signup/email confirmation, persistence, cross-user RLS, and counselor red-team refusal.
 9. Regenerate `../docs/DATABASE_STATE.md` after any database change.
-10. Apply/deploy and live-prove the Prompt 12.1 admin foundation in QA following `../docs/ADMIN.md`.
+10. Apply/deploy and live-prove Prompt 12.4 support chat in QA following `../docs/SUPPORT_CHAT.md`.
 11. Commit locally only unless the owner explicitly changes the no-push instruction.
 
 ## Non-negotiable product rules
@@ -225,7 +239,7 @@ VITE_SUPABASE_ANON_KEY
 - Unsupported figures must produce an honest refusal, not a web substitute or estimate.
 - Keep API keys server-side and out of Git.
 - Maintain strict TypeScript with zero build errors.
-- The admin console and Prompt 12.3 homework feedback are authorised scope reversals dated 3 August 2026. Do not build the remaining out-of-scope AI engines, verification queue, outcome ledger, or a student-app desktop redesign.
+- The admin console, Prompt 12.3 homework feedback, and Prompt 12.4 human support chat are authorised scope reversals. The owner deferred 12.2 and 12.3 on 5 August; do not build them without a new instruction. Do not build the remaining out-of-scope AI engines, verification queue, outcome ledger, or a student-app desktop redesign.
 
 ## Key files
 

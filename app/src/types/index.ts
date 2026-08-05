@@ -8,6 +8,7 @@ export type View =
   | 'tools'
   | 'saved'
   | 'counselor'
+  | 'support'
   | 'learn'
   | 'learn_module'
   | 'learn_lesson'
@@ -231,6 +232,29 @@ export type LearningUserState = {
   completedLessonIds: Set<string>
   submissions: LearningSubmission[]
 }
+
+export type SupportMessageSender = 'student' | 'admin'
+
+export type SupportMessage = {
+  id: string
+  threadId: string
+  senderRole: SupportMessageSender
+  senderUserId: string
+  body: string
+  createdAt: string
+}
+
+export type SupportThread = {
+  id: string
+  userId: string
+  lastMessageAt: string | null
+  lastSenderRole: SupportMessageSender | null
+  messages: SupportMessage[]
+}
+
+export type SupportSendResult =
+  | { status: 'sent'; messageId: string; retryAfterSeconds: 0 }
+  | { status: 'rate_limited'; messageId: string; retryAfterSeconds: number }
 
 export const known = <T,>(
   value: T,

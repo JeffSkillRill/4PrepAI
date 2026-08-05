@@ -79,3 +79,38 @@ export type AdminFileUrlResponse = {
   signedUrl: string
   expiresIn: number
 }
+
+export type AdminSupportInboxItem = {
+  threadId: string
+  studentId: string
+  email: string | null
+  stage: AdminStage
+  waiting: boolean
+  lastMessageAt: string
+  preview: string
+}
+
+export type AdminSupportInboxResponse = {
+  threads: AdminSupportInboxItem[]
+}
+
+export type AdminSupportMessage = {
+  id: string
+  senderRole: 'student' | 'admin'
+  body: string
+  createdAt: string
+}
+
+export type AdminSupportThreadResponse = {
+  thread: {
+    id: string
+    studentId: string
+    email: string | null
+    stage: AdminStage
+  }
+  messages: AdminSupportMessage[]
+}
+
+export type AdminSupportReplyResponse = {
+  message: AdminSupportMessage
+}

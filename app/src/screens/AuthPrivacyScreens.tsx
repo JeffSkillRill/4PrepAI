@@ -169,7 +169,7 @@ export function AuthScreen({
         <section className="card mx-auto w-[min(520px,calc(100%-32px))] p-8 text-center">
           <CheckCircle2 size={46} className="mx-auto text-forest-600" />
           <h1 className="display mt-5 text-3xl font-extrabold">Account deleted</h1>
-          <p className="mt-3 leading-6 text-muted">Your account, student profile, and saved plans were permanently deleted.</p>
+          <p className="mt-3 leading-6 text-muted">Your account, student profile, saved plans, learning records, uploaded homework, and support-chat history were permanently deleted.</p>
           <AppLink href={viewPaths.search as string} onNavigate={() => onNavigate('search')} className={`mt-7 flex w-full items-center justify-center rounded-xl bg-forest-800 px-4 py-3 font-bold text-white ${focusButtonClass}`}>Return to universities</AppLink>
         </section>
       </div>
@@ -242,10 +242,11 @@ export function AuthScreen({
 
           <div className="mt-7 grid gap-3 sm:grid-cols-2">
             <AppLink href={viewPaths.saved as string} onNavigate={() => onNavigate('saved')} className={`flex items-center justify-center rounded-xl bg-forest-800 px-5 py-3 font-bold text-white ${focusButtonClass}`}>Open saved plans</AppLink>
+            <AppLink href={viewPaths.support as string} onNavigate={() => onNavigate('support')} className={`flex items-center justify-center rounded-xl border border-forest-200 px-5 py-3 font-bold text-forest-800 ${focusButtonClass}`}>Platform support</AppLink>
             <button
               onClick={() => void completeSignOut()}
               disabled={accountAction !== 'ready'}
-              className={`rounded-xl border border-line px-5 py-3 font-bold text-muted disabled:opacity-50 ${focusButtonClass}`}
+              className={`rounded-xl border border-line px-5 py-3 font-bold text-muted disabled:opacity-50 sm:col-span-2 ${focusButtonClass}`}
             >
               {accountAction === 'sign_out' ? 'Signing out…' : 'Sign out'}
             </button>
@@ -680,12 +681,13 @@ export function PrivacyScreen() {
       <article className="card mx-auto max-w-3xl p-6 sm:p-10">
         <div className="flex items-center gap-3 text-forest-700"><ShieldCheck /><span className="text-sm font-bold uppercase tracking-[.14em]">Privacy</span></div>
         <h1 className="display mt-4 text-4xl font-extrabold">4Prep Privacy Policy</h1>
-        <p className="mt-2 text-sm text-muted">Effective 29 July 2026</p>
+        <p className="mt-2 text-sm text-muted">Effective 5 August 2026</p>
         <div className="mt-8 space-y-7 leading-7 text-muted">
-          <section><h2 className="display text-xl font-extrabold text-ink">What we collect</h2><p className="mt-2">If you create an account, 4Prep stores your email, destination and study preferences, self-reported academic score, budget and currency, language score, intake preference, and saved university plans. Counselor messages are sent to our server-side counselor function to produce a response.</p></section>
-          <section><h2 className="display text-xl font-extrabold text-ink">Why we use it</h2><p className="mt-2">We use this information only to authenticate you, calculate your deterministic fit score, restore your pathway and shortlist, and answer counselor questions. Fit is guidance, not an admission decision.</p></section>
+          <section><h2 className="display text-xl font-extrabold text-ink">What we collect</h2><p className="mt-2">If you create an account, 4Prep stores your email, destination and study preferences, self-reported academic score, budget and currency, language score, intake preference, saved university plans, learning progress, homework records, and messages you send to platform support. Counselor messages are sent to our server-side counselor function to produce a response.</p></section>
+          <section><h2 className="display text-xl font-extrabold text-ink">Why we use it</h2><p className="mt-2">We use this information only to authenticate you, calculate your deterministic fit score, restore your pathway and shortlist, support your learning work, answer counselor questions, and let a 4Prep operator resolve platform problems you report. Fit is guidance, not an admission decision. Platform support is not an admissions-advice channel.</p></section>
           <section><h2 className="display text-xl font-extrabold text-ink">Service providers</h2><p className="mt-2">Supabase provides authentication and database hosting. Google provides optional sign-in. Perplexity processes counselor prompts; the function sends the message and relevant verified university records, not your stored student profile. Vercel is the planned web host.</p></section>
-          <section><h2 className="display text-xl font-extrabold text-ink">Access and deletion</h2><p className="mt-2">Row-level security restricts profile and saved-plan records to the signed-in owner. To permanently delete your account, open Account, choose “Start account deletion,” type your email, and confirm. This deletes your authentication account, student profile, and saved plans.</p></section>
+          <section><h2 className="display text-xl font-extrabold text-ink">Support-message access and retention</h2><p className="mt-2">Row-level security restricts a support thread to its signed-in student. An authorised 4Prep operator can read and reply through the audited admin service; each privileged thread read records who opened which thread and when. Before delivery is confirmed, an offline message is temporarily queued in that browser tab. Support messages are kept for 12 months after the latest message so a problem can be followed through, then removed by the retention job. Account deletion removes them immediately.</p></section>
+          <section><h2 className="display text-xl font-extrabold text-ink">Access and deletion</h2><p className="mt-2">Row-level security restricts private student records to the signed-in owner. To permanently delete your account, open Account, choose “Start account deletion,” type your email, and confirm. This deletes your authentication account, student profile, saved plans, learning progress, homework records and files, and support-chat history. Chat has no file or image attachments, so it creates no chat Storage objects.</p></section>
           <section><h2 className="display text-xl font-extrabold text-ink">Data accuracy</h2><p className="mt-2">University facts show their source and retrieval date. Missing information remains marked as unknown. Always confirm application details with the university.</p></section>
         </div>
       </article>

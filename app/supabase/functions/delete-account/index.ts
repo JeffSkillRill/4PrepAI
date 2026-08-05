@@ -112,6 +112,18 @@ export default {
     }
 
     const submissionIds = (submissionResult.data ?? []).map((row) => row.id)
+    const supportThreadResult = await admin
+      .from('support_threads')
+      .select('id')
+      .eq('user_id', userId)
+    if (supportThreadResult.error) {
+      console.error('DELETE_ACCOUNT_SUPPORT_LOOKUP_FAILED', {
+        userId,
+        message: supportThreadResult.error.message,
+      })
+      return json({ error: 'Account deletion could not verify support messages.' }, 500)
+    }
+    const supportThreadIds = (supportThreadResult.data ?? []).map((row) => row.id)
     const fileResult = submissionIds.length > 0
       ? await admin
         .from('learning_submission_files')
@@ -163,6 +175,8 @@ export default {
       learningSubmissionsResult,
       learningProgressResult,
       learningFilesResult,
+      supportThreadsResult,
+      supportMessagesResult,
     ] = await Promise.all([
       admin.from('student_profiles').select('user_id', { count: 'exact', head: true }).eq('user_id', userId),
       admin.from('saved_plans').select('user_id', { count: 'exact', head: true }).eq('user_id', userId),
@@ -174,6 +188,13 @@ export default {
           .select('submission_id', { count: 'exact', head: true })
           .in('submission_id', submissionIds)
         : Promise.resolve({ count: 0, error: null }),
+      admin.from('support_threads').select('user_id', { count: 'exact', head: true }).eq('user_id', userId),
+      supportThreadIds.length > 0
+        ? admin
+          .from('support_messages')
+          .select('thread_id', { count: 'exact', head: true })
+          .in('thread_id', supportThreadIds)
+        : Promise.resolve({ count: 0, error: null }),
     ])
     if (
       profileResult.error
@@ -181,6 +202,8 @@ export default {
       || learningSubmissionsResult.error
       || learningProgressResult.error
       || learningFilesResult.error
+      || supportThreadsResult.error
+      || supportMessagesResult.error
     ) {
       console.error('DELETE_ACCOUNT_CASCADE_CHECK_FAILED', {
         userId,
@@ -189,6 +212,8 @@ export default {
         submissionsError: learningSubmissionsResult.error?.message,
         progressError: learningProgressResult.error?.message,
         filesError: learningFilesResult.error?.message,
+        supportThreadsError: supportThreadsResult.error?.message,
+        supportMessagesError: supportMessagesResult.error?.message,
       })
       return json({ error: 'The account was deleted, but cleanup could not be verified.' }, 500)
     }
@@ -210,6 +235,8 @@ export default {
       + (learningSubmissionsResult.count ?? 0)
       + (learningProgressResult.count ?? 0)
       + (learningFilesResult.count ?? 0)
+      + (supportThreadsResult.count ?? 0)
+      + (supportMessagesResult.count ?? 0)
     )
     const orphanedObjects = remainingStorageObjects.length
     if (orphanedRows !== 0) {

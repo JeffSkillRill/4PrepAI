@@ -47,6 +47,11 @@ const DashboardScreen = lazy(async () => {
   return { default: module.DashboardScreen }
 })
 
+const SupportScreen = lazy(async () => {
+  const module = await import('./screens/SupportScreen')
+  return { default: module.SupportScreen }
+})
+
 const navItems: { label: string; view: View }[] = [
   { label: 'Dashboard', view: 'dashboard' },
   { label: 'Search', view: 'search' },
@@ -82,7 +87,7 @@ function Navbar({ view, query, setQuery, onNavigate }: { view: View; query: stri
 
 function Footer({ onNavigate }: { onNavigate: (view: View) => void }) {
   const { user } = useAuth()
-  return <footer className="mt-8 border-t border-line bg-white"><div className="page-container grid gap-8 py-10 sm:grid-cols-[1fr_auto] sm:items-end"><div><Logo href={viewPaths[user ? 'dashboard' : 'search'] as string} onNavigate={() => onNavigate(user ? 'dashboard' : 'search')} /><p className="mt-4 max-w-md text-sm leading-6 text-muted">A calmer, source-backed way for Central Asian students to explore university pathways.</p></div><div className="flex flex-wrap gap-5 text-sm font-bold text-muted"><AppLink href={viewPaths.tools as string} onNavigate={() => onNavigate('tools')}>Tools</AppLink><AppLink href={viewPaths.counselor as string} onNavigate={() => onNavigate('counselor')}>Counselor</AppLink><AppLink href={viewPaths.privacy as string} onNavigate={() => onNavigate('privacy')}>Privacy</AppLink><AppLink href={viewPaths.auth as string} onNavigate={() => onNavigate('auth')}>Account</AppLink></div></div><div className="border-t border-line"><div className="page-container flex flex-wrap items-center justify-between gap-2 py-4 text-xs text-muted"><span>© 2026 4Prep</span><span>Verify university details before applying</span></div></div></footer>
+  return <footer className="mt-8 border-t border-line bg-white"><div className="page-container grid gap-8 py-10 sm:grid-cols-[1fr_auto] sm:items-end"><div><Logo href={viewPaths[user ? 'dashboard' : 'search'] as string} onNavigate={() => onNavigate(user ? 'dashboard' : 'search')} /><p className="mt-4 max-w-md text-sm leading-6 text-muted">A calmer, source-backed way for Central Asian students to explore university pathways.</p></div><div className="flex flex-wrap gap-5 text-sm font-bold text-muted"><AppLink href={viewPaths.tools as string} onNavigate={() => onNavigate('tools')}>Tools</AppLink><AppLink href={viewPaths.counselor as string} onNavigate={() => onNavigate('counselor')}>Counselor</AppLink><AppLink href={viewPaths.support as string} onNavigate={() => onNavigate('support')}>Platform support</AppLink><AppLink href={viewPaths.privacy as string} onNavigate={() => onNavigate('privacy')}>Privacy</AppLink><AppLink href={viewPaths.auth as string} onNavigate={() => onNavigate('auth')}>Account</AppLink></div></div><div className="border-t border-line"><div className="page-container flex flex-wrap items-center justify-between gap-2 py-4 text-xs text-muted"><span>© 2026 4Prep</span><span>Verify university details before applying</span></div></div></footer>
 }
 
 export default function App() {
@@ -482,6 +487,16 @@ export default function App() {
     ? <SavedScreen saved={saved} onToggleSave={toggleSave} onOpen={openUniversity} onExplore={() => navigate('search')} />
     : authScreen
   else if (view === 'counselor') screen = <CounselorScreen />
+  else if (view === 'support') screen = (
+    <Suspense fallback={<LoadingState kind="private" />}>
+      <SupportScreen
+        key={user?.id ?? 'signed-out'}
+        userId={user?.id ?? null}
+        onSignIn={() => navigate('auth')}
+        onOpenCounselor={() => navigate('counselor')}
+      />
+    </Suspense>
+  )
   else if (view === 'learn') screen = (
     <LearningTrackScreen
       userId={user?.id ?? null}

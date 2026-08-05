@@ -6,6 +6,9 @@ import type {
   Pathway,
   Source,
   StudentProfile,
+  SupportMessage,
+  SupportSendResult,
+  SupportThread,
   University,
   UniversityFilters,
   Verification,
@@ -202,6 +205,79 @@ export async function removePlan(userId: string, universityId: string): Promise<
     .eq('user_id', userId)
     .eq('university_id', universityId)
   throwIfError(error)
+}
+
+type SupportThreadRow = {
+  id: string
+  user_id: string
+  last_message_at: string | null
+  last_sender_role: 'student' | 'admin' | null
+}
+
+type SupportMessageRow = {
+  id: string
+  thread_id: string
+  sender_role: 'student' | 'admin'
+  sender_user_id: string
+  body: string
+  created_at: string
+}
+
+function mapSupportMessage(row: SupportMessageRow): SupportMessage {
+  return {
+    id: row.id,
+    threadId: row.thread_id,
+    senderRole: row.sender_role,
+    senderUserId: row.sender_user_id,
+    body: row.body,
+    createdAt: row.created_at,
+  }
+}
+
+export async function getSupportThread(userId: string): Promise<SupportThread | null> {
+  const client = getSupabaseClient()
+  const { data: threadData, error: threadError } = await client
+    .from('support_threads')
+    .select('id,user_id,last_message_at,last_sender_role')
+    .eq('user_id', userId)
+    .maybeSingle()
+  throwIfError(threadError)
+  if (!threadData) return null
+
+  const thread = threadData as SupportThreadRow
+  const { data: messageData, error: messageError } = await client
+    .from('support_messages')
+    .select('id,thread_id,sender_role,sender_user_id,body,created_at')
+    .eq('thread_id', thread.id)
+    .order('created_at', { ascending: true })
+    .order('id', { ascending: true })
+  throwIfError(messageError)
+  return {
+    id: thread.id,
+    userId: thread.user_id,
+    lastMessageAt: thread.last_message_at,
+    lastSenderRole: thread.last_sender_role,
+    messages: ((messageData ?? []) as SupportMessageRow[]).map(mapSupportMessage),
+  }
+}
+
+export async function sendSupportMessage(
+  messageId: string,
+  body: string,
+): Promise<SupportSendResult> {
+  const { data, error } = await getSupabaseClient().rpc('send_support_message', {
+    p_message_id: messageId,
+    p_body: body,
+  })
+  throwIfError(error)
+  const row = Array.isArray(data) ? data[0] : null
+  if (!row || (row.status !== 'sent' && row.status !== 'rate_limited')) {
+    throw new Error('The support message did not receive a delivery confirmation.')
+  }
+  const retryAfterSeconds = Math.max(0, Number(row.retry_after_seconds) || 0)
+  return row.status === 'sent'
+    ? { status: 'sent', messageId: row.message_id, retryAfterSeconds: 0 }
+    : { status: 'rate_limited', messageId: row.message_id, retryAfterSeconds }
 }
 
 export async function getLearningTrack(

@@ -1,12 +1,16 @@
 import { describe, expect, it } from 'vitest'
 import {
   ADMIN_FILE_URL_TTL_SECONDS,
+  SUPPORT_MESSAGE_MAX_LENGTH,
+  cleanSupportMessage,
   formatAdminGoal,
   happenedWithinDays,
   homeworkIsWaiting,
   latestRecordedAt,
   safeDownloadFilename,
   submissionStoragePathBelongsToUser,
+  supportMessagePreview,
+  supportThreadIsWaiting,
 } from './contract'
 
 describe('admin API public contract helpers', () => {
@@ -98,5 +102,18 @@ describe('admin API public contract helpers', () => {
     expect(safeDownloadFilename('essay.pdf')).toBe('essay.pdf')
     expect(safeDownloadFilename('../essay\r\n".pdf')).toBe('_essay___.pdf')
     expect(safeDownloadFilename('\r\n')).toBe('homework-file')
+  })
+
+  it('accepts bounded support text without storing blank or null-byte messages', () => {
+    expect(cleanSupportMessage('  The dashboard is confusing.  ')).toBe('The dashboard is confusing.')
+    expect(cleanSupportMessage('   ')).toBeNull()
+    expect(cleanSupportMessage(`bad\0message`)).toBeNull()
+    expect(cleanSupportMessage('x'.repeat(SUPPORT_MESSAGE_MAX_LENGTH + 1))).toBeNull()
+  })
+
+  it('identifies waiting threads and produces a bounded one-line preview', () => {
+    expect(supportThreadIsWaiting('student')).toBe(true)
+    expect(supportThreadIsWaiting('admin')).toBe(false)
+    expect(supportMessagePreview('First line\nsecond line', 18)).toBe('First line second…')
   })
 })

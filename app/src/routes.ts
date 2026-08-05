@@ -16,6 +16,7 @@ export const viewPaths: Partial<Record<View, string>> = {
   tools: '/tools',
   saved: '/saved',
   counselor: '/counselor',
+  support: '/support',
   learn: '/learn',
   auth: '/login',
   auth_callback: '/auth/callback',

@@ -11,12 +11,15 @@ import {
 } from '../_shared/adminAuth.ts'
 import {
   ADMIN_FILE_URL_TTL_SECONDS,
+  cleanSupportMessage,
   formatAdminGoal,
   happenedWithinDays,
   homeworkIsWaiting,
   latestRecordedAt,
   safeDownloadFilename,
   submissionStoragePathBelongsToUser,
+  supportMessagePreview,
+  supportThreadIsWaiting,
   type ProfileGoalRow,
 } from './contract.ts'
 
@@ -79,12 +82,39 @@ type FileRow = {
   learning_submissions: { user_id: string } | Array<{ user_id: string }> | null
 }
 
+type SupportThreadRow = {
+  id: string
+  user_id: string
+  last_message_at: string | null
+  last_sender_role: 'student' | 'admin' | null
+}
+
+type SupportMessageRow = {
+  id: string
+  thread_id: string
+  sender_role: 'student' | 'admin'
+  sender_user_id: string
+  body: string
+  created_at: string
+}
+
+type SupportInboxRow = {
+  thread_id: string
+  user_id: string
+  last_message_at: string
+  last_sender_role: 'student' | 'admin'
+  latest_message_body: string
+}
+
 type AdminAction =
   | { action: 'access' }
   | { action: 'session' }
   | { action: 'cohort' }
   | { action: 'student'; studentId: string }
   | { action: 'file_url'; fileId: string }
+  | { action: 'chat_inbox' }
+  | { action: 'chat_thread'; threadId: string }
+  | { action: 'chat_reply'; threadId: string; body: string }
 
 type PageResult<T> = {
   data: T[] | null
@@ -130,7 +160,12 @@ function json(
 function parseAction(value: unknown): AdminAction | null {
   if (!value || typeof value !== 'object') return null
   const candidate = value as Record<string, unknown>
-  if (candidate.action === 'access' || candidate.action === 'session' || candidate.action === 'cohort') {
+  if (
+    candidate.action === 'access'
+    || candidate.action === 'session'
+    || candidate.action === 'cohort'
+    || candidate.action === 'chat_inbox'
+  ) {
     return { action: candidate.action }
   }
   if (candidate.action === 'student' && typeof candidate.studentId === 'string' && candidate.studentId) {
@@ -138,6 +173,17 @@ function parseAction(value: unknown): AdminAction | null {
   }
   if (candidate.action === 'file_url' && typeof candidate.fileId === 'string' && candidate.fileId) {
     return { action: 'file_url', fileId: candidate.fileId }
+  }
+  if (candidate.action === 'chat_thread' && typeof candidate.threadId === 'string' && candidate.threadId) {
+    return { action: 'chat_thread', threadId: candidate.threadId }
+  }
+  if (
+    candidate.action === 'chat_reply'
+    && typeof candidate.threadId === 'string'
+    && candidate.threadId
+    && typeof candidate.body === 'string'
+  ) {
+    return { action: 'chat_reply', threadId: candidate.threadId, body: candidate.body }
   }
   return null
 }
@@ -441,6 +487,153 @@ async function fileUrlResponse(context: AdminContext, fileId: string) {
   return { signedUrl: signed.signedUrl, expiresIn: ADMIN_FILE_URL_TTL_SECONDS }
 }
 
+function adminSupportMessage(row: SupportMessageRow) {
+  return {
+    id: row.id,
+    senderRole: row.sender_role,
+    body: row.body,
+    createdAt: row.created_at,
+  }
+}
+
+async function supportInboxResponse(context: AdminContext) {
+  // The inbox intentionally audits before reading. If the audit ledger is not
+  // writable, no student chat or stage context is returned.
+  await auditRead(context, 'support.inbox.read', 'support_inbox', 'all_threads')
+  const pruneResult = await context.database.rpc('prune_expired_support_threads')
+  if (pruneResult.error) throw new Error(pruneResult.error.message)
+  const prunedCount = Number(pruneResult.data) || 0
+  if (prunedCount > 0) {
+    await auditAdminEvent(context, {
+      action: 'support.retention.prune',
+      resourceType: 'support_thread',
+      resourceId: 'expired',
+      outcome: 'allowed',
+      metadata: { deleted_count: prunedCount },
+    })
+  }
+
+  const [records, inboxResult] = await Promise.all([
+    loadCohortRecords(context.database),
+    context.database.rpc('list_support_inbox'),
+  ])
+  if (inboxResult.error) throw new Error(inboxResult.error.message)
+
+  const students = new Map(cohortPayload(records).map((student) => [student.id, student]))
+  const threads = ((inboxResult.data ?? []) as SupportInboxRow[])
+    .flatMap((thread) => {
+      const student = students.get(thread.user_id)
+      if (!student) return []
+      return [{
+        threadId: thread.thread_id,
+        studentId: student.id,
+        email: student.email,
+        stage: student.stage,
+        waiting: supportThreadIsWaiting(thread.last_sender_role),
+        lastMessageAt: thread.last_message_at,
+        preview: supportMessagePreview(thread.latest_message_body),
+      }]
+    })
+    .sort((left, right) => {
+      if (left.waiting !== right.waiting) return left.waiting ? -1 : 1
+      return left.waiting
+        ? left.lastMessageAt.localeCompare(right.lastMessageAt)
+        : right.lastMessageAt.localeCompare(left.lastMessageAt)
+    })
+  return { threads }
+}
+
+async function supportThreadResponse(context: AdminContext, threadId: string) {
+  await auditRead(context, 'support.thread.lookup', 'support_thread', threadId)
+  const { data: threadData, error: threadError } = await context.database
+    .from('support_threads')
+    .select('id,user_id,last_message_at,last_sender_role')
+    .eq('id', threadId)
+    .maybeSingle()
+  if (threadError) throw new Error(threadError.message)
+  if (!threadData) return null
+  const thread = threadData as SupportThreadRow
+  if (await hasAdminGrantHistory(context.database, thread.user_id)) return null
+  await auditRead(
+    context,
+    'support.thread.read',
+    'support_thread',
+    thread.id,
+    thread.user_id,
+  )
+
+  const [records, messageResult] = await Promise.all([
+    loadCohortRecords(context.database),
+    context.database
+      .from('support_messages')
+      .select('id,thread_id,sender_role,sender_user_id,body,created_at')
+      .eq('thread_id', thread.id)
+      .order('created_at', { ascending: true })
+      .order('id', { ascending: true }),
+  ])
+  if (messageResult.error) throw new Error(messageResult.error.message)
+  const student = cohortPayload(records).find((candidate) => candidate.id === thread.user_id)
+  if (!student) return null
+  return {
+    thread: {
+      id: thread.id,
+      studentId: student.id,
+      email: student.email,
+      stage: student.stage,
+    },
+    messages: ((messageResult.data ?? []) as SupportMessageRow[]).map(adminSupportMessage),
+  }
+}
+
+async function supportReplyResponse(
+  context: AdminContext,
+  threadId: string,
+  body: string,
+) {
+  // This specific-thread read is audited before resolving the student owner.
+  await auditRead(context, 'support.thread.reply_context.lookup', 'support_thread', threadId)
+  const { data: threadData, error: threadError } = await context.database
+    .from('support_threads')
+    .select('id,user_id,last_message_at,last_sender_role')
+    .eq('id', threadId)
+    .maybeSingle()
+  if (threadError) throw new Error(threadError.message)
+  if (!threadData) return null
+  const thread = threadData as SupportThreadRow
+  if (await hasAdminGrantHistory(context.database, thread.user_id)) return null
+  await auditRead(
+    context,
+    'support.thread.reply_context.read',
+    'support_thread',
+    thread.id,
+    thread.user_id,
+  )
+
+  // Record authorization and intent before the write. A failed audit therefore
+  // fails closed and no reply is inserted. Message text is never audit metadata.
+  await auditAdminEvent(context, {
+    action: 'support.reply',
+    resourceType: 'support_thread',
+    resourceId: thread.id,
+    targetUserId: thread.user_id,
+    outcome: 'allowed',
+    metadata: { body_length: body.length },
+  })
+  const { data, error } = await context.database
+    .from('support_messages')
+    .insert({
+      id: crypto.randomUUID(),
+      thread_id: thread.id,
+      sender_role: 'admin',
+      sender_user_id: context.userId,
+      body,
+    })
+    .select('id,thread_id,sender_role,sender_user_id,body,created_at')
+    .single()
+  if (error) throw new Error(error.message)
+  return { message: adminSupportMessage(data as SupportMessageRow) }
+}
+
 export default {
   async fetch(request: Request) {
     const requestId = crypto.randomUUID()
@@ -481,6 +674,23 @@ export default {
       }
       if (action.action === 'cohort') {
         return json(request, requestId, await cohortResponse(authorization.context))
+      }
+      if (action.action === 'chat_inbox') {
+        return json(request, requestId, await supportInboxResponse(authorization.context))
+      }
+      if (action.action === 'chat_thread') {
+        const result = await supportThreadResponse(authorization.context, action.threadId)
+        return result
+          ? json(request, requestId, result)
+          : json(request, requestId, { error: 'Thread not found.', requestId }, 404)
+      }
+      if (action.action === 'chat_reply') {
+        const body = cleanSupportMessage(action.body)
+        if (!body) return json(request, requestId, { error: 'Invalid support reply.', requestId }, 400)
+        const result = await supportReplyResponse(authorization.context, action.threadId, body)
+        return result
+          ? json(request, requestId, result)
+          : json(request, requestId, { error: 'Thread not found.', requestId }, 404)
       }
       if (action.action === 'student') {
         const result = await studentResponse(authorization.context, action.studentId)

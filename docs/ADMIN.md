@@ -1,14 +1,14 @@
 # 4Prep admin foundation
 
-Last updated: 3 August 2026 (Asia/Tashkent).
+Last updated: 5 August 2026 (Asia/Tashkent).
 
 ## Current status
 
-Prompt 12.1 is implemented in source. Migration `202608030012_admin_foundation.sql` is written and locally validated but **not applied** to QA or Production. The `admin-api` Edge Function is written but **not deployed**. The separate `admin/` Vite app therefore cannot complete a live privileged request yet.
+Prompt 12.1 is implemented and was exercised in the separate QA project: migration `202608030012_admin_foundation.sql`, an active admin grant, `admin-api`, the cohort view, student detail, and short-lived homework file access were observed working on 3 August. This is QA evidence only; Production remains unmodified. Prompt 12.4 support-inbox source is now added, but migration `013` and the updated functions are not applied/deployed by this implementation pass.
 
 Local validation used a disposable PostgreSQL 14 instance: migration `012` was applied, `app/supabase/tests/admin_foundation_rollback.sql` ran with exact output `BEGIN`, `DO`, `ROLLBACK`, and all three admin-table counts were zero after rollback. The disposable server was then stopped. This proves local SQL behavior only, not remote application.
 
-Do not describe the admin console as live until Jeff deliberately applies the migration, grants an existing Auth user, configures the Edge Function secrets/origin, deploys the function, and records the live checks in the final section of this document.
+Do not describe the support inbox as live until migration `013`, the updated functions, and the two-student isolation/audit/deletion checks in `SUPPORT_CHAT.md` are completed in QA. Do not describe any admin surface as live in Production until the separately reviewed Production promotion is complete.
 
 ## Authorization chain
 
@@ -34,7 +34,7 @@ Revocation is evaluated on every request. A row with `revoked_at is not null` is
 
 ## Privileged API
 
-One deliberately “fat” Edge Function keeps the authorization helper unavoidable and provides five typed actions:
+One deliberately “fat” Edge Function keeps the authorization helper unavoidable and now provides eight typed actions:
 
 | Action | Private operation | Audit action |
 |---|---|---|
@@ -43,6 +43,9 @@ One deliberately “fat” Edge Function keeps the authorization helper unavoida
 | `cohort` | Searchable pilot roster, stage, goal, last recorded activity, waiting homework | `cohort.roster.read` |
 | `student` | One student plus submission, assignment brief, rubric, and file metadata | `student.detail.read` |
 | `file_url` | Exact file-row lookup and a signed private Storage URL | `homework.file.lookup`, then `homework.file.open` |
+| `chat_inbox` | Student support threads plus shared stage context | `support.inbox.read` |
+| `chat_thread` | One private support thread and its messages | `support.thread.read` |
+| `chat_reply` | Read reply context and insert one human operator reply | `support.thread.reply_context.read`, then `support.reply` |
 
 Every private read writes an `allowed` audit row before the data query. If the query then fails, a second `failed` event is appended. Audit failure itself fails closed. A file URL is not minted unless the required audit insert succeeds.
 
@@ -111,7 +114,7 @@ returning id, user_id, granted_at, revoked_at;
 
 Use the acting admin's UUID for `granted_by`/`revoked_by` when one exists. `null` is reserved for a trusted bootstrap or direct database-administrator action. Never delete an old grant to revoke it.
 
-## Jeff's ordered QA apply and deploy handoff
+## Original 12.1 QA apply and deploy handoff
 
 Run from `app/` only after confirming the linked ref is QA `forrvcsttklmpmfhxums`:
 
@@ -157,4 +160,4 @@ admin/src direct student-data query scan: 0 matches
 - Student A and B dashboards show the same stage returned in the roster for those exact users.
 - The service-role marker/credential scan remains empty in both built client bundles.
 
-These live checks are still pending because Prompt 12.1 forbids Codex from applying migrations or deploying functions.
+The core 12.1 checks were exercised in QA on 3 August. Support-chat checks are separately pending under `SUPPORT_CHAT.md`, and Production checks remain pending.

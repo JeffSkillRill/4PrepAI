@@ -1,12 +1,20 @@
 # 4Prep database state
 
-Last regenerated: 3 August 2026 (Asia/Tashkent).
+Last source update: 5 August 2026 (Asia/Tashkent). Live Production observations below remain the 3 August snapshot unless explicitly superseded by a dated 5 August check.
 
 This document is the launch source of truth for the connected production database. It distinguishes facts observed live from repository definitions and items that still require an authenticated QA environment.
 
 ## How this state was observed
 
 No database or external-system write was made while regenerating this document.
+
+On 5 August, a read-only CLI check against the currently linked QA database initially listed three remote-only versions (`202608040013`, `202608040014`, and `202608040015`). Their full recorded statement bundles were exported from `supabase_migrations.schema_migrations` and restored locally under their exact recorded names. Normalized SHA-256 comparisons matched for all three. The dry run then listed only support migration `202608050013`; the owner applied it to QA, and a subsequent read-only linked list confirmed matching local and remote versions through `202608050013`. Production was not changed.
+
+Also on 5 August, the Production dashboard showed a restorable physical database backup from `2026-08-04 19:43:44 +0000`; the dashboard warns that database backups do not contain Storage object bytes. A disposable CLI workspace linked read-only to Production confirmed nine applied versions through `202607310009`. Its dry run listed exactly migrations `202608030010`, `202608030011`, `202608030012`, `202608040013`, `202608040014`, `202608040015`, and `202608050013`, with no seeds or roles. The disposable workspace was removed and the canonical checkout was confirmed still linked to QA. No Production migration was applied by these checks.
+
+The Production preflight then found four historical `untraceable_figure` counselor strikes whose requests had already been pruned; every row had a null `user_id`. After bounded inspection, the owner deleted exactly those four irrecoverable orphan rows, consistent with migration `014`'s future `ON DELETE CASCADE` retention behavior, and rechecked that the orphan counts were zero. The owner then applied the seven reviewed migrations. A subsequent read-only linked list confirmed matching local and Production versions through `202608050013`. Production Edge Functions and browser configuration were not yet changed at this checkpoint.
+
+The owner subsequently configured Production `ADMIN_IP_SALT` and local-only admin origins, deployed the functions, and created one manual Production admin grant. A read-only list confirmed active `admin-api` version 1 (`verify_jwt=false`) and `delete-account` version 6 (`verify_jwt=true`), with the same bundle hashes observed in QA. The ignored `app/.env` and `admin/.env` now contain matching Production URL/anon project references; local Production destructive operations remain disabled. The canonical CLI link was returned to QA after deployment. Production browser behavior remains to be exercised.
 
 | Fact group | Observation method on 3 August 2026 |
 |---|---|
@@ -38,7 +46,7 @@ Production `supabase_migrations.schema_migrations` returned these versions, in o
 
 These correspond to the first nine checked-in files under `app/supabase/migrations/`.
 
-**`202607310008` is applied.** It is not a blocking pre-deploy step. **`202607310009` is also applied.** Migrations `202608030010` and `202608030011` are checked in after this production snapshot and are not applied to Production. They correct the Learning Portal create/update policies' Storage preflight metadata key while preserving the existing owner-only boundary. Migration `202608030012` adds the admin control plane and is not applied to QA or Production.
+Production migrations now match the canonical source through `202608050013`. This includes the Learning Portal Storage policy corrections (`010`–`011`), admin control plane (`012`), recovered relational/search integrity work (`202608040013`–`015`), and support chat (`202608050013`). This is schema evidence only; Production functions, admin bootstrap, browser configuration, and live isolation checks remain separate gates.
 
 ## Counselor outcome constraint
 
@@ -144,6 +152,7 @@ The database holds no acceptance-rate field. A percentage cannot be accepted mer
 - `learning_submissions`
 - `learning_submission_files`
 - objects under `learning-submissions/{user_id}/...`
+- `support_threads` and `support_messages` after migration `013` (source-only; not yet live)
 
 ### Counselor operational data
 
@@ -163,13 +172,17 @@ Historical signed-out checks established that anonymous catalogue reads succeed 
 
 The checked-in `delete-account` function authenticates the bearer token, derives the user ID server-side, deletes the exact auth user, removes uploaded objects, and checks for remaining profile, plan, learning, and Storage records. The deployed function version was not compared with the working tree on 3 August. No authenticated destructive test was run against Production.
 
+In QA on 5 August, the function list confirmed `admin-api` version 2 active with `verify_jwt=false` and `delete-account` version 1 active with `verify_jwt=true` after the owner deployment. This is deployment metadata, not proof of a successful admin reply or account-deletion cascade; those live QA checks remain pending. Production function state was not changed or refreshed.
+
 ## Launch implications
 
 - F-03 is closed by direct schema observation: the Learning Portal schema and bucket are live.
 - F-05 is closed as a schema-state concern: `202607310008` is applied and `out_of_scope` is permitted.
 - Applying migrations `008` or `009` is **not** a current launch action and must not be repeated.
 - Migrations `010` and `011` are proved in QA but still require a separately authorised Production review/application.
-- Migration `012` is locally validated and intentionally unapplied; `docs/ADMIN.md` is its QA handoff.
+- Migration `012` was observed working in QA on 3 August and remains unapplied to Production; `docs/ADMIN.md` is its operational handoff.
+- Migration `013` is written and intentionally unapplied; `docs/SUPPORT_CHAT.md` is its QA isolation, offline, audit, retention, and deletion handoff.
+- QA migration history is reconciled and read-only confirmed through `202608050013`; the support migration remains unapplied to Production.
 - Production deployment of the counselor validation change and the current `delete-account` source still requires a separate, explicitly authorized deployment step.
 - Cross-user learning-table and Storage isolation is proved in QA. Auth-provider round trips, account deletion cleanup, and Production deployment evidence remain launch blockers.
 
