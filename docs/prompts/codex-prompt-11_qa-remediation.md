@@ -24,8 +24,10 @@ Work **only** in the existing repository, in place. A previous session ran in a 
 │  └─ supabase/
 │     ├─ functions/counselor/  ← index.ts, grounding.ts, scope.ts
 │     └─ migrations/
-├─ docs/
-└─ QA_LAUNCH_AUDIT_2026-08-03.md   ← read this first
+└─ docs/
+   ├─ audits/QA_LAUNCH_AUDIT_2026-08-03.md   ← read this first
+   ├─ planning/   ← briefs, proposals, workbooks
+   └─ prompts/    ← this file and its predecessors
 ```
 
 Do not scaffold a new project, create a parallel `app/`, or add a second `package.json`. If a file you expect is missing, you are in the wrong directory — stop and report.
@@ -34,7 +36,7 @@ Do not scaffold a new project, create a parallel `app/`, or add a second `packag
 
 4Prep is a university-pathway platform for international students applying to US universities. It is feature-complete and has just been through an independent launch audit. The audit's verdict was **conditional go for a signed-out pilot, no-go for anything requiring accounts**.
 
-**This prompt adds no new product surface at all.** Every task below closes a specific finding from `QA_LAUNCH_AUDIT_2026-08-03.md`. Read that report before you write any code — the findings carry evidence, reproduction steps, and file/line references that this prompt does not repeat in full.
+**This prompt adds no new product surface at all.** Every task below closes a specific finding from `docs/audits/QA_LAUNCH_AUDIT_2026-08-03.md`. Read that report before you write any code — the findings carry evidence, reproduction steps, and file/line references that this prompt does not repeat in full.
 
 Do not add features. Do not redesign working screens. Do not restructure the data layer.
 
@@ -251,7 +253,7 @@ Do not invent project refs, URLs, or keys. If you do not know a value, say so in
 - Real test file and test counts, before and after.
 - Bundle size before and after.
 - How you verified 375px, the landmark fix, and the navigation change — the actual checks you ran, not an assertion that you ran them.
-- Every finding in `QA_LAUNCH_AUDIT_2026-08-03.md` you did **not** close, and why.
+- Every finding in `docs/audits/QA_LAUNCH_AUDIT_2026-08-03.md` you did **not** close, and why.
 - Anything you could not verify, especially anything that still needs a non-production environment or a real account.
 
 Findings F-01 (partly), and every authenticated flow in Section 6 and Section 10 of the audit, **cannot be closed by code alone**. Do not report them as fixed. List them as still requiring Jeff.

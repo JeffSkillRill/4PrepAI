@@ -515,7 +515,7 @@ $ git diff --check
 | No secrets printed | Only key *names* and one decoded `role=anon` claim |
 | Pre-existing dirty tree preserved | Confirmed above |
 
-The only new file is this report, written to the repository root as `QA_LAUNCH_AUDIT_2026-08-03.md`.
+The only new file is this report. It was written to the repository root as `QA_LAUNCH_AUDIT_2026-08-03.md` and later filed at `docs/audits/QA_LAUNCH_AUDIT_2026-08-03.md` during a documentation reorganization on 5 August 2026.
 
 ---
 

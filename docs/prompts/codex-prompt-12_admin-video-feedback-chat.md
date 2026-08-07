@@ -35,9 +35,10 @@ Work **only** in the existing repository, in place. A previous session ran in a 
 │     ├─ functions/counselor/    ← the pattern to copy for privileged functions
 │     └─ migrations/
 ├─ admin/                    ← YOU CREATE THIS in 12.1. Second deployable
-├─ docs/
-├─ QA_LAUNCH_AUDIT_2026-08-03.md
-└─ codex-prompt-11_qa-remediation.md
+└─ docs/
+   ├─ audits/QA_LAUNCH_AUDIT_2026-08-03.md
+   ├─ planning/   ← briefs, proposals, workbooks
+   └─ prompts/codex-prompt-11_qa-remediation.md
 ```
 
 If a file you expect is missing, you are in the wrong directory — stop and report.
@@ -61,7 +62,7 @@ There is now a second user: **the 4Prep operator**, on a laptop, on a good conne
 ### 1. Two standing product rules are being deliberately reversed. Do not stop.
 
 `app/CLAUDE.md:205` currently says: *"Do not build the four out-of-scope AI engines, **an admin console**, verification queue, outcome ledger, or desktop redesign."*
-`codex-prompt-10` lists: *"Grading, feedback, or review of homework — still deliberately unbuilt."*
+`docs/prompts/codex-prompt-10` lists: *"Grading, feedback, or review of homework — still deliberately unbuilt."*
 
 **Both reversals are authorised by the product owner.** The admin console and homework feedback are now in scope. Prompts 9–11 instruct you to stop and report conflicts with the repository — this paragraph is the resolution of that conflict for these two items *only*.
 
@@ -85,11 +86,11 @@ This is not bureaucracy. It is the only way to answer "who looked at my child's 
 
 ### 4. Do not build on unverified RLS
 
-`QA_LAUNCH_AUDIT_2026-08-03.md` Section 10 records that **cross-user isolation has never been tested**. Every RLS policy in `202607310009_learning_portal.sql` is owner-only (`auth.uid() = user_id`) and none of it has been exercised with two real accounts.
+`docs/audits/QA_LAUNCH_AUDIT_2026-08-03.md` Section 10 records that **cross-user isolation has never been tested**. Every RLS policy in `202607310009_learning_portal.sql` is owner-only (`auth.uid() = user_id`) and none of it has been exercised with two real accounts.
 
 You are about to add the first-ever legitimate cross-user read path. Doing that on top of unverified isolation is how a P0 happens.
 
-**Precondition for 12.1:** a non-production Supabase project exists (see `codex-prompt-11` Task 9 and `docs/QA_ENVIRONMENT.md`), and cross-user isolation is verified with two disposable accounts. If that environment does not exist, **stop and report** — do not proceed against production.
+**Precondition for 12.1:** a non-production Supabase project exists (see `docs/prompts/codex-prompt-11` Task 9 and `docs/QA_ENVIRONMENT.md`), and cross-user isolation is verified with two disposable accounts. If that environment does not exist, **stop and report** — do not proceed against production.
 
 ---
 ---

@@ -155,7 +155,7 @@ The head start that makes even this possible: the front-end (7-screen UI, trust 
 - **The full Ground Truth admin console** (verification queue, extraction assist, coverage dashboard) — absurd overhead for 20 records; build it when data entry is actually the bottleneck.
 - **Outcome Ledger + Φ calibration** — needs a sample size you won't have; premature fitting produces confident nonsense.
 - **The 300-university target** — depth over breadth; sequence by real demand.
-- **The Niche desktop redesign** (`codex-design-prompt.md`) — defensible cut: your success scene is literally a phone.
+- **The Niche desktop redesign** (`docs/prompts/codex-design-prompt.md`) — defensible cut: your success scene is literally a phone.
 - **Multi-language (Uzbek/Russian/Kazakh)** — blocked on an unmade product-language decision.
 - **Automated source monitoring, in-product correction loop, partner API** — all explicitly post-MVP.
 

@@ -31,9 +31,9 @@
 ## A. Inventory
 
 **Root**
-- `4Prep_AI_Roadmap_Brief.docx` — founder's v1.0 brief; source of truth (4 layers, 4 phases, working rules). Reference, finished.
-- `4Prep_GroundTruth_Project_Proposal.docx` — ~40-page proposal reframing the project around an internal "Ground Truth" data-ops platform + Grounding Gateway. Finished as a doc, but proposes a *different stack/scope* than both the brief and the code.
-- `codex-design-prompt.md` — prompt to redesign the app from mobile-only to a desktop Niche-style platform. Spec only; **not executed**.
+- `docs/planning/4Prep_AI_Roadmap_Brief.docx` — founder's v1.0 brief; source of truth (4 layers, 4 phases, working rules). Reference, finished.
+- `docs/planning/4Prep_GroundTruth_Project_Proposal.docx` — ~40-page proposal reframing the project around an internal "Ground Truth" data-ops platform + Grounding Gateway. Finished as a doc, but proposes a *different stack/scope* than both the brief and the code.
+- `docs/prompts/codex-design-prompt.md` — prompt to redesign the app from mobile-only to a desktop Niche-style platform. Spec only; **not executed**.
 - `package-lock.json` (86 bytes) — stray near-empty lockfile, no root `package.json`. **Dead — delete.**
 - `.DS_Store` — macOS junk. **Dead — delete + gitignore.**
 

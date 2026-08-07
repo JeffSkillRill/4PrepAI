@@ -87,7 +87,7 @@ Then document the system in `docs/UI_MOTION.md`: the tokens, when to use each, a
 
 ## Task 2 — Fix the known usability problems
 
-These are real, documented problems in `4Prep_Frontend-Designer-Brief.md`, not hypotheticals. Fix them in this order.
+These are real, documented problems in `docs/planning/4Prep_Frontend-Designer-Brief.md`, not hypotheticals. Fix them in this order.
 
 **a) The mobile pass at 375px.** The app was built desktop-first and the user is on a phone. Go screen by screen at 375px: the nav, the university card, the intake flow, the counselor chat, the Learning Portal screens, and especially the compare view — a wide table does not work at 375px and needs a genuinely different layout, not horizontal scrolling. Verify every touch target is at least 44px and that nothing overflows horizontally at 320px either.
 

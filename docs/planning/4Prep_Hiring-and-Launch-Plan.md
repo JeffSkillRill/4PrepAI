@@ -244,7 +244,7 @@ These are non-delegable, and two of them are non-delegable for reasons that have
 
 **Workload:** 2–3 weeks, roughly 60–80 hours total.
 
-**Main responsibilities:** exactly what is in your existing `4Prep_Frontend-Designer-Brief.md` — mobile at 375px, the honest-gap system, net-cost-first cost display, fit-score comprehension, counselor trust hierarchy, source chips, designed states. Plus one addition the brief does not currently contain: **design the Academy handoff** — where it appears, how it reads, and how it avoids feeling like a bait-and-switch on a product that promised to be free.
+**Main responsibilities:** exactly what is in your existing `docs/planning/4Prep_Frontend-Designer-Brief.md` — mobile at 375px, the honest-gap system, net-cost-first cost display, fit-score comprehension, counselor trust hierarchy, source chips, designed states. Plus one addition the brief does not currently contain: **design the Academy handoff** — where it appears, how it reads, and how it avoids feeling like a bait-and-switch on a product that promised to be free.
 
 **Required skills:** Figma; designing to existing tokens rather than inventing a palette; WCAG AA, visible focus, 44px targets; comfort designing *absence* — empty, missing, refused, offline. Ability to make honesty look deliberate rather than broken is the actual job.
 
@@ -324,7 +324,7 @@ These are non-delegable, and two of them are non-delegable for reasons that have
 
 **Workload:** 10–15 h/week. Pay per accepted university record, not per hour.
 
-**Main responsibilities:** exactly your `4Prep_Data-Researcher-Brief.pdf`. Source the 17 admissions records per university from official pages only; record link, date checked, and saved PDF; write an explicit reason and next action for every gap.
+**Main responsibilities:** exactly your `docs/planning/4Prep_Data-Researcher-Brief.pdf`. Source the 17 admissions records per university from official pages only; record link, date checked, and saved PDF; write an explicit reason and next action for every gap.
 
 **Required skills:** meticulous; reads English university websites accurately; distinguishes "minimum IELTS 7 required" from "our strongest applicants usually have IELTS 7" — your brief already flags this and it is the whole job.
 
@@ -599,4 +599,4 @@ Two things in this document are recommendations in areas where I am not qualifie
 - [Supabase Pricing 2026 — MetaCTO](https://www.metacto.com/blogs/the-true-cost-of-supabase-a-comprehensive-guide-to-pricing-integration-and-maintenance)
 - [Supabase Pricing in 2026 — Makerkit](https://makerkit.dev/blog/saas/supabase-pricing)
 
-Internal: `docs/PROJECT_STATUS_REPORT_2026-07-28.md`, `docs/DATABASE_STATE.md`, `docs/LEARNING_PORTAL.md`, `app/CLAUDE.md`, `4Prep_AI_Roadmap_Brief.docx`, `4Prep_GroundTruth_Project_Proposal.docx`, `4Prep_Learning-Portal-Concept.pdf`, `4Prep_Frontend-Designer-Brief.md`, `4Prep_Data-Researcher-Brief.pdf`, `4Prep_3-Month-Plan.xlsx`, `4Prep_3-Week-MVP-Plan.xlsx`.
+Internal: `docs/PROJECT_STATUS_REPORT_2026-07-28.md`, `docs/DATABASE_STATE.md`, `docs/LEARNING_PORTAL.md`, `app/CLAUDE.md`, `docs/planning/4Prep_AI_Roadmap_Brief.docx`, `docs/planning/4Prep_GroundTruth_Project_Proposal.docx`, `docs/planning/4Prep_Learning-Portal-Concept.pdf`, `docs/planning/4Prep_Frontend-Designer-Brief.md`, `docs/planning/4Prep_Data-Researcher-Brief.pdf`, `docs/planning/4Prep_3-Month-Plan.xlsx`, `docs/planning/4Prep_3-Week-MVP-Plan.xlsx`.

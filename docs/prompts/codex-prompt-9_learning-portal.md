@@ -33,7 +33,7 @@ Migrations are **forward-only**. Never edit an applied one. Note that `202607310
 
 4Prep is a university-pathway platform for international students applying to US universities. The existing product answers *“which universities fit me?”* — a sourced catalogue, a five-component fit score, a grounded AI counselor, saved plans.
 
-We are adding a **Learning Portal**: a structured course that teaches a student how to actually apply, module by module, with **homework the student uploads** at the end of each module. Ten modules, ordered as the application year runs. The concept note is `4Prep_Learning-Portal-Concept.pdf` at the repo root — read it first.
+We are adding a **Learning Portal**: a structured course that teaches a student how to actually apply, module by module, with **homework the student uploads** at the end of each module. Ten modules, ordered as the application year runs. The concept note is `docs/planning/4Prep_Learning-Portal-Concept.pdf` — read it first.
 
 **The portal is free.** There is no paid tier, no paywall, no subscription, and no entitlement model — now or later. The only gate on any lesson, template, or assignment is having an account and having reached that point in the course. Do not build payment logic, plan checks, trial states, upgrade prompts, "premium" flags, or any schema column that anticipates them. If you catch yourself adding a `tier`, `plan`, or `is_premium` field, that is the mistake.
 
