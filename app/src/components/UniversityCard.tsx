@@ -5,10 +5,10 @@ import { CostSummary } from './CostSummary'
 import { UniversityVisual } from './UniversityVisual'
 import { AppLink } from './AppLink'
 
-export function UniversityCard({ university, saved, onSave, onOpen, fitsAfterScholarship = false }: { university: University; saved: boolean; onSave: () => void; onOpen: () => void; fitsAfterScholarship?: boolean }) {
+export function UniversityCard({ university, saved, onSave, onOpen, fitsAfterScholarship = false, layout = 'grid' }: { university: University; saved: boolean; onSave: () => void; onOpen: () => void; fitsAfterScholarship?: boolean; layout?: 'grid' | 'list' }) {
   return (
-    <article className="card interactive-card group overflow-hidden">
-      <div className="relative aspect-video overflow-hidden bg-forest-800">
+    <article className={`card interactive-card group overflow-hidden ${layout === 'list' ? 'md:grid md:grid-cols-[240px_minmax(0,1fr)] xl:grid-cols-[300px_minmax(0,1fr)]' : ''}`}>
+      <div className={`relative aspect-video overflow-hidden bg-forest-800 ${layout === 'list' ? 'md:aspect-auto md:min-h-[300px]' : ''}`}>
         <UniversityVisual university={university} className="motion-media absolute inset-0 group-hover:scale-[1.025]" />
         <div className="image-scrim absolute inset-0" />
         <button onClick={onSave} className="absolute right-3 top-3 grid size-11 place-items-center rounded-full bg-white/95 text-forest-800 shadow transition hover:scale-105" aria-label={saved ? `Remove ${university.name} from saved` : `Save ${university.name}`}>
@@ -21,7 +21,7 @@ export function UniversityCard({ university, saved, onSave, onOpen, fitsAfterSch
           </div>
         </div>
       </div>
-      <div className="p-5">
+      <div className="min-w-0 p-5">
         {fitsAfterScholarship && <p className="mb-3 inline-flex rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold text-emerald-900">Fits ceiling after published scholarship</p>}
         {university.fit ? <ExpandableFit fit={university.fit} compact /> : null}
         <p className="line-clamp-2 min-h-12 text-sm leading-6 text-muted">{university.tagline}{university.fit ? `. ${university.fit.summary}` : ''}</p>

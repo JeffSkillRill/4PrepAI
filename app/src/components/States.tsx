@@ -63,6 +63,7 @@ export function LoadingState({ kind = 'catalogue' }: { kind?: LoadingKind }) {
           <div className="h-64 rounded-2xl skeleton" />
           <div className="h-64 rounded-2xl skeleton" />
           <div className="h-44 rounded-2xl skeleton" />
+          <div className="h-72 rounded-2xl skeleton" aria-label="Loading progress charts" />
           <div className="h-44 rounded-2xl skeleton" />
         </div>
       </section>

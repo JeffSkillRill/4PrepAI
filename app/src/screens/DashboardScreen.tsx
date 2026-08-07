@@ -39,6 +39,12 @@ import {
 } from '../dashboard/logic'
 import { AppLink } from '../components/AppLink'
 import { viewPaths } from '../routes'
+import {
+  HomeworkStatusChart,
+  JourneyPositionChart,
+  LearningProgressChart,
+  RecordedEventTimeline,
+} from '../dashboard/ProgressCharts'
 
 type DashboardData = {
   catalogue: University[]
@@ -185,6 +191,9 @@ function SignedInDashboard({
     return (
       <DashboardEmpty
         learningUnavailable={data.learningUnavailable}
+        learningStates={learningStates}
+        completedLessonIds={data.learningUserState.completedLessonIds}
+        submissions={data.learningUserState.submissions}
         onNavigate={onNavigate}
         stage={stage}
       />
@@ -217,6 +226,7 @@ function SignedInDashboard({
             <>
               <p className="text-sm leading-6 text-muted">{stage.description}</p>
               <p className="mt-3 text-xs font-bold uppercase tracking-[.1em] text-forest-700">Recorded actions only · not a grade or admission prediction</p>
+              <JourneyPositionChart stageId={stage.id} />
             </>
           )}
         </DashboardCard>
@@ -271,6 +281,13 @@ function SignedInDashboard({
           ) : (
             <>
               <p className="text-sm leading-6 text-muted">{data.track ? `${data.track.modules.length} real modules are in this track. Counts above come from your saved lesson and submission records.` : 'The learning track has not been published.'}</p>
+              {learningStates.length > 0 ? (
+                <>
+                  <LearningProgressChart states={learningStates} completedLessonIds={data.learningUserState.completedLessonIds} />
+                  <HomeworkStatusChart submissions={data.learningUserState.submissions} />
+                  <RecordedEventTimeline completedLessons={data.learningUserState.completedLessons ?? []} submissions={data.learningUserState.submissions} />
+                </>
+              ) : null}
               {continueModule ? <p className="mt-3 font-bold text-forest-900">Continue: {continueModule.title}</p> : null}
             </>
           )}
@@ -290,13 +307,19 @@ function SignedInDashboard({
 }
 
 function DashboardEmpty({
+  completedLessonIds,
   learningUnavailable,
+  learningStates,
   onNavigate,
   stage,
+  submissions,
 }: {
+  completedLessonIds: ReadonlySet<string>
   learningUnavailable: boolean
+  learningStates: ReturnType<typeof deriveLearningModuleStates>
   onNavigate: (view: View) => void
   stage: DashboardStage
+  submissions: LearningUserState['submissions']
 }) {
   return (
     <div className="page-container motion-resolve py-8 sm:py-12">
@@ -310,6 +333,16 @@ function DashboardEmpty({
         <EmptyStep step="2" title="Review official evidence" body="Browse costs, requirements, sources, and honest gaps before saving." action="Explore universities" href={viewPaths.search as string} onClick={() => onNavigate('search')} />
         <EmptyStep step="3" title="Begin the application course" body={learningUnavailable ? 'The Learning Portal is currently unavailable; no progress has been invented.' : 'Browse the real modules and save progress when you complete work.'} action="Open Learning Portal" href={viewPaths.learn as string} onClick={() => onNavigate('learn')} />
       </div>
+      {!learningUnavailable && learningStates.length > 0 ? (
+        <section className="card mt-6 p-5 sm:p-7">
+          <p className="text-xs font-extrabold uppercase tracking-[.13em] text-forest-700">Recorded learning activity</p>
+          <h2 className="display mt-1 text-xl font-extrabold">Nothing completed yet—and nothing invented</h2>
+          <p className="mt-2 text-sm leading-6 text-muted">The module map starts empty, keeps sequence-locked modules distinct from unfinished work, and changes only after a saved lesson or homework action.</p>
+          <LearningProgressChart states={learningStates} completedLessonIds={completedLessonIds} />
+          <HomeworkStatusChart submissions={submissions} />
+          <RecordedEventTimeline completedLessons={[]} submissions={submissions} />
+        </section>
+      ) : null}
     </div>
   )
 }

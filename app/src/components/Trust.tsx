@@ -140,8 +140,28 @@ function FitComponentRow({ item }: { item: FitComponent }) {
 }
 
 export function FitBreakdown({ fit }: { fit: FitScore }) {
+  const components = componentOrder.map((key) => fit.components[key])
+  const chartLabel = components.map((item) => `${item.label}: ${item.score} of 100, grade ${item.grade}. ${item.reason}`).join(' ')
   return (
     <div className="mt-3 grid gap-2">
+      <div className="chart-focusable rounded-xl border border-line bg-canvas p-3" role="img" aria-label={`Five deterministic fit components. ${chartLabel}`} tabIndex={0}>
+        <div className="grid gap-2" aria-hidden="true">
+          {components.map((item) => (
+            <div key={item.label} className="grid grid-cols-[78px_1fr_38px] items-center gap-2 text-[11px] font-bold">
+              <span className="truncate text-muted">{item.label}</span>
+              <span className="h-2.5 overflow-hidden rounded-full border border-line bg-white">
+                <span className="block h-full origin-left rounded-full bg-forest-700" style={{ width: `${item.score}%` }} />
+              </span>
+              <span className="text-right text-forest-800">{item.score}</span>
+            </div>
+          ))}
+        </div>
+        <div className="sr-only"><table>
+          <caption>Five deterministic fit components with reasons</caption>
+          <thead><tr><th>Component</th><th>Score</th><th>Grade</th><th>Reason</th></tr></thead>
+          <tbody>{components.map((item) => <tr key={item.label}><th>{item.label}</th><td>{item.score} of 100</td><td>{item.grade}</td><td>{item.reason}</td></tr>)}</tbody>
+        </table></div>
+      </div>
       {componentOrder.map((key) => <FitComponentRow key={key} item={fit.components[key]} />)}
       <p className="text-[11px] text-muted">Scoring model: {fit.version}. This is guidance, not an admission prediction.</p>
     </div>

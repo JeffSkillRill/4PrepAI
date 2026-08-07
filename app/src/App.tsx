@@ -41,6 +41,7 @@ import {
   savePlan,
   saveStudentProfile,
 } from './data/repository'
+import { runViewTransition } from './motion/viewTransition'
 
 const DashboardScreen = lazy(async () => {
   const module = await import('./screens/DashboardScreen')
@@ -61,15 +62,28 @@ const navItems: { label: string; view: View }[] = [
   { label: 'Saved', view: 'saved' },
 ]
 
-function Logo({ href, onNavigate }: { href: string; onNavigate: () => void }) {
-  return <AppLink href={href} onNavigate={onNavigate} className="flex items-center gap-2.5" aria-label="4Prep home"><span className="relative grid size-9 rotate-3 place-items-center rounded-[10px] bg-forest-800 text-white shadow"><span className="display -rotate-3 text-lg font-extrabold">4</span><span className="absolute -right-1 -top-1 size-3 rounded-full border-2 border-white bg-amber-400" /></span><span className="display text-xl font-extrabold tracking-tight text-forest-900">4Prep</span></AppLink>
+function Logo({ href, onNavigate, inverse = false }: { href: string; onNavigate: () => void; inverse?: boolean }) {
+  return (
+    <AppLink href={href} onNavigate={onNavigate} className="flex items-center gap-2.5" aria-label="4Prep home">
+      <img
+        src={inverse ? '/brand/4prep-mark-white.png' : '/brand/4prep-mark-color.png'}
+        width="36"
+        height="36"
+        alt=""
+        aria-hidden="true"
+        className="size-9 shrink-0"
+        decoding="async"
+      />
+      <span className={`display text-xl font-extrabold tracking-tight ${inverse ? 'text-white' : 'text-forest-950'}`}>4Prep</span>
+    </AppLink>
+  )
 }
 
 function Navbar({ view, query, setQuery, onNavigate }: { view: View; query: string; setQuery: (value: string) => void; onNavigate: (view: View) => void }) {
   const [menuOpen, setMenuOpen] = useState(false)
   const { user } = useAuth()
   return (
-    <header className="sticky top-0 z-40 border-b border-line bg-white/95 backdrop-blur-lg">
+    <header className="sticky top-0 z-40 border-b border-line bg-white">
       <div className="page-container flex h-[72px] items-center gap-4">
         <Logo href={viewPaths[user ? 'dashboard' : 'search'] as string} onNavigate={() => onNavigate(user ? 'dashboard' : 'search')} />
         <nav className="hidden items-center gap-1 xl:flex" aria-label="Primary navigation">
@@ -87,7 +101,7 @@ function Navbar({ view, query, setQuery, onNavigate }: { view: View; query: stri
 
 function Footer({ onNavigate }: { onNavigate: (view: View) => void }) {
   const { user } = useAuth()
-  return <footer className="mt-8 border-t border-line bg-white"><div className="page-container grid gap-8 py-10 sm:grid-cols-[1fr_auto] sm:items-end"><div><Logo href={viewPaths[user ? 'dashboard' : 'search'] as string} onNavigate={() => onNavigate(user ? 'dashboard' : 'search')} /><p className="mt-4 max-w-md text-sm leading-6 text-muted">A calmer, source-backed way for Central Asian students to explore university pathways.</p></div><div className="flex flex-wrap gap-5 text-sm font-bold text-muted"><AppLink href={viewPaths.tools as string} onNavigate={() => onNavigate('tools')}>Tools</AppLink><AppLink href={viewPaths.counselor as string} onNavigate={() => onNavigate('counselor')}>Counselor</AppLink><AppLink href={viewPaths.support as string} onNavigate={() => onNavigate('support')}>Platform support</AppLink><AppLink href={viewPaths.privacy as string} onNavigate={() => onNavigate('privacy')}>Privacy</AppLink><AppLink href={viewPaths.auth as string} onNavigate={() => onNavigate('auth')}>Account</AppLink></div></div><div className="border-t border-line"><div className="page-container flex flex-wrap items-center justify-between gap-2 py-4 text-xs text-muted"><span>© 2026 4Prep</span><span>Verify university details before applying</span></div></div></footer>
+  return <footer className="mt-8 border-t border-forest-800 bg-forest-950 text-white"><div className="page-container grid gap-8 py-10 sm:grid-cols-[1fr_auto] sm:items-end"><div><Logo inverse href={viewPaths[user ? 'dashboard' : 'search'] as string} onNavigate={() => onNavigate(user ? 'dashboard' : 'search')} /><p className="mt-4 max-w-md text-sm leading-6 text-white/75">A calmer, source-backed way for Central Asian students to explore university pathways.</p></div><div className="flex flex-wrap gap-5 text-sm font-bold text-white/75"><AppLink href={viewPaths.tools as string} onNavigate={() => onNavigate('tools')}>Tools</AppLink><AppLink href={viewPaths.counselor as string} onNavigate={() => onNavigate('counselor')}>Counselor</AppLink><AppLink href={viewPaths.support as string} onNavigate={() => onNavigate('support')}>Platform support</AppLink><AppLink href={viewPaths.privacy as string} onNavigate={() => onNavigate('privacy')}>Privacy</AppLink><AppLink href={viewPaths.auth as string} onNavigate={() => onNavigate('auth')}>Account</AppLink></div></div><div className="border-t border-forest-800"><div className="page-container flex flex-wrap items-center justify-between gap-2 py-4 text-xs text-white/65"><span>© 2026 4Prep</span><span>Verify university details before applying</span></div></div></footer>
 }
 
 export default function App() {
@@ -139,7 +153,7 @@ export default function App() {
     if (destination.view === 'profile' && destination.universityId) {
       window.history.pushState({}, '', `/universities/${encodeURIComponent(destination.universityId)}`)
       setSelectedUniversityId(destination.universityId)
-      setView('profile')
+      runViewTransition(() => setView('profile'))
       return
     }
     if (
@@ -154,7 +168,7 @@ export default function App() {
       setSelectedUniversityId(null)
       setSelectedModuleSlug(moduleSlug)
       setSelectedLessonSlug(lessonSlug)
-      setView(destination.view)
+      runViewTransition(() => setView(destination.view))
       return
     }
     const path = viewPaths[destination.view] ?? '/universities'
@@ -162,7 +176,7 @@ export default function App() {
     setSelectedUniversityId(null)
     setSelectedModuleSlug(null)
     setSelectedLessonSlug(null)
-    setView(destination.view)
+    runViewTransition(() => setView(destination.view))
   }, [])
 
   const rememberAuth = (destination: PendingDestination) => {
@@ -180,7 +194,7 @@ export default function App() {
   useEffect(() => {
     const handlePop = () => {
       const route = readRoute()
-      setView(route.view)
+      runViewTransition(() => setView(route.view))
       setSelectedUniversityId(route.universityId)
       setSelectedModuleSlug(route.moduleSlug)
       setSelectedLessonSlug(route.lessonSlug)
@@ -191,6 +205,7 @@ export default function App() {
 
   useEffect(() => {
     window.scrollTo({ top: 0 })
+    document.getElementById('main-content')?.focus({ preventScroll: true })
   }, [view])
 
   useEffect(() => {
@@ -332,7 +347,7 @@ export default function App() {
     }
     const path = viewPaths[next] ?? '/universities'
     window.history.pushState({}, '', path)
-    setView(next)
+    runViewTransition(() => setView(next))
     if (next !== 'profile') setSelectedUniversityId(null)
     if (
       next !== 'learn_module'
@@ -346,35 +361,35 @@ export default function App() {
   const openUniversity = (university: University) => {
     window.history.pushState({}, '', `/universities/${encodeURIComponent(university.id)}`)
     setSelectedUniversityId(university.id)
-    setView('profile')
+    runViewTransition(() => setView('profile'))
   }
   const openLearningTrack = () => {
     window.history.pushState({}, '', learningPath('learn'))
     setSelectedUniversityId(null)
     setSelectedModuleSlug(null)
     setSelectedLessonSlug(null)
-    setView('learn')
+    runViewTransition(() => setView('learn'))
   }
   const openLearningModule = (moduleSlug: string) => {
     window.history.pushState({}, '', learningPath('learn_module', moduleSlug))
     setSelectedUniversityId(null)
     setSelectedModuleSlug(moduleSlug)
     setSelectedLessonSlug(null)
-    setView('learn_module')
+    runViewTransition(() => setView('learn_module'))
   }
   const openLearningLesson = (moduleSlug: string, lessonSlug: string) => {
     window.history.pushState({}, '', learningPath('learn_lesson', moduleSlug, lessonSlug))
     setSelectedUniversityId(null)
     setSelectedModuleSlug(moduleSlug)
     setSelectedLessonSlug(lessonSlug)
-    setView('learn_lesson')
+    runViewTransition(() => setView('learn_lesson'))
   }
   const openLearningAssignment = (moduleSlug: string) => {
     window.history.pushState({}, '', learningPath('learn_assignment', moduleSlug))
     setSelectedUniversityId(null)
     setSelectedModuleSlug(moduleSlug)
     setSelectedLessonSlug(null)
-    setView('learn_assignment')
+    runViewTransition(() => setView('learn_assignment'))
   }
   const toggleSave = (id: string) => {
     if (!user) {
@@ -478,7 +493,7 @@ export default function App() {
   else if (view === 'search') screen = <SearchScreen query={query} setQuery={setQuery} saved={saved} onToggleSave={toggleSave} onOpen={openUniversity} />
   else if (view === 'profile' && selectedUniversityId) screen = <ProfileScreen universityId={selectedUniversityId} profile={profile} saved={saved.has(selectedUniversityId)} onToggleSave={() => toggleSave(selectedUniversityId)} />
   else if (view === 'profile') screen = <DesignedState state="empty" onReset={() => navigate('search')} />
-  else if (view === 'compare') screen = <CompareScreen profile={profile} />
+  else if (view === 'compare') screen = <CompareScreen profile={profile} saved={saved} />
   else if (view === 'intake') screen = <IntakeScreen onComplete={completeIntake} />
   else if (view === 'results' && pathway) screen = <ResultsScreen pathway={pathway} saved={saved} onSave={saveOnce} onOpen={openUniversity} />
   else if (view === 'results') screen = <DesignedState state="empty" onReset={() => navigate('intake')} />

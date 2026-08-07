@@ -230,6 +230,7 @@ export type LearningSubmission = {
 
 export type LearningUserState = {
   completedLessonIds: Set<string>
+  completedLessons?: Array<{ lessonId: string; completedAt: string }>
   submissions: LearningSubmission[]
 }
 

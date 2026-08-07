@@ -9,7 +9,6 @@ import {
   ShieldCheck,
 } from 'lucide-react'
 import { useState } from 'react'
-import { FunctionsHttpError } from '@supabase/supabase-js'
 import { SourceChip } from '../components/Trust'
 import { SafeMarkdown, webCitationDetails } from '../components/SafeMarkdown'
 import { getSupabaseClient } from '../data/client'
@@ -27,6 +26,36 @@ type CounselorAnswer = {
   /** Example questions returned with an out-of-scope reply. */
   suggestions?: string[]
   requestId: string
+}
+
+function isCounselorAnswer(value: unknown): value is CounselorAnswer {
+  if (!value || typeof value !== 'object') return false
+  const candidate = value as Partial<CounselorAnswer>
+  return ['verified_fact', 'general_guidance', 'refusal', 'out_of_scope'].includes(candidate.answerType ?? '')
+    && typeof candidate.answer === 'string'
+    && Array.isArray(candidate.recordCitations)
+    && Array.isArray(candidate.webCitations)
+    && typeof candidate.requestId === 'string'
+}
+
+type FunctionErrorResponse = Pick<Response, 'status' | 'clone'>
+
+function responseFromFunctionError(error: unknown): FunctionErrorResponse | null {
+  if (!error || typeof error !== 'object' || !('context' in error)) return null
+  const context: unknown = (error as { context: unknown }).context
+  if (!context || typeof context !== 'object') return null
+  if (!('status' in context) || typeof context.status !== 'number') return null
+  if (!('clone' in context) || typeof context.clone !== 'function') return null
+  return context as FunctionErrorResponse
+}
+
+async function counselorAnswerFromResponse(response: FunctionErrorResponse): Promise<CounselorAnswer | null> {
+  try {
+    const payload: unknown = await response.clone().json()
+    return isCounselorAnswer(payload) ? payload : null
+  } catch {
+    return null
+  }
 }
 
 type PreflightUniversity = {
@@ -94,6 +123,8 @@ export function CounselorScreen() {
   const [answer, setAnswer] = useState<CounselorAnswer | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const remainingCharacters = 1000 - message.length
+  const budgetTone = remainingCharacters <= 100 ? 'text-rose-800' : remainingCharacters <= 250 ? 'text-chart-awaiting' : 'text-muted'
 
   const ask = async (event: React.FormEvent) => {
     event.preventDefault()
@@ -112,20 +143,30 @@ export function CounselorScreen() {
     })
     setLoading(false)
     if (functionError) {
-      if (functionError instanceof FunctionsHttpError
-        && functionError.context instanceof Response
-        && functionError.context.status === 429) {
-        try {
-          setAnswer(await functionError.context.json() as CounselorAnswer)
+      const errorResponse = responseFromFunctionError(functionError)
+      if (errorResponse) {
+        const safeAnswer = await counselorAnswerFromResponse(errorResponse)
+        if (safeAnswer) {
+          setAnswer(safeAnswer)
           return
-        } catch {
-          // Fall through to the safe generic transport error.
         }
+        if (errorResponse.status === 404) {
+          setError('The grounded counselor is not configured for this environment. The counselor function was not found; no unverified answer was displayed.')
+          return
+        }
+      }
+      if (typeof functionError === 'object' && 'name' in functionError && functionError.name === 'FunctionsFetchError') {
+        setError('The grounded counselor is not configured or cannot be reached from this environment. No unverified answer was displayed.')
+        return
       }
       setError('The grounded counselor is unavailable. No unverified answer was displayed.')
       return
     }
-    setAnswer(data as CounselorAnswer)
+    if (isCounselorAnswer(data)) {
+      setAnswer(data)
+      return
+    }
+    setError('The grounded counselor returned an invalid response. No unverified answer was displayed.')
   }
 
   return (
@@ -142,17 +183,27 @@ export function CounselorScreen() {
           <div>
             <form onSubmit={(event) => void ask(event)} className="card p-5 sm:p-7">
               <label htmlFor="counselor-message" className="display text-xl font-extrabold">What would you like to know?</label>
-              <textarea id="counselor-message" value={message} onChange={(event) => setMessage(event.target.value)} maxLength={1000} rows={5} placeholder="For example: What is Princeton’s 2026–27 cost of attendance?" className="mt-4 w-full resize-y rounded-xl border border-line p-4 leading-7 outline-none focus:border-forest-500" />
-              <button disabled={loading || !message.trim()} className="mt-4 inline-flex items-center gap-2 rounded-xl bg-forest-800 px-5 py-3 font-bold text-white disabled:opacity-50">{loading ? 'Checking verified records…' : 'Ask counselor'} <Send size={17} /></button>
+              <textarea id="counselor-message" value={message} onChange={(event) => setMessage(event.target.value)} maxLength={1000} rows={5} aria-describedby="counselor-budget" placeholder="For example: What is Princeton’s 2026–27 cost of attendance?" className="mt-4 w-full resize-y rounded-xl border border-line bg-white p-4 leading-7 outline-none focus:border-forest-500 focus-visible:ring-2 focus-visible:ring-forest-200" />
+              <div className="mt-2 flex items-center justify-between gap-3 text-xs">
+                <span className="text-muted">University facts are checked against sourced records first.</span>
+                <span id="counselor-budget" className={`shrink-0 font-bold ${budgetTone}`} aria-live="polite">{remainingCharacters} left</span>
+              </div>
+              <button disabled={loading || !message.trim()} aria-busy={loading} className="mt-4 inline-flex items-center gap-2 rounded-xl bg-forest-800 px-5 py-3 font-bold text-white disabled:bg-button-disabled disabled:text-muted">{loading ? 'Request received · checking' : 'Ask counselor'} <Send size={17} /></button>
             </form>
 
             {loading && (
-              <div className="mt-5 flex items-start gap-3 rounded-2xl border border-forest-100 bg-white p-5" role="status" aria-live="polite">
+              <div className="mt-5 flex items-start gap-3 rounded-2xl border border-forest-200 bg-white p-5 shadow-soft" role="status" aria-live="polite" aria-atomic="true">
                 <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-forest-50 text-forest-700"><Database size={20} /></span>
-                <div><p className="font-extrabold">Checking sourced records first</p><p className="mt-1 text-sm leading-6 text-muted">The counselor will separate verified 4Prep facts from general web guidance. If neither can support the answer, it will not guess.</p></div>
+                <div>
+                  <p className="font-extrabold">Checking sourced records first</p>
+                  <p className="mt-1 text-sm leading-6 text-muted">Your question was received. 4Prep is checking verified records before any clearly labelled general guidance. It will not guess.</p>
+                  <span className="mt-3 inline-flex items-center gap-1" aria-hidden="true">
+                    {[0, 1, 2].map((index) => <span key={index} className="counselor-thinking-dot size-2 rounded-full bg-forest-700" />)}
+                  </span>
+                </div>
               </div>
             )}
-            {error && <p role="alert" className="mt-5 rounded-xl border border-rose-200 bg-rose-50 p-4 text-rose-900">{error}</p>}
+            {error && <p role="alert" className="trust-static mt-5 rounded-xl border border-rose-200 bg-rose-50 p-4 text-rose-900">{error}</p>}
             {answer?.answerType === 'verified_fact' && (
               <div className="motion-resolve mt-6 overflow-hidden rounded-2xl border border-forest-200 bg-white">
                 <div className="flex items-center gap-2 bg-forest-800 px-5 py-3 text-sm font-extrabold text-white"><BadgeCheck size={18} /> Verified 4Prep fact</div>
@@ -183,7 +234,7 @@ export function CounselorScreen() {
               </div>
             )}
             {answer?.answerType === 'out_of_scope' && (
-              <div className="soft-grid mt-6 rounded-2xl border border-forest-200 bg-white p-6">
+              <div className="trust-static soft-grid mt-6 rounded-2xl border border-forest-200 bg-white p-6">
                 <Compass size={36} className="text-forest-700" />
                 <h2 className="display mt-4 text-2xl font-extrabold">That is outside what I advise on</h2>
                 <p className="mt-3 leading-7 text-muted">{answer.answer}</p>

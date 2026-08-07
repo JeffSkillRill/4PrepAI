@@ -140,8 +140,8 @@ export function SearchScreen({ query, setQuery, saved, onToggleSave, onOpen }: P
             <div className="mb-5 flex items-center justify-between"><h3 className="display text-lg font-extrabold">Filters</h3><SlidersHorizontal size={18} className="text-forest-700" /></div>
             <FilterContent {...{ budget, setBudget, country, setCountry, field, setField, countries, fields }} />
           </aside>
-          {filtered.length > 0 ? <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
-            {filtered.map(({ university, fitsAfterScholarship }) => <UniversityCard key={university.id} university={university} fitsAfterScholarship={fitsAfterScholarship} saved={saved.has(university.id)} onSave={() => onToggleSave(university.id)} onOpen={() => onOpen(university)} />)}
+          {filtered.length > 0 ? <div className="grid gap-6" data-testid="university-results">
+            {filtered.map(({ university, fitsAfterScholarship }) => <UniversityCard key={university.id} university={university} layout="list" fitsAfterScholarship={fitsAfterScholarship} saved={saved.has(university.id)} onSave={() => onToggleSave(university.id)} onOpen={() => onOpen(university)} />)}
           </div> : <DesignedState state="no_results" headingLevel={2} onReset={() => { setQuery(''); setCountry(''); setField(''); setBudget(budgetLimits.max) }} />}
         </div>
       </div>

@@ -296,7 +296,7 @@ export async function getLearningUserState(userId: string): Promise<LearningUser
   const [progressResult, submissionResult] = await Promise.all([
     getSupabaseClient()
       .from('learning_progress')
-      .select('lesson_id')
+      .select('lesson_id,completed_at')
       .eq('user_id', userId),
     getSupabaseClient()
       .from('learning_submissions')
@@ -308,6 +308,10 @@ export async function getLearningUserState(userId: string): Promise<LearningUser
   throwIfError(submissionResult.error)
   return {
     completedLessonIds: new Set((progressResult.data ?? []).map((row) => row.lesson_id)),
+    completedLessons: (progressResult.data ?? []).map((row) => ({
+      lessonId: row.lesson_id,
+      completedAt: row.completed_at,
+    })),
     submissions: ((submissionResult.data ?? []) as unknown as RawLearningSubmission[])
       .map(mapLearningSubmission),
   }
