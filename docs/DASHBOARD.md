@@ -1,6 +1,6 @@
 # Student dashboard and truthful visualisations
 
-Last updated: 7 August 2026 (Asia/Tashkent)
+Last updated: 10 August 2026 (Asia/Tashkent)
 
 ## Purpose and navigation
 
@@ -14,8 +14,8 @@ Hand-rolled inline SVG and semantic HTML won. An isolated Vite 7 production buil
 
 ## Implemented visualisations and exact sources
 
-1. **Learning module map.** `getLearningUserState()` reads `learning_progress.lesson_id`; `deriveLearningModuleStates()` combines those IDs with the real modules and sequential submission gate. Each cell reports completed lesson count, real lesson denominator, and `locked`, `available`, `lessons_in_progress`, or `homework_submitted`; locked never means incomplete.
-2. **Homework state.** `learning_submissions.submitted_at` supplies the submitted total. A submitted record with no non-empty `feedback_ref` is counted as awaiting feedback; a submitted record with a non-empty `feedback_ref` is counted as feedback received. The values are labelled, not inferred from color.
+1. **Learning path.** `getLearningUserState()` reads `learning_progress.lesson_id`; `deriveLearningModuleStates()` combines those IDs with the real modules and sequential submission gate. A compact semantic progress bar reports the real completed/published lesson count, and responsive module tiles use an icon plus the labels `Ready`, `In progress`, `Submitted`, or `Locked`; locked never means incomplete. The earlier stretched SVG module bars were removed because their aspect ratio made the empty dashboard unnecessarily tall and visually dominant.
+2. **Homework state.** `learning_submissions.submitted_at` supplies the submitted total. A submitted record with no non-empty `feedback_ref` is counted as waiting; a submitted record with a non-empty `feedback_ref` is counted as reviewed. Before the first submission, one explanatory empty state replaces three oversized zero counters; the values remain labelled rather than inferred from color.
 3. **Five-stage journey position.** `shared/dashboard-stage.ts` remains the only stage model. The diagram renders the current position among `not_started`, `planning`, `learning`, `homework_submitted`, and `feedback_received`; it explicitly says “not a score.”
 4. **Recorded-event timeline.** `learning_progress.completed_at` and `learning_submissions.submitted_at` are returned by the repository and rendered as discrete chronological events. There is no connecting line, interpolation, forecast, or inferred cadence.
 5. **Five Φ components.** `FitBreakdown` renders the existing deterministic academic, financial, language, career, and geographic component scores. The visible reason remains beside every component, the screen-reader table repeats every reason, and the overall fit is never presented without the expandable five-part explanation. AI is not involved.

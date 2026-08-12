@@ -1,3 +1,11 @@
+import {
+  BookOpenText,
+  CheckCircle2,
+  CirclePlay,
+  ClipboardCheck,
+  Clock3,
+  LockKeyhole,
+} from 'lucide-react'
 import type { LearningModuleState } from '../learning/logic'
 import type { LearningSubmission } from '../types'
 import {
@@ -41,11 +49,25 @@ export function deriveHomeworkChartData(submissions: LearningSubmission[]) {
   }
 }
 
-function moduleFill(status: LearningModuleState['status']) {
-  if (status === 'homework_submitted') return 'var(--color-chart-feedback)'
-  if (status === 'lessons_in_progress') return 'var(--color-chart-awaiting)'
-  if (status === 'available') return 'var(--color-muted)'
-  return 'url(#locked-hatch)'
+function moduleStatusLabel(status: LearningModuleState['status']) {
+  if (status === 'homework_submitted') return 'Submitted'
+  if (status === 'lessons_in_progress') return 'In progress'
+  if (status === 'available') return 'Ready'
+  return 'Locked'
+}
+
+function moduleStatusClasses(status: LearningModuleState['status']) {
+  if (status === 'homework_submitted') return 'border-forest-700 bg-forest-700 text-white'
+  if (status === 'lessons_in_progress') return 'border-forest-400 bg-brand-soft text-forest-900'
+  if (status === 'available') return 'border-forest-200 bg-forest-50 text-forest-800'
+  return 'border-line bg-canvas text-muted'
+}
+
+function ModuleStatusIcon({ status }: { status: LearningModuleState['status'] }) {
+  if (status === 'homework_submitted') return <CheckCircle2 size={17} />
+  if (status === 'lessons_in_progress') return <BookOpenText size={17} />
+  if (status === 'available') return <CirclePlay size={17} />
+  return <LockKeyhole size={16} />
 }
 
 export function LearningProgressChart({
@@ -56,10 +78,12 @@ export function LearningProgressChart({
   completedLessonIds: ReadonlySet<string>
 }) {
   const data = deriveLearningModuleChartData(states, completedLessonIds)
-  const width = Math.max(330, data.length * 30 + 14)
   const completedTotal = data.reduce((sum, item) => sum + item.completedLessons, 0)
   const lessonTotal = data.reduce((sum, item) => sum + item.totalLessons, 0)
   const lockedTotal = data.filter((item) => item.status === 'locked').length
+  const progressRatio = lessonTotal > 0 ? completedTotal / lessonTotal : 0
+  const activeModule = data.find((item) => item.status === 'lessons_in_progress')
+    ?? data.find((item) => item.status === 'available')
   const label = `${completedTotal} of ${lessonTotal} published lessons complete across ${data.length} modules; ${lockedTotal} modules locked by sequence.`
 
   if (data.length === 0) {
@@ -67,60 +91,131 @@ export function LearningProgressChart({
   }
 
   return (
-    <div className="mt-4" role="img" aria-label={label} tabIndex={0}>
-      <svg viewBox={`0 0 ${width} 76`} className="chart-focusable block h-auto w-full" aria-hidden="true">
-        <defs>
-          <pattern id="locked-hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
-            <line x1="0" y1="0" x2="0" y2="6" className="chart-hatch" />
-          </pattern>
-        </defs>
-        {data.map((item, index) => {
-          const x = 8 + index * 30
-          const ratio = item.totalLessons > 0 ? item.completedLessons / item.totalLessons : 0
+    // Keyboard-focusable with the real values in its label, matching every other
+    // visualisation (CompareScreen, CostSummary, FitBreakdown, the timeline) and
+    // the commitment in docs/DASHBOARD.md. Not role="img": this region contains a
+    // progressbar, a list, and a screen-reader table, and role="img" would hide
+    // all three.
+    <section
+      className="chart-focusable mt-5 rounded-[20px] border border-forest-100 bg-forest-50/55 p-4 sm:p-5"
+      aria-label={`Lesson progress. ${label}`}
+      tabIndex={0}
+    >
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <p className="text-xs font-extrabold uppercase tracking-[.12em] text-forest-700">Lesson progress</p>
+          <p className="mt-1 flex items-baseline gap-2 text-muted">
+            <strong className="display text-3xl font-extrabold text-ink">{completedTotal}</strong>
+            <span className="text-sm font-bold">of {lessonTotal} complete</span>
+          </p>
+        </div>
+        <span className="inline-flex w-fit items-center gap-2 rounded-full border border-line bg-white px-3 py-2 text-xs font-extrabold text-forest-800">
+          {activeModule ? <CirclePlay size={16} aria-hidden="true" /> : <CheckCircle2 size={16} aria-hidden="true" />}
+          {activeModule ? `Module ${activeModule.number} ${activeModule.status === 'lessons_in_progress' ? 'in progress' : 'ready'}` : 'All modules submitted'}
+        </span>
+      </div>
+
+      {lessonTotal > 0 ? (
+        <div
+          className="mt-4 h-2 overflow-hidden rounded-full bg-white ring-1 ring-line"
+          role="progressbar"
+          aria-label={label}
+          aria-valuemin={0}
+          aria-valuemax={lessonTotal}
+          aria-valuenow={completedTotal}
+        >
+          <span
+            className="block h-full origin-left rounded-full bg-forest-600"
+            style={{ transform: `scaleX(${progressRatio})` }}
+            aria-hidden="true"
+          />
+        </div>
+      ) : (
+        <p className="mt-4 text-sm text-muted">No published lesson records are available yet.</p>
+      )}
+
+      <p className="mt-3 text-sm font-bold text-forest-900">
+        {activeModule
+          ? `${activeModule.status === 'lessons_in_progress' ? 'Continue' : 'Start'} Module ${activeModule.number}: ${activeModule.title}`
+          : 'All currently published modules have a recorded homework submission.'}
+      </p>
+
+      <ol className="mt-4 grid grid-cols-3 gap-2 sm:grid-cols-6 xl:grid-cols-11" aria-label="Modules">
+        {data.map((item) => {
+          const statusLabel = moduleStatusLabel(item.status)
           return (
-            <g key={item.id}>
-              <title>{`Module ${item.number}: ${item.title}. ${item.completedLessons} of ${item.totalLessons} lessons complete. ${item.status.replaceAll('_', ' ')}.`}</title>
-              <rect x={x} y="8" width="22" height="42" rx="6" fill="var(--color-canvas)" stroke="var(--color-line)" strokeWidth="2" />
-              <rect x={x + 3} y="11" width="16" height="36" rx="3" fill={moduleFill(item.status)} opacity={item.status === 'locked' ? 1 : .22} />
-              {ratio > 0 ? <rect x={x + 3} y={47 - 36 * ratio} width="16" height={36 * ratio} rx="3" fill="var(--color-forest-700)" /> : null}
-              <text x={x + 11} y="67" textAnchor="middle" fill="var(--color-muted)" fontSize="9" fontWeight="700">{item.number}</text>
-            </g>
+            <li
+              key={item.id}
+              className={`min-w-0 rounded-xl border px-2 py-3 text-center ${moduleStatusClasses(item.status)}`}
+              title={`Module ${item.number}: ${item.title}. ${item.completedLessons} of ${item.totalLessons} lessons complete. ${statusLabel}.`}
+            >
+              <span className="mx-auto grid size-7 place-items-center rounded-full bg-white text-forest-700" aria-hidden="true">
+                <ModuleStatusIcon status={item.status} />
+              </span>
+              <strong className="mt-2 block text-sm">{item.number}</strong>
+              <span className="mt-0.5 block truncate text-[10px] font-extrabold uppercase tracking-[.04em]">{statusLabel}</span>
+              <span className="sr-only">Module {item.number}: {item.title}. {item.completedLessons} of {item.totalLessons} lessons complete.</span>
+            </li>
           )
         })}
-      </svg>
-      <div className="mt-2 flex flex-wrap gap-x-4 gap-y-2 text-xs text-muted" aria-hidden="true">
-        <span><span className="mr-1 inline-block size-2.5 rounded-sm bg-forest-700" /> Complete</span>
-        <span><span className="mr-1 inline-block size-2.5 rounded-sm bg-muted" /> Available</span>
-        <span><span className="mr-1 inline-block size-2.5 rounded-sm border border-muted bg-canvas" /> Locked pattern</span>
-      </div>
+      </ol>
+
+      <p className="mt-3 flex items-center gap-2 text-xs leading-5 text-muted">
+        <LockKeyhole size={15} className="shrink-0" aria-hidden="true" />
+        {lockedTotal === 0 ? 'No modules are sequence-locked.' : `${lockedTotal} module${lockedTotal === 1 ? ' is' : 's are'} sequence-locked until earlier homework is submitted.`}
+      </p>
       <div className="sr-only"><table>
         <caption>Learning progress by module</caption>
         <thead><tr><th>Module</th><th>Lessons complete</th><th>Total lessons</th><th>State</th></tr></thead>
         <tbody>{data.map((item) => <tr key={item.id}><th>{item.number}: {item.title}</th><td>{item.completedLessons}</td><td>{item.totalLessons}</td><td>{item.status.replaceAll('_', ' ')}</td></tr>)}</tbody>
       </table></div>
-    </div>
+    </section>
   )
 }
 
 export function HomeworkStatusChart({ submissions }: { submissions: LearningSubmission[] }) {
   const data = deriveHomeworkChartData(submissions)
   const rows = [
-    { label: 'Submitted', value: data.submitted, color: 'bg-forest-700' },
-    { label: 'Awaiting feedback', value: data.awaitingFeedback, color: 'bg-chart-awaiting' },
-    { label: 'Feedback received', value: data.feedbackReceived, color: 'bg-chart-feedback' },
+    { label: 'Total submitted', value: data.submitted, color: 'bg-forest-700' },
+    { label: 'Waiting', value: data.awaitingFeedback, color: 'bg-chart-awaiting' },
+    { label: 'Reviewed', value: data.feedbackReceived, color: 'bg-chart-feedback' },
   ]
   const label = `${data.submitted} homework submissions recorded; ${data.awaitingFeedback} awaiting feedback; ${data.feedbackReceived} with feedback recorded.`
-  return (
-    <div className="mt-5 grid grid-cols-3 gap-2" role="img" aria-label={label} tabIndex={0}>
-      {rows.map((row) => (
-        <div key={row.label} className="chart-focusable rounded-xl border border-line bg-canvas p-3 text-center">
-          <span className={`mx-auto block size-2.5 rounded-full ${row.color}`} aria-hidden="true" />
-          <strong className="mt-2 block text-xl text-ink">{row.value}</strong>
-          <span className="mt-1 block text-[11px] font-bold leading-4 text-muted">{row.label}</span>
+
+  if (data.submitted === 0) {
+    return (
+      <section className="chart-focusable mt-4 rounded-2xl border border-line bg-white p-4" aria-label={label} tabIndex={0}>
+        <div className="flex items-start gap-3">
+          <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-canvas text-forest-700" aria-hidden="true"><ClipboardCheck size={20} /></span>
+          <div>
+            <h3 className="font-extrabold text-ink">No submitted homework yet</h3>
+            <p className="mt-1 text-sm leading-6 text-muted">Submission and feedback status appears after your first assignment.</p>
+          </div>
         </div>
-      ))}
+      </section>
+    )
+  }
+
+  return (
+    <section className="chart-focusable mt-4 rounded-2xl border border-line bg-white p-4" aria-label={label} tabIndex={0}>
+      <div className="flex items-center gap-3">
+        <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-canvas text-forest-700" aria-hidden="true"><ClipboardCheck size={20} /></span>
+        <div>
+          <h3 className="font-extrabold text-ink">Homework</h3>
+          <p className="text-xs text-muted">Only recorded submissions are counted.</p>
+        </div>
+      </div>
+      <div className="mt-4 grid grid-cols-3 gap-2">
+        {rows.map((row) => (
+          <div key={row.label} className="rounded-xl bg-canvas px-3 py-3 text-center">
+            <span className={`mx-auto block size-2 rounded-full ${row.color}`} aria-hidden="true" />
+            <strong className="mt-1.5 block text-xl text-ink">{row.value}</strong>
+            <span className="mt-0.5 block text-[10px] font-extrabold uppercase leading-4 tracking-[.04em] text-muted">{row.label}</span>
+          </div>
+        ))}
+      </div>
       <div className="sr-only"><table><caption>Homework status</caption><tbody>{rows.map((row) => <tr key={row.label}><th>{row.label}</th><td>{row.value}</td></tr>)}</tbody></table></div>
-    </div>
+    </section>
   )
 }
 
@@ -180,7 +275,12 @@ export function RecordedEventTimeline({
 }) {
   const events = deriveRecordedLearningEvents(completedLessons, submissions)
   if (events.length === 0) {
-    return <p className="mt-4 rounded-xl border border-line bg-canvas p-3 text-xs leading-5 text-muted">No dated learning actions are recorded yet. No trend line is drawn.</p>
+    return (
+      <div className="mt-3 flex items-start gap-3 px-1 py-2 text-sm text-muted">
+        <Clock3 size={18} className="mt-0.5 shrink-0 text-forest-600" aria-hidden="true" />
+        <p><strong className="text-ink">Activity history starts with your first saved action.</strong> Saved lessons and homework will appear here with their dates.</p>
+      </div>
+    )
   }
   const formatter = new Intl.DateTimeFormat('en', { day: 'numeric', month: 'short', year: 'numeric' })
   return (

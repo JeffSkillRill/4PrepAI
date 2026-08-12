@@ -335,9 +335,9 @@ function DashboardEmpty({
       </div>
       {!learningUnavailable && learningStates.length > 0 ? (
         <section className="card mt-6 p-5 sm:p-7">
-          <p className="text-xs font-extrabold uppercase tracking-[.13em] text-forest-700">Recorded learning activity</p>
-          <h2 className="display mt-1 text-xl font-extrabold">Nothing completed yet—and nothing invented</h2>
-          <p className="mt-2 text-sm leading-6 text-muted">The module map starts empty, keeps sequence-locked modules distinct from unfinished work, and changes only after a saved lesson or homework action.</p>
+          <p className="text-xs font-extrabold uppercase tracking-[.13em] text-forest-700">Learning progress</p>
+          <h2 className="display mt-1 text-xl font-extrabold">Your learning path is ready</h2>
+          <p className="mt-2 text-sm leading-6 text-muted">Start with the first available module. This view updates only after a lesson or homework action is saved.</p>
           <LearningProgressChart states={learningStates} completedLessonIds={completedLessonIds} />
           <HomeworkStatusChart submissions={submissions} />
           <RecordedEventTimeline completedLessons={[]} submissions={submissions} />

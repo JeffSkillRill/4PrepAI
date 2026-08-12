@@ -1,7 +1,19 @@
-import { describe, expect, it } from 'vitest'
+// @vitest-environment jsdom
+
+import { createElement } from 'react'
+import { cleanup, render, screen } from '@testing-library/react'
+import { afterEach, describe, expect, it } from 'vitest'
 import type { LearningModuleState } from '../learning/logic'
 import type { LearningModule, LearningSubmission } from '../types'
-import { deriveHomeworkChartData, deriveLearningModuleChartData, deriveRecordedLearningEvents } from './ProgressCharts'
+import {
+  deriveHomeworkChartData,
+  deriveLearningModuleChartData,
+  deriveRecordedLearningEvents,
+  HomeworkStatusChart,
+  LearningProgressChart,
+} from './ProgressCharts'
+
+afterEach(cleanup)
 
 function moduleState(
   number: number,
@@ -80,5 +92,60 @@ describe('dashboard chart derivation', () => {
       ['Homework submitted', '2026-08-06T09:00:00Z'],
       ['Lesson completed', '2026-08-07T09:00:00Z'],
     ])
+  })
+
+  it('renders compact, labelled module states and a real lesson progress value', () => {
+    render(createElement(LearningProgressChart, {
+      states: [
+        moduleState(0, 'lessons_in_progress', ['lesson-1', 'lesson-2']),
+        moduleState(1, 'locked', ['lesson-3']),
+      ],
+      completedLessonIds: new Set(['lesson-1']),
+    }))
+
+    const progress = screen.getByRole('progressbar', { name: /1 of 3 published lessons complete/i })
+    expect(progress.getAttribute('aria-valuenow')).toBe('1')
+    expect(progress.getAttribute('aria-valuemax')).toBe('3')
+    expect(screen.getByText('In progress')).toBeTruthy()
+    expect(screen.getByText('Locked')).toBeTruthy()
+    expect(screen.getByText('Continue Module 0: Module 0')).toBeTruthy()
+  })
+
+  it('replaces three zero counters with one useful homework empty state', () => {
+    render(createElement(HomeworkStatusChart, { submissions: [] }))
+
+    expect(screen.getByText('No submitted homework yet')).toBeTruthy()
+    expect(screen.queryByText('Waiting')).toBeNull()
+    expect(screen.queryByText('Reviewed')).toBeNull()
+  })
+
+  // docs/DASHBOARD.md promises that *every* visualisation is a keyboard-focusable
+  // region carrying an aria-label with actual values. Both of these charts lost
+  // that when they were rewritten from SVG on 10 August; this pins it so the
+  // claim and the code cannot drift apart silently again.
+  it('keeps both dashboard charts reachable by keyboard with values in the label', () => {
+    const { container: learning } = render(createElement(LearningProgressChart, {
+      states: [moduleState(0, 'lessons_in_progress', ['lesson-1', 'lesson-2'])],
+      completedLessonIds: new Set(['lesson-1']),
+    }))
+    const learningRegion = learning.querySelector('section')
+    expect(learningRegion?.getAttribute('tabindex')).toBe('0')
+    expect(learningRegion?.getAttribute('aria-label')).toMatch(/1 of 2 published lessons complete/i)
+
+    cleanup()
+
+    const populated: LearningSubmission[] = [
+      { id: 'reviewed', assignmentId: 'c', userId: 'u', status: 'reviewed', submittedAt: '2026-08-07T02:00:00Z', feedbackRef: 'feedback-1', files: [] },
+    ]
+    // Both branches: the empty state and the populated one are separate returns.
+    for (const submissions of [[] as LearningSubmission[], populated]) {
+      const { container: homework } = render(
+        createElement(HomeworkStatusChart, { submissions }),
+      )
+      const homeworkRegion = homework.querySelector('section')
+      expect(homeworkRegion?.getAttribute('tabindex')).toBe('0')
+      expect(homeworkRegion?.getAttribute('aria-label')).toMatch(/homework submissions recorded/i)
+      cleanup()
+    }
   })
 })
