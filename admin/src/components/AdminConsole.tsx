@@ -8,6 +8,8 @@ import {
 } from '../logic'
 import type {
   AdminCohortResponse,
+  AdminLeadInboxResponse,
+  AdminLeadStatus,
   AdminMetricDefinitions,
   AdminMetrics,
   AdminSessionResponse,
@@ -49,7 +51,7 @@ export function AdminConsole({
   })
   const [query, setQuery] = useState('')
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null)
-  const [workspace, setWorkspace] = useState<'cohort' | 'support'>('cohort')
+  const [workspace, setWorkspace] = useState<'cohort' | 'support' | 'leads'>('cohort')
 
   const loadCohort = useCallback(async () => {
     setCohort({ status: 'loading', data: null })
@@ -105,6 +107,7 @@ export function AdminConsole({
         <nav className="workspace-tabs" aria-label="Admin workspace">
           <button type="button" aria-current={workspace === 'cohort' ? 'page' : undefined} onClick={() => setWorkspace('cohort')}>Cohort</button>
           <button type="button" aria-current={workspace === 'support' ? 'page' : undefined} onClick={() => setWorkspace('support')}>Support inbox</button>
+          <button type="button" aria-current={workspace === 'leads' ? 'page' : undefined} onClick={() => setWorkspace('leads')}>Academy requests</button>
         </nav>
 
         {workspace === 'cohort' ? <>
@@ -157,11 +160,201 @@ export function AdminConsole({
               onNotAvailable={onNotAvailable}
             />
           ) : null}
-        </> : (
+        </> : workspace === 'support' ? (
           <SupportInbox onNotAvailable={onNotAvailable} />
+        ) : (
+          <LeadInbox onNotAvailable={onNotAvailable} />
         )}
       </main>
     </div>
+  )
+}
+
+const leadStatusTabs: Array<{ key: AdminLeadStatus; label: string }> = [
+  { key: 'new', label: 'Waiting' },
+  { key: 'claimed', label: 'Claimed' },
+  { key: 'answered', label: 'Answered' },
+  { key: 'closed', label: 'Closed' },
+]
+
+const leadSourceLabels: Record<string, string> = {
+  results: 'After their pathway',
+  gap: 'On an unpublished figure',
+  counselor_refusal: 'After a counselor refusal',
+}
+
+function waitingLabel(hours: number): string {
+  if (hours < 1) return 'under an hour'
+  if (hours < 48) return `${Math.round(hours)} hours`
+  return `${Math.round(hours / 24)} days`
+}
+
+/**
+ * The operator queue for the app→Academy handoff.
+ *
+ * The number at the top is deliberately the oldest wait rather than a total:
+ * a count of requests says nothing about whether anyone is being answered, and
+ * an unanswered student is the only failure this feature can actually have.
+ */
+function LeadInbox({ onNotAvailable }: { onNotAvailable: () => void }) {
+  const [status, setStatus] = useState<AdminLeadStatus>('new')
+  const [resource, setResource] = useState<LoadState<AdminLeadInboxResponse>>({
+    status: 'loading',
+    data: null,
+  })
+  const [pendingId, setPendingId] = useState<string | null>(null)
+  const [actionError, setActionError] = useState<string | null>(null)
+
+  const load = useCallback(async (next: AdminLeadStatus) => {
+    setResource({ status: 'loading', data: null })
+    try {
+      const data = await adminApi.leadInbox(next)
+      setResource({ status: 'ready', data })
+    } catch (reason) {
+      if (reason instanceof NotAvailableError) {
+        onNotAvailable()
+        return
+      }
+      setResource({ status: 'error', data: null })
+    }
+  }, [onNotAvailable])
+
+  // Deferred rather than called in the effect body, matching SupportInbox: the
+  // first thing load() does is set state, and doing that synchronously inside an
+  // effect cascades renders.
+  useEffect(() => {
+    const initial = window.setTimeout(() => void load(status), 0)
+    return () => window.clearTimeout(initial)
+  }, [load, status])
+
+  async function mutate(action: () => Promise<unknown>) {
+    setActionError(null)
+    try {
+      await action()
+      await load(status)
+    } catch (reason) {
+      if (reason instanceof NotAvailableError) {
+        onNotAvailable()
+        return
+      }
+      setActionError('That change could not be saved. The request is unchanged.')
+    } finally {
+      setPendingId(null)
+    }
+  }
+
+  return (
+    <section className="panel" aria-labelledby="leads-title">
+      <div className="section-heading">
+        <div>
+          <p className="eyebrow">Academy requests</p>
+          <h1 id="leads-title">Students asking to be contacted</h1>
+          <p className="muted">
+            Each of these is a student who asked a person to follow up on something the app would not
+            guess at. Contact details are shown so you can reply; they are not shared anywhere else.
+          </p>
+        </div>
+      </div>
+
+      <nav className="workspace-tabs" aria-label="Request status">
+        {leadStatusTabs.map((tab) => (
+          <button
+            key={tab.key}
+            type="button"
+            aria-current={status === tab.key ? 'page' : undefined}
+            onClick={() => setStatus(tab.key)}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </nav>
+
+      {resource.status === 'loading' ? <p className="muted">Loading requests…</p> : null}
+      {resource.status === 'error' ? (
+        <InlineError onRetry={() => { void load(status) }}>
+          The requests could not be loaded, so none are shown.
+        </InlineError>
+      ) : null}
+
+      {resource.status === 'ready' ? (
+        <>
+          {status === 'new' ? (
+            <p className="muted compact">
+              {resource.data.leads.length === 0
+                ? 'Nobody is waiting.'
+                : `Longest wait: ${waitingLabel(resource.data.oldestWaitingHours)}.`}
+            </p>
+          ) : null}
+
+          {actionError ? <p role="alert" className="muted compact">{actionError}</p> : null}
+
+          {resource.data.leads.length === 0 ? (
+            <p className="muted">No requests with this status.</p>
+          ) : (
+            <ul className="lead-list">
+              {resource.data.leads.map((lead) => (
+                <li key={lead.id} className="lead-row">
+                  <div>
+                    <p className="lead-name">{lead.name}</p>
+                    <p className="muted compact">{lead.contact}</p>
+                    <p className="muted compact">
+                      {leadSourceLabels[lead.source] ?? lead.source}
+                      {lead.contextRef ? ` · ${lead.contextRef}` : ''}
+                      {lead.studentUserId ? '' : ' · no account'}
+                    </p>
+                    {lead.note ? <p className="lead-note">{lead.note}</p> : null}
+                    <p className="muted compact">
+                      Waiting {waitingLabel(lead.waitingHours)}
+                    </p>
+                  </div>
+                  <div className="lead-actions">
+                    {lead.status === 'new' ? (
+                      <button
+                        className="quiet-button"
+                        type="button"
+                        disabled={pendingId === lead.id}
+                        onClick={() => {
+                          setPendingId(lead.id)
+                          void mutate(() => adminApi.leadClaim(lead.id))
+                        }}
+                      >
+                        Claim
+                      </button>
+                    ) : null}
+                    {lead.status === 'new' || lead.status === 'claimed' ? (
+                      <>
+                        <button
+                          className="primary-button"
+                          type="button"
+                          disabled={pendingId === lead.id}
+                          onClick={() => {
+                            setPendingId(lead.id)
+                            void mutate(() => adminApi.leadResolve(lead.id, 'answered'))
+                          }}
+                        >
+                          Mark answered
+                        </button>
+                        <button
+                          className="quiet-button"
+                          type="button"
+                          disabled={pendingId === lead.id}
+                          onClick={() => {
+                            setPendingId(lead.id)
+                            void mutate(() => adminApi.leadResolve(lead.id, 'closed'))
+                          }}
+                        >
+                          Close
+                        </button>
+                      </>
+                    ) : null}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </>
+      ) : null}
+    </section>
   )
 }
 

@@ -257,6 +257,23 @@ export type SupportSendResult =
   | { status: 'sent'; messageId: string; retryAfterSeconds: 0 }
   | { status: 'rate_limited'; messageId: string; retryAfterSeconds: number }
 
+/**
+ * Where in the product the student asked to be contacted. Recorded so the
+ * handoff can be measured per placement rather than in aggregate; a lead from a
+ * sourced gap and a lead from the end of a pathway are different intents.
+ */
+export type LeadSource = 'results' | 'gap' | 'counselor_refusal'
+
+export type LeadSubmission = {
+  name: string
+  contact: string
+  note?: string
+}
+
+export type LeadSubmitResult =
+  | { status: 'submitted'; leadId: string; retryAfterSeconds: 0 }
+  | { status: 'rate_limited'; leadId: string; retryAfterSeconds: number }
+
 export const known = <T,>(
   value: T,
   sourceId: string,

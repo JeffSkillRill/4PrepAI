@@ -9,6 +9,7 @@ import {
 } from 'lucide-react'
 import type { DataPoint, FitComponent, FitDimension, FitScore, Verification } from '../types'
 import { useSource } from '../data/DataProvider'
+import { AskACounselor } from './AskACounselor'
 
 export function SourceChip({ sourceId }: { sourceId: string }) {
   const source = useSource(sourceId)
@@ -90,7 +91,7 @@ type HonestGapItem = {
   point: DataPoint<unknown>
 }
 
-export function HonestGapCluster({ items }: { items: HonestGapItem[] }) {
+export function HonestGapCluster({ items, contextRef = null }: { items: HonestGapItem[]; contextRef?: string | null }) {
   const gaps = items.flatMap(({ label, point }) => (
     point.status === 'unknown' ? [{ label, reason: point.reason, action: point.suggestedAction }] : []
   ))
@@ -119,6 +120,16 @@ export function HonestGapCluster({ items }: { items: HonestGapItem[] }) {
             </li>
           ))}
         </ul>
+        {/* One offer per cluster, never one per gap. Berea and Houston City
+            College carry five gaps each; five identical prompts would read as
+            desperate and would cheapen the honesty this panel exists to show. */}
+        <div className="mt-4 border-t border-line pt-4">
+          <AskACounselor
+            source="gap"
+            contextRef={contextRef}
+            label="Ask a 4Prep counsellor to find out"
+          />
+        </div>
       </div>
     </details>
   )

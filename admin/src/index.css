@@ -371,6 +371,19 @@ tbody tr:hover { background: #fbfcfa; }
 .file-list span { color: var(--muted); font-size: .78rem; }
 .file-list a { color: var(--forest-600); font-size: .84rem; font-weight: 800; }
 
+/* Academy request queue. Contact details are the point of the row, so they are
+   as prominent as the name rather than tucked into a detail view. */
+.lead-list { display: grid; gap: .7rem; margin: 1rem 0 0; padding: 0 1.4rem 1.4rem; list-style: none; }
+.lead-row { display: flex; align-items: start; justify-content: space-between; gap: 1.5rem; padding: 1rem; border: 1px solid var(--line); border-radius: .7rem; }
+.lead-row > div:first-child { min-width: 0; flex: 1; }
+.lead-name { margin-bottom: .15rem; font-weight: 800; }
+.lead-note { margin: .5rem 0 .35rem; padding: .6rem .7rem; border-radius: .55rem; background: #f8f9f6; line-height: 1.55; white-space: pre-wrap; overflow-wrap: anywhere; }
+.lead-actions { display: flex; flex-wrap: wrap; gap: .5rem; }
+
+@media (max-width: 640px) {
+  .lead-row { flex-direction: column; gap: .9rem; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; scroll-behavior: auto !important; }
 }

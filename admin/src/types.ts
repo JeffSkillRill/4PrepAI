@@ -45,6 +45,39 @@ export type AdminCohortResponse = {
   students: AdminStudentSummary[]
 }
 
+export type AdminLeadStatus = 'new' | 'claimed' | 'answered' | 'closed'
+
+export type AdminLeadSource = 'results' | 'gap' | 'counselor_refusal'
+
+export type AdminLead = {
+  id: string
+  /** Null for a student who asked before creating an account. Still a real lead. */
+  studentUserId: string | null
+  name: string
+  contact: string
+  source: AdminLeadSource | string
+  contextRef: string | null
+  note: string | null
+  status: AdminLeadStatus
+  claimedBy: string | null
+  claimedAt: string | null
+  answeredAt: string | null
+  createdAt: string
+  waitingHours: number
+}
+
+export type AdminLeadInboxResponse = {
+  status: AdminLeadStatus
+  leads: AdminLead[]
+  /** How long the student who has waited longest has been waiting. */
+  oldestWaitingHours: number
+}
+
+export type AdminLeadMutationResponse = {
+  leadId: string
+  status: AdminLeadStatus
+}
+
 export type AdminSubmissionFile = {
   id: string
   name: string

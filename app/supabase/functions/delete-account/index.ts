@@ -177,6 +177,7 @@ export default {
       learningFilesResult,
       supportThreadsResult,
       supportMessagesResult,
+      leadsResult,
     ] = await Promise.all([
       admin.from('student_profiles').select('user_id', { count: 'exact', head: true }).eq('user_id', userId),
       admin.from('saved_plans').select('user_id', { count: 'exact', head: true }).eq('user_id', userId),
@@ -195,6 +196,10 @@ export default {
           .select('thread_id', { count: 'exact', head: true })
           .in('thread_id', supportThreadIds)
         : Promise.resolve({ count: 0, error: null }),
+      // Academy handoff requests. These cascade on the auth user, but the
+      // cascade is only proven by counting here — this list is hand-maintained
+      // and a table missing from it is a table nobody notices was left behind.
+      admin.from('leads').select('user_id', { count: 'exact', head: true }).eq('user_id', userId),
     ])
     if (
       profileResult.error
@@ -204,6 +209,7 @@ export default {
       || learningFilesResult.error
       || supportThreadsResult.error
       || supportMessagesResult.error
+      || leadsResult.error
     ) {
       console.error('DELETE_ACCOUNT_CASCADE_CHECK_FAILED', {
         userId,
@@ -214,6 +220,7 @@ export default {
         filesError: learningFilesResult.error?.message,
         supportThreadsError: supportThreadsResult.error?.message,
         supportMessagesError: supportMessagesResult.error?.message,
+        leadsError: leadsResult.error?.message,
       })
       return json({ error: 'The account was deleted, but cleanup could not be verified.' }, 500)
     }
@@ -237,6 +244,7 @@ export default {
       + (learningFilesResult.count ?? 0)
       + (supportThreadsResult.count ?? 0)
       + (supportMessagesResult.count ?? 0)
+      + (leadsResult.count ?? 0)
     )
     const orphanedObjects = remainingStorageObjects.length
     if (orphanedRows !== 0) {

@@ -63,7 +63,7 @@ export function ProfileScreen({ universityId, profile, saved, onToggleSave }: { 
             { label: 'Application deadline', point: university.deadline },
             { label: 'Duolingo requirement', point: university.duolingo },
             { label: 'GPA expectation', point: university.gpa },
-          ]} />
+          ]} contextRef={university.id} />
           <section id="overview" className="card scroll-mt-36 p-6 sm:p-8">
             <p className="text-sm font-bold uppercase tracking-[.14em] text-forest-700">Overview</p>
             <h2 className="display mt-2 text-3xl font-extrabold">Why this could fit your plan</h2>

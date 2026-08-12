@@ -115,6 +115,17 @@ type AdminAction =
   | { action: 'chat_inbox' }
   | { action: 'chat_thread'; threadId: string }
   | { action: 'chat_reply'; threadId: string; body: string }
+  | { action: 'lead_inbox'; status: LeadStatus }
+  | { action: 'lead_claim'; leadId: string }
+  | { action: 'lead_resolve'; leadId: string; status: 'answered' | 'closed' }
+
+type LeadStatus = 'new' | 'claimed' | 'answered' | 'closed'
+
+const LEAD_STATUSES: readonly LeadStatus[] = ['new', 'claimed', 'answered', 'closed']
+
+function isLeadStatus(value: unknown): value is LeadStatus {
+  return typeof value === 'string' && (LEAD_STATUSES as readonly string[]).includes(value)
+}
 
 type PageResult<T> = {
   data: T[] | null
@@ -184,6 +195,22 @@ function parseAction(value: unknown): AdminAction | null {
     && typeof candidate.body === 'string'
   ) {
     return { action: 'chat_reply', threadId: candidate.threadId, body: candidate.body }
+  }
+  if (candidate.action === 'lead_inbox') {
+    const status = candidate.status === undefined ? 'new' : candidate.status
+    if (!isLeadStatus(status)) return null
+    return { action: 'lead_inbox', status }
+  }
+  if (candidate.action === 'lead_claim' && typeof candidate.leadId === 'string' && candidate.leadId) {
+    return { action: 'lead_claim', leadId: candidate.leadId }
+  }
+  if (
+    candidate.action === 'lead_resolve'
+    && typeof candidate.leadId === 'string'
+    && candidate.leadId
+    && (candidate.status === 'answered' || candidate.status === 'closed')
+  ) {
+    return { action: 'lead_resolve', leadId: candidate.leadId, status: candidate.status }
   }
   return null
 }
@@ -496,6 +523,135 @@ function adminSupportMessage(row: SupportMessageRow) {
   }
 }
 
+type LeadQueueRow = {
+  id: string
+  user_id: string | null
+  name: string
+  contact: string
+  source: string
+  context_ref: string | null
+  note: string | null
+  status: LeadStatus
+  claimed_by: string | null
+  claimed_at: string | null
+  answered_at: string | null
+  created_at: string
+  waiting_hours: number | string | null
+}
+
+function leadPayload(row: LeadQueueRow) {
+  return {
+    id: row.id,
+    // Present but not required. An anonymous lead is a real lead.
+    studentUserId: row.user_id,
+    name: row.name,
+    contact: row.contact,
+    source: row.source,
+    contextRef: row.context_ref,
+    note: row.note,
+    status: row.status,
+    claimedBy: row.claimed_by,
+    claimedAt: row.claimed_at,
+    answeredAt: row.answered_at,
+    createdAt: row.created_at,
+    waitingHours: Number(row.waiting_hours) || 0,
+  }
+}
+
+/**
+ * The operator queue for the app→Academy handoff.
+ *
+ * Audits before reading, like the support inbox: this returns a student's name
+ * and contact detail, so an unwritable audit ledger must mean no read.
+ */
+async function leadInboxResponse(context: AdminContext, status: LeadStatus) {
+  await auditRead(context, 'lead.inbox.read', 'lead_inbox', status)
+
+  const pruneResult = await context.database.rpc('prune_resolved_leads')
+  if (pruneResult.error) throw new Error(pruneResult.error.message)
+  const prunedCount = Number(pruneResult.data) || 0
+  if (prunedCount > 0) {
+    await auditAdminEvent(context, {
+      action: 'lead.retention.prune',
+      resourceType: 'lead',
+      resourceId: 'resolved',
+      outcome: 'allowed',
+      metadata: { deleted_count: prunedCount },
+    })
+  }
+
+  const queueResult = await context.database.rpc('list_lead_queue', {
+    p_status: status,
+    p_limit: 200,
+  })
+  if (queueResult.error) throw new Error(queueResult.error.message)
+
+  const leads = ((queueResult.data ?? []) as LeadQueueRow[]).map(leadPayload)
+  return {
+    status,
+    leads,
+    // The single number that describes whether this mechanism is alive: how
+    // long the student who has waited longest has been waiting.
+    oldestWaitingHours: leads.length > 0 ? leads[0].waitingHours : 0,
+  }
+}
+
+async function leadClaimResponse(context: AdminContext, leadId: string) {
+  const { data, error } = await context.database
+    .from('leads')
+    .update({
+      status: 'claimed',
+      claimed_by: context.userId,
+      claimed_at: new Date().toISOString(),
+    })
+    .eq('id', leadId)
+    .eq('status', 'new')
+    .select('id')
+    .maybeSingle()
+  if (error) throw new Error(error.message)
+  if (!data) return null
+
+  await auditAdminEvent(context, {
+    action: 'lead.claim',
+    resourceType: 'lead',
+    resourceId: leadId,
+    outcome: 'allowed',
+  })
+  return { leadId, status: 'claimed' as const }
+}
+
+async function leadResolveResponse(
+  context: AdminContext,
+  leadId: string,
+  status: 'answered' | 'closed',
+) {
+  const nowIso = new Date().toISOString()
+  const { data, error } = await context.database
+    .from('leads')
+    .update({
+      status,
+      answered_at: nowIso,
+      // A lead resolved without having been claimed still needs a claimant, or
+      // the status/timestamp bundle constraint rejects the row.
+      claimed_by: context.userId,
+      claimed_at: nowIso,
+    })
+    .eq('id', leadId)
+    .in('status', ['new', 'claimed'])
+    .select('id')
+    .maybeSingle()
+  if (error) throw new Error(error.message)
+  if (!data) return null
+
+  await auditAdminEvent(context, {
+    action: `lead.${status}`,
+    resourceType: 'lead',
+    resourceId: leadId,
+    outcome: 'allowed',
+  })
+  return { leadId, status }
+}
+
 async function supportInboxResponse(context: AdminContext) {
   // The inbox intentionally audits before reading. If the audit ledger is not
   // writable, no student chat or stage context is returned.
@@ -677,6 +833,25 @@ export default {
       }
       if (action.action === 'chat_inbox') {
         return json(request, requestId, await supportInboxResponse(authorization.context))
+      }
+      if (action.action === 'lead_inbox') {
+        return json(request, requestId, await leadInboxResponse(authorization.context, action.status))
+      }
+      if (action.action === 'lead_claim') {
+        const result = await leadClaimResponse(authorization.context, action.leadId)
+        return result
+          ? json(request, requestId, result)
+          : json(request, requestId, { error: 'Lead not found or already claimed.', requestId }, 404)
+      }
+      if (action.action === 'lead_resolve') {
+        const result = await leadResolveResponse(
+          authorization.context,
+          action.leadId,
+          action.status,
+        )
+        return result
+          ? json(request, requestId, result)
+          : json(request, requestId, { error: 'Lead not found or already resolved.', requestId }, 404)
       }
       if (action.action === 'chat_thread') {
         const result = await supportThreadResponse(authorization.context, action.threadId)

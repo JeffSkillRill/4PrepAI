@@ -80,7 +80,16 @@ Migration files, in order:
 10. `supabase/migrations/202608030010_learning_storage_upload_policy.sql`
 11. `supabase/migrations/202608030011_learning_storage_update_preflight.sql`
 12. `supabase/migrations/202608030012_admin_foundation.sql`
-13. `supabase/migrations/202608050013_support_chat.sql`
+13. `supabase/migrations/202608040013_relational_indexes.sql`
+14. `supabase/migrations/202608040014_counselor_strike_request_fk.sql`
+15. `supabase/migrations/202608040015_catalogue_search_index.sql`
+16. `supabase/migrations/202608050013_support_chat.sql`
+17. `supabase/migrations/202608100017_academy_handoff.sql` — **written 10 August, not yet applied to any database**
+
+Note the duplicated `0013` sequence number in `202608040013` and
+`202608050013`. Filename order and Supabase's full version string both still
+resolve correctly, but do not abbreviate either migration to "13" in
+conversation or in a command.
 
 Versions `008` and `009` were confirmed applied to Production by a read-only
 query of `supabase_migrations.schema_migrations` on 3 August. Migrations `010`

@@ -3,6 +3,9 @@ import type {
   AdminAccessResponse,
   AdminCohortResponse,
   AdminFileUrlResponse,
+  AdminLeadInboxResponse,
+  AdminLeadMutationResponse,
+  AdminLeadStatus,
   AdminSessionResponse,
   AdminSupportInboxResponse,
   AdminSupportReplyResponse,
@@ -30,6 +33,9 @@ type AdminActionBody =
   | { action: 'chat_inbox' }
   | { action: 'chat_thread'; threadId: string }
   | { action: 'chat_reply'; threadId: string; body: string }
+  | { action: 'lead_inbox'; status: AdminLeadStatus }
+  | { action: 'lead_claim'; leadId: string }
+  | { action: 'lead_resolve'; leadId: string; status: 'answered' | 'closed' }
 
 async function invokeAdminApi<T>(body: AdminActionBody): Promise<T> {
   const result = await getSupabaseClient().functions.invoke<T>('admin-api', { body })
@@ -63,4 +69,15 @@ export const adminApi = {
     threadId,
     body,
   }),
+  leadInbox: (status: AdminLeadStatus = 'new') => invokeAdminApi<AdminLeadInboxResponse>({
+    action: 'lead_inbox',
+    status,
+  }),
+  leadClaim: (leadId: string) => invokeAdminApi<AdminLeadMutationResponse>({
+    action: 'lead_claim',
+    leadId,
+  }),
+  leadResolve: (leadId: string, status: 'answered' | 'closed') => (
+    invokeAdminApi<AdminLeadMutationResponse>({ action: 'lead_resolve', leadId, status })
+  ),
 }

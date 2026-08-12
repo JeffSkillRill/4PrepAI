@@ -2,6 +2,7 @@ import { ArrowLeft, ArrowRight, BookOpen, Bookmark, BookmarkCheck, CalendarDays,
 import { useState } from 'react'
 import type { Pathway, StudentProfile, University } from '../types'
 import { ExpandableFit } from '../components/Trust'
+import { AskACounselor } from '../components/AskACounselor'
 import { DesignedState, LoadingState } from '../components/States'
 import { getRankedPathway } from '../data/repository'
 import { UniversityVisual } from '../components/UniversityVisual'
@@ -120,6 +121,17 @@ export function ResultsScreen({ pathway, saved, onSave, onOpen }: { pathway: Pat
       </section>
 
       <section className="mt-14"><p className="text-sm font-bold uppercase tracking-[.14em] text-forest-700">Step by step</p><h2 className="display mt-2 text-3xl font-extrabold">Your application runway</h2><div className="timeline-line relative mt-8 grid gap-4 md:grid-cols-3 xl:grid-cols-6">{pathway.milestones.map((item, index) => <article key={item.month} className="relative rounded-2xl border border-line bg-white p-4 pt-14 shadow-soft"><span className="absolute left-4 top-3 z-10 grid size-10 place-items-center rounded-full bg-forest-700 text-xs font-extrabold text-white ring-4 ring-canvas">{index + 1}</span><p className="text-xs font-bold uppercase tracking-[.14em] text-forest-700">Step {item.month}</p><h3 className="mt-2 font-extrabold">{item.title}</h3><p className="mt-2 text-sm leading-5 text-muted">{item.detail}</p></article>)}</div></section>
+
+      {/* Placed last on purpose: the student sees the sourced shortlist and the
+          five scored components first, and is offered a person only after the
+          product has given everything it can evidence. */}
+      <section className="mt-14 max-w-2xl">
+        <AskACounselor
+          source="results"
+          contextRef={`${pathway.profile.country}:${pathway.profile.field}`}
+          label="Talk this through with a 4Prep counsellor"
+        />
+      </section>
     </div>
   )
 }
