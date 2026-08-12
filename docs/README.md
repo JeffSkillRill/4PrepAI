@@ -41,7 +41,9 @@ Briefs, proposals, and workbooks. Reference material, not operational state.
 |---|---|
 | `4Prep_AI_Roadmap_Brief.docx` | Founder's v1.0 brief — 4 layers, 4 phases, working rules |
 | `4Prep_GroundTruth_Project_Proposal.docx` | ~40-page proposal. Proposes a different stack/scope than the code |
-| [`4Prep_Hiring-and-Launch-Plan.md`](planning/4Prep_Hiring-and-Launch-Plan.md) | Team, launch and profitability plan, 1 Aug |
+| [`4Prep_Hiring-and-Launch-Plan.md`](planning/4Prep_Hiring-and-Launch-Plan.md) | Team, launch and profitability plan, 1 Aug. **Hiring sections superseded** by the 10 Aug list; §1, §5 and the sources still stand |
+| [`4Prep_Hiring-List_2026-08-10.md`](planning/4Prep_Hiring-List_2026-08-10.md) | Revised hiring list, 10 Aug. Reordered after the Academy list came in under 50 |
+| [`4Prep_Startup-Gap-Plan_2026-08-10.md`](planning/4Prep_Startup-Gap-Plan_2026-08-10.md) | The 8.5-hour day: honest front door, owned handoff, instrumentation, deploy |
 | [`4Prep_Frontend-Designer-Brief.md`](planning/4Prep_Frontend-Designer-Brief.md) | Designer scope — mobile at 375px, honest-gap system |
 | `4Prep_Data-Researcher-Brief.pdf` | Data researcher scope — 17 sourced records per university |
 | `4Prep_Learning-Portal-Concept.pdf` | Learning portal concept note |
