@@ -42,9 +42,9 @@ import {
 const universitySelect = `
   id,name,city,country,flag,tagline,description,photo_seed,highlights,source_id,
   university_facts(kind,value,numeric_value,currency,amount_period,source_id,unknown_reason,suggested_action),
-  requirements(kind,value,numeric_value,source_id,unknown_reason,suggested_action),
+  requirements(kind,value,numeric_value,benchmark,source_id,unknown_reason,suggested_action),
   programs(id,name,degree,field,program_facts(kind,value,numeric_value,currency,amount_period,source_id,unknown_reason,suggested_action)),
-  university_scholarships(scholarships(id,name,amount_value,amount_numeric,currency,amount_period,amount_source_id,amount_unknown_reason,amount_suggested_action))
+  university_scholarships(scholarships(id,name,amount_value,amount_numeric,currency,amount_period,amount_source_id,amount_unknown_reason,amount_suggested_action,award_conditions(kind,minimum,published_text,source_id)))
 `
 
 const learningTrackSelect = `
@@ -149,7 +149,7 @@ export async function getRankedPathway(profile: StudentProfile): Promise<Pathway
 export async function getStudentProfile(userId: string): Promise<StudentProfile | null> {
   const { data, error } = await getSupabaseClient()
     .from('student_profiles')
-    .select('country,field,academic_score,budget_max,budget_currency,language_test,language_score,needs_language_pathway,intake')
+    .select('country,field,academic_score,budget_max,budget_currency,language_test,language_score,admission_test,admission_test_score,gpa,needs_language_pathway,intake')
     .eq('user_id', userId)
     .maybeSingle()
   throwIfError(error)
@@ -162,6 +162,9 @@ export async function getStudentProfile(userId: string): Promise<StudentProfile 
     budgetCurrency: data.budget_currency,
     languageTest: data.language_test as StudentProfile['languageTest'],
     languageScore: data.language_score === null ? null : Number(data.language_score),
+    admissionTest: data.admission_test as StudentProfile['admissionTest'],
+    admissionTestScore: data.admission_test_score === null ? null : Number(data.admission_test_score),
+    gpa: data.gpa === null ? null : Number(data.gpa),
     needsLanguagePathway: data.needs_language_pathway,
     intake: data.intake,
   }
@@ -177,6 +180,9 @@ export async function saveStudentProfile(userId: string, profile: StudentProfile
     budget_currency: profile.budgetCurrency,
     language_test: profile.languageTest,
     language_score: profile.languageScore,
+    admission_test: profile.admissionTest,
+    admission_test_score: profile.admissionTestScore,
+    gpa: profile.gpa,
     needs_language_pathway: profile.needsLanguagePathway,
     intake: profile.intake,
     consented_at: new Date().toISOString(),

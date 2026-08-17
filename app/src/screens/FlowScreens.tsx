@@ -1,4 +1,4 @@
-import { ArrowLeft, ArrowRight, BookOpen, Bookmark, BookmarkCheck, CalendarDays, Check, CircleDollarSign, GraduationCap, Languages, MapPin, Sparkles } from 'lucide-react'
+import { ArrowLeft, ArrowRight, BookOpen, Bookmark, BookmarkCheck, CalendarDays, CircleDollarSign, ClipboardList, GraduationCap, Languages, MapPin, Percent, Sparkles } from 'lucide-react'
 import { useState } from 'react'
 import type { Pathway, StudentProfile, University } from '../types'
 import { ExpandableFit } from '../components/Trust'
@@ -8,61 +8,49 @@ import { getRankedPathway } from '../data/repository'
 import { UniversityVisual } from '../components/UniversityVisual'
 import { PublishedNetCost } from '../components/CostSummary'
 import { AppLink } from '../components/AppLink'
+import { StepFields } from '../intake/StepFields'
+import {
+  draftFromProfile,
+  emptyDraft,
+  intakeSteps,
+  isStepAnswered,
+  profileFromDraft,
+  type IntakeDraft,
+  type IntakeStepId,
+} from '../intake/definition'
 
-const questions = [
-  { eyebrow: 'Your destination', title: 'Where would you like to study?', detail: 'This catalogue is currently dedicated to United States pathways.', icon: MapPin, options: ['🇺🇸 United States'] },
-  { eyebrow: 'Your subject', title: 'What do you want to study?', detail: 'Pick a broad field for now—we will match against published programs.', icon: BookOpen, options: ['Computer Science', 'Business & Management', 'Engineering', 'Data & Analytics'] },
-  { eyebrow: 'Your academics', title: 'How ready is your academic record?', detail: 'This is a self-assessment only. Formal requirements still need evidence.', icon: GraduationCap, options: ['Strong in relevant subjects', 'Generally on track', 'Some gaps to address', 'I am not sure yet'] },
-  { eyebrow: 'Your budget', title: 'What annual budget feels realistic?', detail: 'US catalogue figures are stored in USD. Φ compares published net-cost scenarios without inventing exchange rates.', icon: CircleDollarSign, options: ['US$5,000', 'US$8,000', 'US$12,000', 'US$15,000', 'Still working it out'] },
-  { eyebrow: 'Your language plan', title: 'Where are you with English testing?', detail: 'Choose the score scale you use. Missing scores remain an explicit gap.', icon: Languages, options: ['IELTS 6.5', 'TOEFL iBT 90', 'Duolingo 120', 'No test yet', 'I need a language pathway'] },
-  { eyebrow: 'Your timing', title: 'When would you like to begin?', detail: 'We will keep this preference in your pathway summary.', icon: CalendarDays, options: ['Spring 2027', 'Fall 2027', 'I am flexible'] },
-]
-
-const stripFlag = (value: string) => value.replace(/^\S+\s/, '')
-
-function profileFromAnswers(answers: string[]): StudentProfile {
-  const budgetMap: Record<string, { amount: number | null; currency: string | null }> = {
-    'US$5,000': { amount: 5000, currency: 'USD' },
-    'US$8,000': { amount: 8000, currency: 'USD' },
-    'US$12,000': { amount: 12000, currency: 'USD' },
-    'US$15,000': { amount: 15000, currency: 'USD' },
-    'Still working it out': { amount: null, currency: null },
-  }
-  const academicMap: Record<string, number | null> = { 'Strong in relevant subjects': 90, 'Generally on track': 72, 'Some gaps to address': 50, 'I am not sure yet': null }
-  const languageMap: Record<string, { test: StudentProfile['languageTest']; score: number | null }> = {
-    'IELTS 6.5': { test: 'ielts', score: 6.5 },
-    'TOEFL iBT 90': { test: 'toefl', score: 90 },
-    'Duolingo 120': { test: 'duolingo', score: 120 },
-    'No test yet': { test: null, score: null },
-    'I need a language pathway': { test: null, score: null },
-  }
-  return {
-    country: stripFlag(answers[0]),
-    field: answers[1],
-    academicScore: academicMap[answers[2]],
-    budgetMax: budgetMap[answers[3]].amount,
-    budgetCurrency: budgetMap[answers[3]].currency,
-    languageTest: languageMap[answers[4]].test,
-    languageScore: languageMap[answers[4]].score,
-    needsLanguagePathway: answers[4] === 'I need a language pathway',
-    intake: answers[5],
-  }
+const stepIcons: Record<IntakeStepId, typeof MapPin> = {
+  country: MapPin,
+  field: BookOpen,
+  academic: GraduationCap,
+  budget: CircleDollarSign,
+  language: Languages,
+  admissionTest: ClipboardList,
+  gpa: Percent,
+  intake: CalendarDays,
 }
 
-export function IntakeScreen({ onComplete }: { onComplete: (profile: StudentProfile, pathway: Pathway) => void }) {
+export function IntakeScreen({
+  initialProfile = null,
+  onComplete,
+}: {
+  /** Pre-fills the wizard when a student chooses to redo an existing plan. */
+  initialProfile?: StudentProfile | null
+  onComplete: (profile: StudentProfile, pathway: Pathway) => void
+}) {
   const [step, setStep] = useState(0)
-  const [answers, setAnswers] = useState<string[]>([])
+  const [draft, setDraft] = useState<IntakeDraft>(
+    initialProfile ? draftFromProfile(initialProfile) : emptyDraft,
+  )
+  const [valid, setValid] = useState(true)
   const [status, setStatus] = useState<'ready' | 'loading' | 'error' | 'offline'>('ready')
-  const question = questions[step]
-  const Icon = question.icon
-  const selected = answers[step]
-  const choose = (value: string) => setAnswers((current) => {
-    const next = [...current]
-    next[step] = value
-    return next
-  })
-  const finish = async () => {
-    const profile = profileFromAnswers(answers)
+  const definition = intakeSteps[step]
+  const Icon = stepIcons[definition.id]
+  const answered = isStepAnswered(draft, definition.id)
+  const canContinue = valid && (answered || definition.optional)
+
+  const finish = async (finalDraft: IntakeDraft) => {
+    const profile = profileFromDraft(finalDraft)
     setStatus('loading')
     try {
       const pathway = await getRankedPathway(profile)
@@ -71,10 +59,20 @@ export function IntakeScreen({ onComplete }: { onComplete: (profile: StudentProf
       setStatus(typeof navigator !== 'undefined' && !navigator.onLine ? 'offline' : 'error')
     }
   }
+
   const next = () => {
-    if (!selected) return
-    if (step === questions.length - 1) void finish()
-    else setStep((value) => value + 1)
+    if (!canContinue) return
+    // An optional step passed over without an answer is still a deliberate
+    // answer: "I do not have one". Recording that stops the plan page showing
+    // it as an unfinished task forever.
+    const advanced: IntakeDraft = definition.id === 'admissionTest'
+      ? { ...draft, admissionAnswered: true }
+      : definition.id === 'gpa'
+        ? { ...draft, gpaAnswered: true }
+        : draft
+    setDraft(advanced)
+    if (step === intakeSteps.length - 1) void finish(advanced)
+    else { setStep((value) => value + 1); setValid(true) }
   }
 
   if (status === 'loading') return <LoadingState kind="form" />
@@ -83,19 +81,19 @@ export function IntakeScreen({ onComplete }: { onComplete: (profile: StudentProf
   return (
     <div className="soft-grid min-h-[calc(100vh-106px)] py-10 sm:py-16">
       <div className="mx-auto w-[min(640px,calc(100%-32px))]">
-        <div className="mb-5 flex items-center justify-between text-sm"><span className="font-bold text-forest-800">Build your pathway</span><span className="text-muted">Step {step + 1} of {questions.length}</span></div>
-        <div className="h-2 overflow-hidden rounded-full bg-forest-100"><div className="motion-progress h-full w-full rounded-full bg-forest-600" style={{ transform: `scaleX(${(step + 1) / questions.length})` }} /></div>
+        <div className="mb-5 flex items-center justify-between text-sm"><span className="font-bold text-forest-800">Build your pathway</span><span className="text-muted">Step {step + 1} of {intakeSteps.length}</span></div>
+        <div className="h-2 overflow-hidden rounded-full bg-forest-100"><div className="motion-progress h-full w-full rounded-full bg-forest-600" style={{ transform: `scaleX(${(step + 1) / intakeSteps.length})` }} /></div>
         <section className="card mt-6 p-6 sm:p-9">
           <div className="grid size-16 place-items-center rounded-2xl bg-forest-50 text-forest-700"><Icon size={30} /></div>
-          <p className="mt-6 text-sm font-bold uppercase tracking-[.14em] text-forest-700">{question.eyebrow}</p>
-          <h1 className="display mt-2 text-3xl font-extrabold sm:text-4xl">{question.title}</h1>
-          <p className="mt-3 leading-7 text-muted">{question.detail}</p>
-          <div className="mt-7 space-y-3" role="radiogroup" aria-label={question.title}>
-            {question.options.map((option) => <button key={option} role="radio" aria-checked={selected === option} onClick={() => choose(option)} className={`flex w-full items-center justify-between rounded-xl border p-4 text-left font-semibold transition ${selected === option ? 'border-forest-600 bg-forest-50 text-forest-900 ring-2 ring-forest-100' : 'border-line bg-white hover:border-forest-200 hover:bg-canvas'}`}><span>{option}</span><span className={`grid size-6 place-items-center rounded-full border ${selected === option ? 'border-forest-600 bg-forest-600 text-white' : 'border-line'}`}>{selected === option ? <Check size={14} /> : null}</span></button>)}
+          <p className="mt-6 text-sm font-bold uppercase tracking-[.14em] text-forest-700">{definition.eyebrow}</p>
+          <h1 className="display mt-2 text-3xl font-extrabold sm:text-4xl">{definition.title}</h1>
+          <p className="mt-3 leading-7 text-muted">{definition.detail}</p>
+          <div className="mt-7">
+            <StepFields stepId={definition.id} draft={draft} onChange={setDraft} onValidityChange={setValid} />
           </div>
           <div className="mt-8 flex items-center justify-between border-t border-line pt-6">
-            <button onClick={() => setStep((value) => Math.max(0, value - 1))} disabled={step === 0} className="inline-flex items-center gap-2 rounded-xl px-3 py-3 font-bold text-muted transition hover:bg-canvas disabled:invisible"><ArrowLeft size={18} /> Back</button>
-            <button onClick={next} disabled={!selected} className="inline-flex items-center gap-2 rounded-xl bg-forest-800 px-5 py-3 font-bold text-white transition hover:bg-forest-700 disabled:cursor-not-allowed disabled:opacity-40">{step === questions.length - 1 ? 'Build my plan' : 'Continue'} <ArrowRight size={18} /></button>
+            <button onClick={() => { setStep((value) => Math.max(0, value - 1)); setValid(true) }} disabled={step === 0} className="inline-flex items-center gap-2 rounded-xl px-3 py-3 font-bold text-muted transition hover:bg-canvas disabled:invisible"><ArrowLeft size={18} /> Back</button>
+            <button onClick={next} disabled={!canContinue} className="inline-flex items-center gap-2 rounded-xl bg-forest-800 px-5 py-3 font-bold text-white transition hover:bg-forest-700 disabled:cursor-not-allowed disabled:opacity-40">{step === intakeSteps.length - 1 ? 'Build my plan' : definition.optional && !answered ? 'Skip' : 'Continue'} <ArrowRight size={18} /></button>
           </div>
         </section>
         <p className="mt-5 text-center text-xs leading-5 text-muted">Sign in to save these private answers. They are used only to calculate your pathway.</p>

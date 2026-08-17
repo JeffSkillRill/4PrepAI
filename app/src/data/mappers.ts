@@ -1,5 +1,6 @@
 import type {
   AmountPeriod,
+  AwardCondition,
   DataPoint,
   DataPointMetadata,
   LearningAssignment,
@@ -9,6 +10,7 @@ import type {
   LearningSubmissionFile,
   LearningTrack,
   Program,
+  RequirementBenchmark,
   Scholarship,
   Source,
   University,
@@ -22,6 +24,8 @@ export type RawFact = {
   numeric_value?: number | string | null
   currency?: string | null
   amount_period?: AmountPeriod | null
+  /** Only present on requirement rows; see RequirementBenchmark. */
+  benchmark?: RequirementBenchmark | null
   source_id: string | null
   unknown_reason: string | null
   suggested_action: string | null
@@ -37,9 +41,17 @@ export type RawProgram = {
 
 export type RawRequirement = RawFact
 
+export type RawAwardCondition = {
+  kind: AwardCondition['kind']
+  minimum: number | string
+  published_text: string
+  source_id: string
+}
+
 export type RawScholarship = {
   id: string
   name: string
+  award_conditions?: RawAwardCondition[] | null
   amount_value: string | null
   amount_numeric?: number | string | null
   currency?: string | null
@@ -157,6 +169,9 @@ export function mapFact(fact: RawFact | undefined, label: string): DataPoint<str
       ...(Number.isFinite(numericValue) ? { numericValue } : {}),
       ...(fact.currency ? { currency: fact.currency } : {}),
       ...(fact.amount_period ? { period: fact.amount_period } : {}),
+      // Absent on non-requirement facts, and deliberately omitted rather than
+      // defaulted: a missing classification must never read as a cutoff.
+      ...(fact.benchmark ? { benchmark: fact.benchmark } : {}),
     }
     return known(fact.value, fact.source_id, metadata)
   }
@@ -192,6 +207,15 @@ export function mapScholarship(row: RawScholarship): Scholarship {
           row.amount_unknown_reason ?? 'The scholarship amount is not published.',
           row.amount_suggested_action ?? 'Ask the provider for the current award amount.',
         ),
+    // An award with no rows here publishes no criteria. The empty array is the
+    // honest answer, and downstream code must treat it as "cannot be assessed"
+    // rather than "no barriers".
+    conditions: (row.award_conditions ?? []).map((condition) => ({
+      kind: condition.kind,
+      minimum: Number(condition.minimum),
+      publishedText: condition.published_text,
+      sourceId: condition.source_id,
+    })),
   }
 }
 

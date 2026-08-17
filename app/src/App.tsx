@@ -15,6 +15,9 @@ import { IntakeScreen, ResultsScreen } from './screens/FlowScreens'
 import { ProfileScreen } from './screens/ProfileScreen'
 import { SearchScreen } from './screens/SearchScreen'
 import { SavedScreen, ToolsScreen } from './screens/ToolsSavedScreens'
+import { SkillGapScreen } from './screens/SkillGapScreen'
+import { PlanScreen } from './screens/PlanScreen'
+import { ScholarshipScreen } from './screens/ScholarshipScreen'
 import {
   AuthCallbackScreen,
   AuthScreen,
@@ -113,6 +116,8 @@ export default function App() {
   const [selectedLessonSlug, setSelectedLessonSlug] = useState<string | null>(initial.lessonSlug)
   const [profile, setProfile] = useState<StudentProfile | null>(null)
   const [pathway, setPathway] = useState<Pathway | null>(null)
+  /** Set only by "Rebuild my plan", so the wizard is never reached by accident. */
+  const [rebuildRequested, setRebuildRequested] = useState(false)
   const [saved, setSaved] = useState<Set<string>>(new Set())
   const [privateLoading, setPrivateLoading] = useState(false)
   const [privateLoadFailed, setPrivateLoadFailed] = useState(false)
@@ -332,7 +337,12 @@ export default function App() {
     setView('dashboard')
   }, [authLoading, privateLoading, user])
 
-  const navigate = (next: View) => {
+  const navigate = (requested: View) => {
+    // The intake is answered once. Every "Build my plan" entry point in the app
+    // lands on the saved plan instead once one exists, so a student edits rather
+    // than silently starting again and overwriting what they had. Rebuilding is
+    // still possible, but only by asking for it explicitly on the plan page.
+    const next: View = requested === 'intake' && profile && !rebuildRequested ? 'plan' : requested
     if (next === 'auth' && !user && view !== 'auth') {
       rememberAuth({
         view,
@@ -415,17 +425,26 @@ export default function App() {
   const saveOnce = (id: string) => {
     if (!saved.has(id)) toggleSave(id)
   }
-  const completeIntake = (nextProfile: StudentProfile, nextPathway: Pathway) => {
+  const persistProfile = (nextProfile: StudentProfile) => {
     profileRef.current = nextProfile
     profileOwnerRef.current = user?.id ?? null
     setProfile(nextProfile)
-    setPathway(nextPathway)
     if (user) {
       void saveStudentProfile(user.id, nextProfile).catch((reason: unknown) => {
         if (import.meta.env.DEV) console.error('Could not save the student profile:', reason)
       })
     }
+  }
+  const completeIntake = (nextProfile: StudentProfile, nextPathway: Pathway) => {
+    persistProfile(nextProfile)
+    setPathway(nextPathway)
+    setRebuildRequested(false)
     navigate('results')
+  }
+  /** A single edited answer. The pathway is dropped so it recomputes from the change. */
+  const updatePlanAnswer = (nextProfile: StudentProfile) => {
+    persistProfile(nextProfile)
+    setPathway(null)
   }
 
   const prepareGoogle = (consentedAt: string) => {
@@ -494,13 +513,24 @@ export default function App() {
   else if (view === 'profile' && selectedUniversityId) screen = <ProfileScreen universityId={selectedUniversityId} profile={profile} saved={saved.has(selectedUniversityId)} onToggleSave={() => toggleSave(selectedUniversityId)} />
   else if (view === 'profile') screen = <DesignedState state="empty" onReset={() => navigate('search')} />
   else if (view === 'compare') screen = <CompareScreen profile={profile} saved={saved} />
-  else if (view === 'intake') screen = <IntakeScreen onComplete={completeIntake} />
+  else if (view === 'intake') screen = <IntakeScreen initialProfile={rebuildRequested ? profile : null} onComplete={completeIntake} />
+  else if (view === 'plan' && profile) screen = (
+    <PlanScreen
+      profile={profile}
+      onSave={updatePlanAnswer}
+      onNavigate={navigate}
+      onRebuild={() => { setRebuildRequested(true); setView('intake'); window.history.pushState({}, '', viewPaths.intake as string) }}
+    />
+  )
+  else if (view === 'plan') screen = <DesignedState state="empty" onReset={() => navigate('intake')} />
   else if (view === 'results' && pathway) screen = <ResultsScreen pathway={pathway} saved={saved} onSave={saveOnce} onOpen={openUniversity} />
   else if (view === 'results') screen = <DesignedState state="empty" onReset={() => navigate('intake')} />
   else if (view === 'tools') screen = <ToolsScreen onNavigate={navigate} />
   else if (view === 'saved') screen = user
     ? <SavedScreen saved={saved} onToggleSave={toggleSave} onOpen={openUniversity} onExplore={() => navigate('search')} />
     : authScreen
+  else if (view === 'skill_gap') screen = <SkillGapScreen profile={profile} saved={saved} onNavigate={navigate} />
+  else if (view === 'scholarships') screen = <ScholarshipScreen profile={profile} saved={saved} onNavigate={navigate} />
   else if (view === 'counselor') screen = <CounselorScreen />
   else if (view === 'support') screen = (
     <Suspense fallback={<LoadingState kind="private" />}>

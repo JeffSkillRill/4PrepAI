@@ -1,4 +1,4 @@
-import { ArrowRight, BookMarked, CheckCircle2, GitCompareArrows, LockKeyhole, MessageCircle, Sparkles } from 'lucide-react'
+import { ArrowRight, BookMarked, CheckCircle2, GitCompareArrows, LockKeyhole, MessageCircle, PiggyBank, Sparkles, Target } from 'lucide-react'
 import type { ToolItem, University, View } from '../types'
 import { UniversityCard } from '../components/UniversityCard'
 import { DesignedState, LoadingState } from '../components/States'
@@ -8,7 +8,8 @@ import { useRepositoryData } from '../data/useRepositoryData'
 import { AppLink } from '../components/AppLink'
 import { viewPaths } from '../routes'
 
-const toolIcons = [MessageCircle, GitCompareArrows, Sparkles]
+// Positional, matching the order of `tools` in static-content.
+const toolIcons = [MessageCircle, GitCompareArrows, Sparkles, Target, PiggyBank]
 
 export function ToolsScreen({ onNavigate }: { onNavigate: (view: View) => void }) {
   const { status, reload } = useRepositoryData(() => listUniversities(), [])

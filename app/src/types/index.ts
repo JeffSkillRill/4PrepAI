@@ -4,9 +4,12 @@ export type View =
   | 'profile'
   | 'compare'
   | 'intake'
+  | 'plan'
   | 'results'
   | 'tools'
   | 'saved'
+  | 'skill_gap'
+  | 'scholarships'
   | 'counselor'
   | 'support'
   | 'learn'
@@ -33,10 +36,27 @@ export type Source = {
 
 export type AmountPeriod = 'year' | 'semester' | 'month' | 'one_time' | 'percentage'
 
+/**
+ * What a published requirement number represents.
+ *
+ * Only `admission_minimum` may be treated as a bar a student must clear. The
+ * other classifications are real published figures that are NOT admission
+ * cutoffs, and failing a student against one would invent a requirement the
+ * university does not have. Mirrors the `public.requirement_benchmark` enum,
+ * which is the source of truth.
+ */
+export type RequirementBenchmark =
+  | 'admission_minimum'
+  | 'indicative'
+  | 'scholarship_threshold'
+  | 'english_proficiency_alternative'
+  | 'none'
+
 export type DataPointMetadata = {
   numericValue?: number
   currency?: string
   period?: AmountPeriod
+  benchmark?: RequirementBenchmark
 }
 
 // The known/unknown union is the product's provenance boundary. Numeric metadata
@@ -76,10 +96,25 @@ export type Program = {
   tuition: DataPoint<string>
 }
 
+/**
+ * One condition a named award publishes.
+ *
+ * Absence is meaningful: an award with no conditions publishes no criteria, and
+ * must never be described as one a student qualifies for.
+ */
+export type AwardCondition = {
+  kind: 'ielts' | 'toefl' | 'duolingo' | 'sat' | 'act' | 'gpa'
+  minimum: number
+  /** The university's own sentence, kept verbatim. */
+  publishedText: string
+  sourceId: string
+}
+
 export type Scholarship = {
   id: string
   name: string
   amount: DataPoint<string>
+  conditions: AwardCondition[]
 }
 
 export type University = {
@@ -117,16 +152,37 @@ export type University = {
   highlights: string[]
 }
 
+export type LanguageTest = 'ielts' | 'toefl' | 'duolingo'
+
+/** A student sits the SAT or the ACT, never both. */
+export type AdmissionTest = 'sat' | 'act'
+
 export type StudentProfile = {
   country: string
   field: string
   academicScore: number | null
   budgetMax: number | null
   budgetCurrency: string | null
-  languageTest: 'ielts' | 'toefl' | 'duolingo' | null
+  languageTest: LanguageTest | null
+  /** The score the student reported, not a preset. Null only when no test is held. */
   languageScore: number | null
+  admissionTest: AdmissionTest | null
+  admissionTestScore: number | null
+  gpa: number | null
   needsLanguagePathway: boolean
   intake: string
+}
+
+/** Published reporting ranges, mirrored from the database check constraints. */
+export const languageTestRanges: Record<LanguageTest, { min: number; max: number; step: number; label: string }> = {
+  ielts: { min: 0, max: 9, step: 0.5, label: 'IELTS' },
+  toefl: { min: 0, max: 120, step: 1, label: 'TOEFL iBT' },
+  duolingo: { min: 10, max: 160, step: 5, label: 'Duolingo' },
+}
+
+export const admissionTestRanges: Record<AdmissionTest, { min: number; max: number; step: number; label: string }> = {
+  sat: { min: 400, max: 1600, step: 10, label: 'SAT' },
+  act: { min: 1, max: 36, step: 1, label: 'ACT' },
 }
 
 export type PathwayMilestone = {

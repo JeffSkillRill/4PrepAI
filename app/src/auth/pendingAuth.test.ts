@@ -15,6 +15,9 @@ const anonymousProfile: StudentProfile = {
   budgetCurrency: 'USD',
   languageTest: 'ielts',
   languageScore: 7,
+  admissionTest: null,
+  admissionTestScore: null,
+  gpa: null,
   needsLanguagePathway: false,
   intake: 'Fall 2027',
 }

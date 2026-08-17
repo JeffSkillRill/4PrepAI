@@ -52,6 +52,9 @@ const profile: StudentProfile = {
   budgetCurrency: 'USD',
   languageTest: 'ielts',
   languageScore: 6,
+  admissionTest: null,
+  admissionTestScore: null,
+  gpa: null,
   needsLanguagePathway: false,
   intake: 'Autumn 2027',
 }
