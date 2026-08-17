@@ -1,5 +1,5 @@
 import { ArrowRight, Check, CircleAlert, FileSearch, Info, Target } from 'lucide-react'
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import type { StudentProfile, University, View } from '../types'
 import { DesignedState, LoadingState } from '../components/States'
 import { SourceChip } from '../components/Trust'
@@ -8,7 +8,16 @@ import { AppLink } from '../components/AppLink'
 import { listUniversities } from '../data/repository'
 import { useRepositoryData } from '../data/useRepositoryData'
 import { viewPaths } from '../routes'
-import { analyseScholarships, type AwardReport, type AwardStatus, type ConditionOutcome } from '../scoring/scholarships'
+import { AwardScoreEntry } from '../components/AwardScoreEntry'
+import {
+  analyseScholarships,
+  emptyAwardScores,
+  hasAnyScore,
+  type AwardReport,
+  type AwardScores,
+  type AwardStatus,
+  type ConditionOutcome,
+} from '../scoring/scholarships'
 
 const statusStyles: Record<AwardStatus, { chip: string; eyebrow: string }> = {
   reachable: { chip: 'bg-emerald-100 text-emerald-800', eyebrow: 'You meet what is published' },
@@ -110,21 +119,36 @@ export function ScholarshipScreen({
   saved,
   onNavigate,
 }: {
+  /** Present for a signed-in student with a plan; null for an anonymous visitor. */
   profile: StudentProfile | null
   saved: ReadonlySet<string>
   onNavigate: (view: View) => void
 }) {
   const { data, status, reload } = useRepositoryData(() => listUniversities(), [])
   const universities = useMemo<University[]>(() => data ?? [], [data])
-  const targets = useMemo(() => {
-    const chosen = saved.size > 0
-      ? universities.filter((university) => saved.has(university.id))
-      : universities
-    return chosen
-  }, [saved, universities])
-  const report = useMemo(
-    () => (profile ? analyseScholarships(profile, targets) : null),
-    [profile, targets],
+  // Seeded from a saved plan when there is one, so a returning student sees their
+  // own scores without retyping, and an anonymous visitor starts empty.
+  const [scores, setScores] = useState<AwardScores>(() => (
+    profile
+      ? {
+          languageTest: profile.languageTest,
+          languageScore: profile.languageScore,
+          admissionTest: profile.admissionTest,
+          admissionTestScore: profile.admissionTestScore,
+          gpa: profile.gpa,
+        }
+      : emptyAwardScores
+  ))
+  const targets = useMemo(() => (
+    saved.size > 0 ? universities.filter((university) => saved.has(university.id)) : universities
+  ), [saved, universities])
+  const report = useMemo(() => analyseScholarships(scores, targets), [scores, targets])
+  const entered = hasAnyScore(scores)
+  // The scores shown differ from the saved plan, so offer to keep them.
+  const changedFromPlan = profile !== null && (
+    scores.admissionTest !== profile.admissionTest
+    || scores.admissionTestScore !== profile.admissionTestScore
+    || scores.gpa !== profile.gpa
   )
 
   if (status === 'loading') return <LoadingState />
@@ -142,44 +166,57 @@ export function ScholarshipScreen({
         </p>
       </div>
 
-      {!profile ? (
-        <section className="mt-8 rounded-2xl border border-sky-200 bg-sky-50/70 p-6">
-          <p className="text-[10px] font-extrabold uppercase tracking-[.13em] text-sky-900 opacity-70">Needs your answers</p>
-          <h2 className="display mt-1 text-2xl font-extrabold text-sky-950">Build your plan first</h2>
-          <p className="mt-2 max-w-2xl leading-7 text-sky-950/80">
-            Award conditions are checked against the scores on your plan. Complete the short intake
-            and each award shows exactly where you stand.
+      <div className="mt-6">
+        <AwardScoreEntry scores={scores} onChange={setScores} />
+      </div>
+
+      {profile === null ? (
+        <section className="mt-4 flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-line bg-canvas p-5">
+          <p className="max-w-2xl text-sm leading-6 text-muted">
+            {entered
+              ? 'Want to keep these scores, see your five-part fit and track gaps over time? Build a plan and they are saved to your account.'
+              : 'You can use this without an account. Building a plan adds your fit score, your pathway and your skill gaps.'}
           </p>
           <button
             type="button"
             onClick={() => onNavigate('intake')}
-            className="mt-5 inline-flex min-h-12 items-center gap-2 rounded-xl bg-forest-800 px-5 py-3 font-bold text-white"
+            className="inline-flex min-h-12 shrink-0 items-center gap-2 rounded-xl bg-forest-800 px-5 py-3 font-bold text-white"
           >
-            Start the intake <ArrowRight size={18} />
+            Build my plan <ArrowRight size={18} />
           </button>
         </section>
-      ) : report === null || report.awards.length === 0 ? (
-        <DesignedState state="empty" onReset={reload} />
+      ) : changedFromPlan ? (
+        <section className="mt-4 flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-sky-200 bg-sky-50/70 p-5">
+          <p className="max-w-2xl text-sm leading-6 text-sky-950/80">
+            These scores differ from the ones on your plan. Nothing here is saved until you update it.
+          </p>
+          <AppLink
+            href={viewPaths.plan as string}
+            onNavigate={() => onNavigate('plan')}
+            className="inline-flex min-h-12 shrink-0 items-center gap-2 rounded-xl border border-line bg-white px-4 py-3 text-sm font-bold text-forest-800"
+          >
+            Update my plan
+          </AppLink>
+        </section>
+      ) : null}
+
+      <p className="mt-6 flex items-start gap-2 rounded-xl border border-line bg-white p-4 text-sm leading-6 text-muted">
+        <CircleAlert size={17} className="mt-0.5 shrink-0 text-forest-600" aria-hidden="true" />
+        Meeting what an award publishes is not an offer of that award, and no award here is promised
+        to you. Where a university publishes no criteria, this page says so rather than guessing on
+        your behalf.
+      </p>
+
+      {report.awards.length === 0 ? (
+        <div className="mt-6"><DesignedState state="empty" onReset={reload} /></div>
       ) : (
         <>
-          <p className="mt-6 flex items-start gap-2 rounded-xl border border-line bg-white p-4 text-sm leading-6 text-muted">
-            <CircleAlert size={17} className="mt-0.5 shrink-0 text-forest-600" aria-hidden="true" />
-            Meeting what an award publishes is not an offer of that award, and no award here is
-            promised to you. Where a university publishes no criteria, this page says so rather than
-            guessing on your behalf.
-          </p>
           <p className="mt-4 text-sm text-muted">
-            {report.reachableCount > 0
-              ? `You meet every published condition on ${report.reachableCount} award${report.reachableCount === 1 ? '' : 's'}.`
-              : 'No award currently has all of its published conditions met.'}{' '}
-            <AppLink
-              href={viewPaths.plan as string}
-              onNavigate={() => onNavigate('plan')}
-              className="font-bold text-forest-700 underline"
-            >
-              Update your scores
-            </AppLink>{' '}
-            to change this.
+            {!entered
+              ? `${report.awards.length} awards in the catalogue. Add a score above to see which conditions you meet.`
+              : report.reachableCount > 0
+                ? `You meet every published condition on ${report.reachableCount} award${report.reachableCount === 1 ? '' : 's'}.`
+                : 'No award currently has all of its published conditions met.'}
           </p>
           <div className="mt-6 grid gap-6 lg:grid-cols-2">
             {report.awards.map((award) => <AwardCard key={award.scholarshipId} award={award} />)}

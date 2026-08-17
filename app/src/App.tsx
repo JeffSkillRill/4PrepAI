@@ -56,9 +56,13 @@ const SupportScreen = lazy(async () => {
   return { default: module.SupportScreen }
 })
 
+// Tools carries the planning tools — skill gap, scholarships, compare, pathway.
+// It sat behind a route with no link for weeks, which made two shipped tools
+// reachable only by typing a path.
 const navItems: { label: string; view: View }[] = [
   { label: 'Dashboard', view: 'dashboard' },
   { label: 'Search', view: 'search' },
+  { label: 'Tools', view: 'tools' },
   { label: 'Learn', view: 'learn' },
   { label: 'Compare', view: 'compare' },
   { label: 'Counselor', view: 'counselor' },

@@ -3,6 +3,31 @@ import type { AwardCondition, Scholarship, StudentProfile, University } from '..
 export const SCHOLARSHIP_MATCH_VERSION = 'scholarship-match-v0.1'
 
 /**
+ * The only student data award conditions are ever checked against.
+ *
+ * Deliberately narrower than StudentProfile: a visitor can use this tool without
+ * an account, a destination, a budget or a subject, so the function must not
+ * require values nobody has given it. A full StudentProfile satisfies this shape.
+ */
+export type AwardScores = Pick<
+  StudentProfile,
+  'languageTest' | 'languageScore' | 'admissionTest' | 'admissionTestScore' | 'gpa'
+>
+
+export const emptyAwardScores: AwardScores = {
+  languageTest: null,
+  languageScore: null,
+  admissionTest: null,
+  admissionTestScore: null,
+  gpa: null,
+}
+
+/** True when nothing has been entered, so no condition can be checked. */
+export function hasAnyScore(scores: AwardScores): boolean {
+  return scores.languageScore !== null || scores.admissionTestScore !== null || scores.gpa !== null
+}
+
+/**
  * Where a student stands against ONE published condition of an award.
  */
 export type ConditionOutcome = {
@@ -81,17 +106,17 @@ function round2(value: number): number {
   return Math.round(value * 100) / 100
 }
 
-function studentValueFor(profile: StudentProfile, kind: AwardCondition['kind']): number | null {
-  if (kind === 'gpa') return profile.gpa
+function studentValueFor(scores: AwardScores, kind: AwardCondition['kind']): number | null {
+  if (kind === 'gpa') return scores.gpa
   if (kind === 'sat' || kind === 'act') {
-    return profile.admissionTest === kind ? profile.admissionTestScore : null
+    return scores.admissionTest === kind ? scores.admissionTestScore : null
   }
-  return profile.languageTest === kind ? profile.languageScore : null
+  return scores.languageTest === kind ? scores.languageScore : null
 }
 
-function evaluateCondition(profile: StudentProfile, condition: AwardCondition): ConditionOutcome {
+function evaluateCondition(scores: AwardScores, condition: AwardCondition): ConditionOutcome {
   const label = conditionLabels[condition.kind]
-  const studentValue = studentValueFor(profile, condition.kind)
+  const studentValue = studentValueFor(scores, condition.kind)
   const base = {
     kind: condition.kind,
     label,
@@ -118,12 +143,12 @@ function evaluateCondition(profile: StudentProfile, condition: AwardCondition): 
  * named as what is missing — never as someone who reaches the award.
  */
 export function evaluateAward(
-  profile: StudentProfile,
+  scores: AwardScores,
   scholarship: Scholarship,
   university: University,
 ): AwardReport {
   const conditions = (scholarship.conditions ?? []).map((condition) =>
-    evaluateCondition(profile, condition),
+    evaluateCondition(scores, condition),
   )
   const amount = scholarship.amount
 
@@ -210,11 +235,11 @@ export function evaluateAward(
 }
 
 export function analyseScholarships(
-  profile: StudentProfile,
+  scores: AwardScores,
   universities: readonly University[],
 ): ScholarshipReport {
   const awards = universities.flatMap((university) =>
-    university.scholarships.map((scholarship) => evaluateAward(profile, scholarship, university)),
+    university.scholarships.map((scholarship) => evaluateAward(scores, scholarship, university)),
   )
   // Awards the student can act on come first; awards nobody can assess come last.
   const order: Record<AwardStatus, number> = {

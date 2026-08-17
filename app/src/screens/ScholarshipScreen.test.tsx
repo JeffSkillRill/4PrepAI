@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { cleanup, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { StudentProfile, University } from '../types'
 import { known, unknown } from '../types'
@@ -100,9 +100,59 @@ describe('ScholarshipScreen', () => {
     expect(screen.getByText(/cannot be assessed from published information/i)).toBeTruthy()
   })
 
-  it('asks for the intake before assessing anything', () => {
+  it('shows the real awards to an anonymous visitor with no account', () => {
     render(<ScholarshipScreen profile={null} saved={new Set()} onNavigate={vi.fn()} />)
-    expect(screen.getByText('Build your plan first')).toBeTruthy()
-    expect(screen.queryByText('Up to $28,000 / year')).toBeNull()
+    expect(screen.getByText('Up to $28,000 / year')).toBeTruthy()
+    expect(screen.getByText(/no account needed/i)).toBeTruthy()
+    expect(screen.getByText(/add a score above/i)).toBeTruthy()
+  })
+
+  // The second way in: scores typed on the page, no sign-up, real verdicts.
+  it('checks conditions from scores typed by an anonymous visitor', () => {
+    render(<ScholarshipScreen profile={null} saved={new Set()} onNavigate={vi.fn()} />)
+
+    fireEvent.click(screen.getByRole('radio', { name: 'SAT' }))
+    fireEvent.change(screen.getByLabelText('Your SAT score'), { target: { value: '1500' } })
+    fireEvent.change(screen.getByLabelText('Your GPA'), { target: { value: '2.9' } })
+
+    // Score met, GPA missed: the compound rule must hold on this path too.
+    expect(screen.getByText('Part way there')).toBeTruthy()
+    expect(screen.queryByText('You meet what is published')).toBeNull()
+
+    fireEvent.change(screen.getByLabelText('Your GPA'), { target: { value: '3.9' } })
+    expect(screen.getByText('You meet what is published')).toBeTruthy()
+  })
+
+  it('refuses an out-of-range score typed by a visitor', () => {
+    render(<ScholarshipScreen profile={null} saved={new Set()} onNavigate={vi.fn()} />)
+    fireEvent.click(screen.getByRole('radio', { name: 'ACT' }))
+    fireEvent.change(screen.getByLabelText('Your ACT score'), { target: { value: '99' } })
+    expect(screen.getByRole('alert').textContent).toContain('ACT scores run from 1 to 36')
+    expect(screen.queryByText('You meet what is published')).toBeNull()
+  })
+
+  it('starts a signed-in student from their saved plan scores', () => {
+    render(
+      <ScholarshipScreen
+        profile={profile({ admissionTest: 'sat', admissionTestScore: 1500, gpa: 3.9 })}
+        saved={new Set()}
+        onNavigate={vi.fn()}
+      />,
+    )
+    expect((screen.getByLabelText('Your SAT score') as HTMLInputElement).value).toBe('1500')
+    expect((screen.getByLabelText('Your GPA') as HTMLInputElement).value).toBe('3.9')
+    expect(screen.getByText('You meet what is published')).toBeTruthy()
+  })
+
+  it('warns a signed-in student that changed scores are not saved', () => {
+    render(
+      <ScholarshipScreen
+        profile={profile({ admissionTest: 'sat', admissionTestScore: 1500, gpa: 3.9 })}
+        saved={new Set()}
+        onNavigate={vi.fn()}
+      />,
+    )
+    fireEvent.change(screen.getByLabelText('Your GPA'), { target: { value: '2.0' } })
+    expect(screen.getByText(/nothing here is saved until you update it/i)).toBeTruthy()
   })
 })
