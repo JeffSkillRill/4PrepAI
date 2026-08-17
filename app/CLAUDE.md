@@ -84,12 +84,37 @@ Migration files, in order:
 14. `supabase/migrations/202608040014_counselor_strike_request_fk.sql`
 15. `supabase/migrations/202608040015_catalogue_search_index.sql`
 16. `supabase/migrations/202608050013_support_chat.sql`
-17. `supabase/migrations/202608100017_academy_handoff.sql` — **written 10 August, not yet applied to any database**
+17. `supabase/migrations/202608050016_support_inbox_bounds.sql` — **recovered file**, see below
+18. `supabase/migrations/202608050017_scheduled_retention.sql` — **recovered file**, see below
+19. `supabase/migrations/202608100017_academy_handoff.sql` — applied to QA and Production on 17 August 2026
+20. `supabase/migrations/202608170018_requirement_benchmark.sql` — applied to QA and Production on 17 August 2026
+21. `supabase/migrations/202608170019_profile_real_scores.sql` — applied to QA and Production on 17 August 2026
+22. `supabase/migrations/202608170020_award_conditions.sql` — applied to QA and Production on 17 August 2026
 
 Note the duplicated `0013` sequence number in `202608040013` and
 `202608050013`. Filename order and Supabase's full version string both still
 resolve correctly, but do not abbreviate either migration to "13" in
-conversation or in a command.
+conversation or in a command. The same caution applies to `202608050017` and
+`202608100017`: never abbreviate either to "17".
+
+Recovered files (17 August 2026). Migrations `202608050016` and `202608050017`
+were applied to both QA and Production on 5 August 2026, but their source files
+were never committed — they are absent from every branch and from the whole git
+history. Both were exported verbatim from
+`supabase_migrations.schema_migrations` on 17 August and restored here under
+their recorded versions and names, with a provenance header added at the top of
+each. The restored bodies were checked against the live catalogue: the 3-argument
+`list_support_inbox`, the `support_threads_activity_idx` index, the `pg_cron`
+extension, and the `prune-expired-support-threads` (03:30) and
+`refresh-university-search-index` (03:45) jobs are all present in Production
+exactly as the files describe. Do not reformat either file without re-checking
+both databases first.
+
+How this happened is worth knowing, because it will happen again otherwise: both
+migrations were applied through a path that records the statements in the
+database but does not write a file into `supabase/migrations/`. Any migration
+applied that way must be committed as a file in the same sitting, or the
+repository silently stops being the source of truth.
 
 Versions `008` and `009` were confirmed applied to Production by a read-only
 query of `supabase_migrations.schema_migrations` on 3 August. Migrations `010`
