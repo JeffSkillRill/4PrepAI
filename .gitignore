@@ -11,3 +11,4 @@ dist/
 app/dist/
 app/dist-ssr/
 app/supabase/.temp/
+docs/prompts/
