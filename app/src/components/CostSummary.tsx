@@ -18,7 +18,7 @@ const money = (currency: string, amount: number) =>
     maximumFractionDigits: 0,
   }).format(amount)
 
-export function PublishedNetCost({ university, compact = false }: { university: University; compact?: boolean }) {
+export function PublishedNetCost({ university, compact = false, showSources = true }: { university: University; compact?: boolean; showSources?: boolean }) {
   if (hasFullNeedPolicy(university)) {
     const sourceId = university.aidInternational.status === 'known'
       ? university.aidInternational.sourceId
@@ -26,7 +26,7 @@ export function PublishedNetCost({ university, compact = false }: { university: 
     return (
       <span className="flex min-w-0 max-w-full flex-wrap items-start gap-1.5">
         <span className="min-w-0 break-words">Individual after full-need aid</span>
-        {sourceId && <SourceChip sourceId={sourceId} />}
+        {showSources && sourceId && <SourceChip sourceId={sourceId} />}
       </span>
     )
   }
@@ -38,7 +38,7 @@ export function PublishedNetCost({ university, compact = false }: { university: 
     return (
       <span className="flex min-w-0 max-w-full flex-wrap items-start gap-1.5">
         <span className="min-w-0 break-words">Individual after comprehensive funding</span>
-        {sourceId && <SourceChip sourceId={sourceId} />}
+        {showSources && sourceId && <SourceChip sourceId={sourceId} />}
       </span>
     )
   }
@@ -60,7 +60,7 @@ export function PublishedNetCost({ university, compact = false }: { university: 
     <span>
       <span className="flex min-w-0 max-w-full flex-wrap items-start gap-1.5">
         <span className="min-w-0 break-words">{money(scenario.currency, scenario.netCost)} / year</span>
-        {sourceIds.map((sourceId) => <SourceChip key={sourceId} sourceId={sourceId} />)}
+        {showSources && sourceIds.map((sourceId) => <SourceChip key={sourceId} sourceId={sourceId} />)}
       </span>
       {scenario.publishedAid > 0 && (
         <span className={`block font-normal text-muted ${compact ? 'mt-1 text-[11px] leading-4' : 'mt-1 text-xs leading-5'}`}>
@@ -123,33 +123,33 @@ export function CostSummary({
   }, [componentsOpen])
 
   return (
-    <section className={`rounded-2xl border border-forest-100 bg-forest-50/60 ${compact ? 'p-4' : 'p-5 sm:p-6'}`}>
-      <div className="flex items-start gap-3">
-        <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-forest-700 text-white">
-          <CircleDollarSign size={21} />
+    <section className={`rounded-2xl border border-forest-100 bg-forest-50/60 ${compact ? 'p-2.5' : 'p-5 sm:p-6'}`}>
+      <div className={`flex items-start ${compact ? 'gap-2' : 'gap-3'}`}>
+        <span className={`grid shrink-0 place-items-center bg-forest-700 text-white ${compact ? 'size-8 rounded-lg' : 'size-11 rounded-xl'}`}>
+          <CircleDollarSign size={compact ? 18 : 21} />
         </span>
         <div className="min-w-0 flex-1">
-          <p className="text-[11px] font-extrabold uppercase tracking-[.13em] text-forest-700">Start with the aid-adjusted view</p>
-          <div className={`${compact ? 'mt-1 text-base' : 'mt-1 text-xl'} font-extrabold text-forest-950`}>
-            <PublishedNetCost university={university} compact={compact} />
+          <p className={`${compact ? 'sr-only' : 'text-[11px]'} font-extrabold uppercase tracking-[.13em] text-forest-700`}>Start with the aid-adjusted view</p>
+          <div className={`${compact ? 'text-xs leading-5' : 'mt-1 text-xl'} font-extrabold text-forest-950`}>
+            <PublishedNetCost university={university} compact={compact} showSources={!compact} />
           </div>
         </div>
       </div>
 
       {!compact && <CostCompositionChart university={university} />}
 
-      <div className="mt-4 border-t border-forest-100 pt-4">
+      {!compact && <div className="mt-4 border-t border-forest-100 pt-4">
         <p className="text-xs font-bold uppercase tracking-[.12em] text-muted">Published sticker cost · before aid</p>
         <div className="mt-1 text-sm font-bold">
           <DataValue point={university.totalCostOfAttendance} />
         </div>
-      </div>
+      </div>}
 
       {compact ? (
-        <button ref={triggerRef} type="button" onClick={() => setComponentsOpen(true)} aria-haspopup="dialog" aria-expanded={componentsOpen} className="mt-4 flex min-h-12 w-full items-center gap-2 rounded-xl border border-line bg-white px-4 py-3 text-left text-sm font-bold text-forest-800 transition hover:border-forest-300 hover:bg-canvas">
-          <Landmark size={17} />
-          Cost components and visa funds
-          <Maximize2 size={16} className="ml-auto shrink-0" />
+        <button ref={triggerRef} type="button" onClick={() => setComponentsOpen(true)} aria-label="Cost components and visa funds" aria-haspopup="dialog" aria-expanded={componentsOpen} className="mt-2 flex min-h-9 w-full items-center gap-2 rounded-lg border border-line bg-white px-3 py-2 text-left text-xs font-bold text-forest-800 transition hover:border-forest-300 hover:bg-canvas">
+          <Landmark size={15} />
+          Cost details
+          <Maximize2 size={14} className="ml-auto shrink-0" />
         </button>
       ) : (
         <details className="group mt-4 rounded-xl border border-line bg-white">
@@ -166,8 +166,8 @@ export function CostSummary({
         </details>
       )}
       {componentsOpen && typeof document !== 'undefined' && createPortal(
-        <div className="fixed inset-0 z-[80] grid place-items-center bg-ink/65 p-3 sm:p-6" onMouseDown={(event) => { if (event.target === event.currentTarget) setComponentsOpen(false) }}>
-          <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby={titleId} className="motion-resolve flex max-h-[88vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl border border-line bg-white shadow-2xl">
+        <div className="cost-modal-backdrop fixed inset-0 z-[80] grid place-items-center bg-ink/65 p-3 sm:p-6" onMouseDown={(event) => { if (event.target === event.currentTarget) setComponentsOpen(false) }}>
+          <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby={titleId} className="cost-modal-dialog flex max-h-[88vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl border border-line bg-white shadow-2xl">
             <div className="flex items-start gap-4 border-b border-line bg-canvas px-5 py-4 sm:px-6">
               <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-forest-700 text-white"><Landmark size={20} /></span>
               <div className="min-w-0 flex-1">
@@ -177,6 +177,10 @@ export function CostSummary({
               <button ref={closeRef} type="button" onClick={() => setComponentsOpen(false)} className="grid size-11 shrink-0 place-items-center rounded-full border border-line bg-white text-forest-800 transition hover:bg-forest-50" aria-label="Close cost components"><X size={19} /></button>
             </div>
             <div className="overflow-y-auto px-5 sm:px-6">
+              <div className="border-b border-line py-4">
+                <p className="text-xs font-bold uppercase tracking-[.12em] text-muted">Published annual cost of attendance</p>
+                <DataValue point={university.totalCostOfAttendance} className="mt-1 text-sm font-bold" />
+              </div>
               <CostComponents university={university} />
             </div>
           </div>

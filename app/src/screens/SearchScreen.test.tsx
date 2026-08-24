@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { cleanup, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { University } from '../types'
 import { SearchScreen } from './SearchScreen'
@@ -63,5 +63,86 @@ describe('SearchScreen result announcements', () => {
 
     expect(screen.getByTestId('university-results').className).toBe('grid gap-6')
     expect(screen.getByText('Alpha University').getAttribute('data-layout')).toBe('list')
+  })
+
+  it('updates the university-name search as soon as the user types', () => {
+    const setQuery = vi.fn()
+
+    render(
+      <SearchScreen
+        query=""
+        setQuery={setQuery}
+        saved={new Set()}
+        onToggleSave={vi.fn()}
+        onOpen={vi.fn()}
+      />,
+    )
+
+    fireEvent.change(screen.getByRole('textbox', { name: 'Search universities by name' }), {
+      target: { value: 'a' },
+    })
+
+    expect(setQuery).toHaveBeenCalledWith('a')
+  })
+
+  it('shows the selected major as an active search chip', () => {
+    render(
+      <SearchScreen
+        query=""
+        setQuery={vi.fn()}
+        saved={new Set()}
+        onToggleSave={vi.fn()}
+        onOpen={vi.fn()}
+      />,
+    )
+
+    const fieldSelect = screen.getByRole('combobox', { name: 'Field of study' })
+    expect(screen.queryByRole('button', { name: /Clear field of study filter/i })).toBeNull()
+    expect(screen.queryByText('All countries')).toBeNull()
+    expect(screen.getByRole('option', { name: 'Business & Management' })).toBeTruthy()
+    expect(screen.getByRole('option', { name: 'Engineering' })).toBeTruthy()
+    expect(screen.getByRole('option', { name: 'Data & Analytics' })).toBeTruthy()
+
+    fireEvent.change(fieldSelect, { target: { value: 'Engineering' } })
+
+    expect(screen.getByRole('button', { name: 'Clear field of study filter: Engineering' })).toBeTruthy()
+  })
+
+  it('filters typed search text against university names', () => {
+    repositoryMocks.data = [
+      {
+        id: 'alpha',
+        name: 'Alpha University',
+        city: 'Match City',
+        country: 'United States',
+        programs: [],
+        scholarships: [],
+        aidInternational: { status: 'unknown', reason: 'Not published', suggestedAction: 'Ask admissions' },
+        totalCostOfAttendance: { status: 'unknown', reason: 'Not published', suggestedAction: 'Ask admissions' },
+      },
+      {
+        id: 'beta',
+        name: 'Beta College',
+        city: 'Alpha City',
+        country: 'United States',
+        programs: [],
+        scholarships: [],
+        aidInternational: { status: 'unknown', reason: 'Not published', suggestedAction: 'Ask admissions' },
+        totalCostOfAttendance: { status: 'unknown', reason: 'Not published', suggestedAction: 'Ask admissions' },
+      },
+    ] as unknown as University[]
+
+    render(
+      <SearchScreen
+        query="alpha"
+        setQuery={vi.fn()}
+        saved={new Set()}
+        onToggleSave={vi.fn()}
+        onOpen={vi.fn()}
+      />,
+    )
+
+    expect(screen.getByText('Alpha University')).toBeTruthy()
+    expect(screen.queryByText('Beta College')).toBeNull()
   })
 })

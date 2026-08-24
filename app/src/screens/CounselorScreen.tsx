@@ -118,6 +118,31 @@ async function preflightUnknown(message: string): Promise<CounselorAnswer | null
   }
 }
 
+export async function requestCounselorAnswer(message: string): Promise<{ answer: CounselorAnswer | null; error: string | null }> {
+  const preflight = await preflightUnknown(message)
+  if (preflight) return { answer: preflight, error: null }
+
+  const { data, error: functionError } = await getSupabaseClient().functions.invoke('counselor', {
+    body: { message },
+  })
+  if (functionError) {
+    const errorResponse = responseFromFunctionError(functionError)
+    if (errorResponse) {
+      const safeAnswer = await counselorAnswerFromResponse(errorResponse)
+      if (safeAnswer) return { answer: safeAnswer, error: null }
+      if (errorResponse.status === 404) {
+        return { answer: null, error: 'The grounded counselor is not configured for this environment. The counselor function was not found; no unverified answer was displayed.' }
+      }
+    }
+    if (typeof functionError === 'object' && 'name' in functionError && functionError.name === 'FunctionsFetchError') {
+      return { answer: null, error: 'The grounded counselor is not configured or cannot be reached from this environment. No unverified answer was displayed.' }
+    }
+    return { answer: null, error: 'The grounded counselor is unavailable. No unverified answer was displayed.' }
+  }
+  if (isCounselorAnswer(data)) return { answer: data, error: null }
+  return { answer: null, error: 'The grounded counselor returned an invalid response. No unverified answer was displayed.' }
+}
+
 export function CounselorScreen() {
   const [message, setMessage] = useState('')
   const [answer, setAnswer] = useState<CounselorAnswer | null>(null)
@@ -132,41 +157,10 @@ export function CounselorScreen() {
     setLoading(true)
     setError('')
     setAnswer(null)
-    const preflight = await preflightUnknown(message.trim())
-    if (preflight) {
-      setAnswer(preflight)
-      setLoading(false)
-      return
-    }
-    const { data, error: functionError } = await getSupabaseClient().functions.invoke('counselor', {
-      body: { message: message.trim() },
-    })
+    const result = await requestCounselorAnswer(message.trim())
     setLoading(false)
-    if (functionError) {
-      const errorResponse = responseFromFunctionError(functionError)
-      if (errorResponse) {
-        const safeAnswer = await counselorAnswerFromResponse(errorResponse)
-        if (safeAnswer) {
-          setAnswer(safeAnswer)
-          return
-        }
-        if (errorResponse.status === 404) {
-          setError('The grounded counselor is not configured for this environment. The counselor function was not found; no unverified answer was displayed.')
-          return
-        }
-      }
-      if (typeof functionError === 'object' && 'name' in functionError && functionError.name === 'FunctionsFetchError') {
-        setError('The grounded counselor is not configured or cannot be reached from this environment. No unverified answer was displayed.')
-        return
-      }
-      setError('The grounded counselor is unavailable. No unverified answer was displayed.')
-      return
-    }
-    if (isCounselorAnswer(data)) {
-      setAnswer(data)
-      return
-    }
-    setError('The grounded counselor returned an invalid response. No unverified answer was displayed.')
+    if (result.answer) setAnswer(result.answer)
+    if (result.error) setError(result.error)
   }
 
   return (

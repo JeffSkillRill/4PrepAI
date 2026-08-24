@@ -1,0 +1,12 @@
+**/node_modules
+**/dist
+**/dist-ssr
+**/.smoke-out
+**/.env
+**/.env.*
+!**/.env.example
+**/*.tsbuildinfo
+.git
+docs
+admin/supabase
+app/supabase

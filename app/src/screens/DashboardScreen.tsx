@@ -7,6 +7,7 @@ import {
   Flag,
   LayoutDashboard,
   ShieldCheck,
+  UserRound,
   Wrench,
 } from 'lucide-react'
 import { useEffect, useState } from 'react'
@@ -208,6 +209,7 @@ function SignedInDashboard({
           <div>
             <h1 className="display text-3xl font-extrabold sm:text-5xl">Pick up the next real step</h1>
             <p className="mt-3 max-w-2xl leading-7 text-white/75">This page reports recorded actions only. It does not grade your progress or predict an admission outcome.</p>
+            <button type="button" onClick={() => onNavigate('auth')} className="mt-5 inline-flex items-center gap-2 rounded-xl border border-white/35 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-white/10"><UserRound size={17} /> Account details</button>
           </div>
           <NextAction
             action={nextAction}
@@ -218,7 +220,7 @@ function SignedInDashboard({
         </div>
       </section>
 
-      <div className="mt-6 grid gap-5 lg:grid-cols-2">
+      <div className="mt-6 gap-5 lg:columns-2 [&>section]:mb-5 [&>section]:break-inside-avoid">
         <DashboardCard icon={<Flag />} eyebrow="Where you are" title={data.learningUserStateUnavailable ? 'Stage could not be checked' : stage.label}>
           {data.learningUserStateUnavailable ? (
             <UnavailableNote>Your private lesson and homework records could not be loaded, so 4Prep will not guess your stage. Reconnect and retry.</UnavailableNote>
@@ -258,21 +260,28 @@ function SignedInDashboard({
 
         <DashboardCard icon={<Bookmark />} eyebrow="Saved plans" title={`${saved.size} universit${saved.size === 1 ? 'y' : 'ies'} saved`}>
           {savedUniversities.length > 0 ? (
-            <ul className="grid gap-2">
-              {savedUniversities.slice(0, 3).map((university) => (
+            <ul className="grid gap-2.5">
+              {savedUniversities.slice(0, 4).map((university) => (
                 <li key={university.id}>
-                  <AppLink href={`/universities/${encodeURIComponent(university.id)}`} onNavigate={() => onOpenUniversity(university)} className="flex w-full items-center justify-between rounded-xl border border-line px-4 py-3 text-left font-bold text-forest-900">
-                    <span className="min-w-0 truncate">{university.name}</span><ArrowRight size={17} className="shrink-0" />
-                  </AppLink>
+                  <SavedUniversityRow university={university} onOpen={() => onOpenUniversity(university)} />
                 </li>
               ))}
             </ul>
           ) : data.catalogueUnavailable ? (
             <UnavailableNote>Saved university names could not be checked. Your saved-plan records were not changed.</UnavailableNote>
           ) : (
-            <p className="text-sm leading-6 text-muted">No university is saved yet. Save only routes you want to compare again.</p>
+            <div className="rounded-xl border border-dashed border-forest-200 bg-forest-50/50 p-5 text-center">
+              <div className="mx-auto grid size-11 place-items-center rounded-full bg-forest-100 text-forest-700"><Bookmark size={20} /></div>
+              <p className="mt-3 text-sm font-bold text-forest-900">No universities saved yet</p>
+              <p className="mx-auto mt-1 max-w-xs text-sm leading-6 text-muted">Bookmark a university and it lands here, ready to compare side by side.</p>
+            </div>
           )}
-          <AppLink href={viewPaths[saved.size > 0 ? 'saved' : 'search'] as string} onNavigate={() => onNavigate(saved.size > 0 ? 'saved' : 'search')} className="mt-4 inline-flex items-center gap-2 font-bold text-forest-700">{saved.size > 0 ? 'Open saved plans' : 'Explore universities'} <ArrowRight size={17} /></AppLink>
+          <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2">
+            <AppLink href={viewPaths[saved.size > 0 ? 'saved' : 'search'] as string} onNavigate={() => onNavigate(saved.size > 0 ? 'saved' : 'search')} className="inline-flex items-center gap-2 font-bold text-forest-700">{saved.size > 0 ? 'Open saved plans' : 'Explore universities'} <ArrowRight size={17} /></AppLink>
+            {saved.size > 1 && (
+              <AppLink href={viewPaths.compare as string} onNavigate={() => onNavigate('compare')} className="inline-flex items-center gap-2 text-sm font-bold text-muted transition hover:text-forest-700">Compare saved</AppLink>
+            )}
+          </div>
         </DashboardCard>
 
         <DashboardCard icon={<BookOpenCheck />} eyebrow="Learning portal" title={`${signals.completedLessonCount} lessons complete · ${signals.submittedHomeworkCount} homework submitted`}>
@@ -396,14 +405,16 @@ function DashboardCard({
   eyebrow,
   title,
   children,
+  className = '',
 }: {
   icon: React.ReactNode
   eyebrow: string
   title: string
   children: React.ReactNode
+  className?: string
 }) {
   return (
-    <section className="card p-5 sm:p-6">
+    <section className={`card p-5 sm:p-6 ${className}`}>
       <div className="flex items-start gap-3">
         <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-forest-50 text-forest-700 [&>svg]:size-5">{icon}</span>
         <div><p className="text-xs font-extrabold uppercase tracking-[.12em] text-forest-700">{eyebrow}</p><h2 className="display mt-1 text-xl font-extrabold">{title}</h2></div>
@@ -415,6 +426,39 @@ function DashboardCard({
 
 function DashboardFact({ label, value }: { label: string; value: string }) {
   return <div className="rounded-xl bg-canvas p-3"><dt className="text-xs font-bold text-muted">{label}</dt><dd className="mt-1 break-words font-bold">{value}</dd></div>
+}
+
+/**
+ * A saved university on the dashboard, carrying its location and — when a plan
+ * exists so fit has been computed — a coloured fit chip. Falls back to a neutral
+ * "Sourced" chip so the row is never a bare name in a pill.
+ */
+function SavedUniversityRow({ university, onOpen }: { university: University; onOpen: () => void }) {
+  const fit = university.fit
+  const fitTone = fit
+    ? fit.overall >= 75
+      ? 'bg-emerald-100 text-emerald-800'
+      : fit.overall >= 55
+        ? 'bg-amber-100 text-amber-900'
+        : 'bg-rose-100 text-rose-900'
+    : 'bg-forest-50 text-forest-700'
+  return (
+    <AppLink
+      href={`/universities/${encodeURIComponent(university.id)}`}
+      onNavigate={onOpen}
+      className="group flex items-center gap-3 rounded-xl border border-line px-4 py-3 text-left transition hover:border-forest-300 hover:bg-forest-50/40"
+    >
+      <span className="grid size-10 shrink-0 place-items-center rounded-lg bg-forest-800 text-lg" aria-hidden="true">{university.flag}</span>
+      <span className="min-w-0 flex-1">
+        <span className="block truncate font-bold text-forest-900">{university.name}</span>
+        <span className="mt-0.5 block truncate text-xs text-muted">{university.city}, {university.country}</span>
+      </span>
+      <span className={`hidden shrink-0 rounded-full px-2.5 py-1 text-[11px] font-extrabold sm:inline ${fitTone}`}>
+        {fit ? `${fit.label} · ${fit.grade}` : 'Sourced'}
+      </span>
+      <ArrowRight size={17} className="shrink-0 text-muted transition group-hover:translate-x-0.5 group-hover:text-forest-700" />
+    </AppLink>
+  )
 }
 
 function formatBudget(profile: StudentProfile): string {

@@ -1,0 +1,21 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: app/Dockerfile
+      args:
+        VITE_SUPABASE_URL: ${APP_VITE_SUPABASE_URL}
+        VITE_SUPABASE_ANON_KEY: ${APP_VITE_SUPABASE_ANON_KEY}
+        VITE_ALLOW_PRODUCTION_DESTRUCTIVE_OPERATIONS: ${APP_VITE_ALLOW_PRODUCTION_DESTRUCTIVE_OPERATIONS:-false}
+    ports:
+      - "8080:80"
+
+  admin:
+    build:
+      context: .
+      dockerfile: admin/Dockerfile
+      args:
+        VITE_SUPABASE_URL: ${ADMIN_VITE_SUPABASE_URL}
+        VITE_SUPABASE_ANON_KEY: ${ADMIN_VITE_SUPABASE_ANON_KEY}
+    ports:
+      - "8081:80"

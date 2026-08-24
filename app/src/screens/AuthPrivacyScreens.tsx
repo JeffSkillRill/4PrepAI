@@ -241,8 +241,9 @@ export function AuthScreen({
           </div>
 
           <div className="mt-7 grid gap-3 sm:grid-cols-2">
+            <AppLink href={viewPaths.dashboard as string} onNavigate={() => onNavigate('dashboard')} className={`flex items-center justify-center rounded-xl bg-forest-800 px-5 py-3 font-bold text-white ${focusButtonClass}`}>Open dashboard</AppLink>
             <AppLink href={viewPaths.saved as string} onNavigate={() => onNavigate('saved')} className={`flex items-center justify-center rounded-xl bg-forest-800 px-5 py-3 font-bold text-white ${focusButtonClass}`}>Open saved plans</AppLink>
-            <AppLink href={viewPaths.support as string} onNavigate={() => onNavigate('support')} className={`flex items-center justify-center rounded-xl border border-forest-200 px-5 py-3 font-bold text-forest-800 ${focusButtonClass}`}>Platform support</AppLink>
+            <AppLink href={viewPaths.support as string} onNavigate={() => onNavigate('support')} className={`flex items-center justify-center rounded-xl border border-forest-200 px-5 py-3 font-bold text-forest-800 sm:col-span-2 ${focusButtonClass}`}>Platform support</AppLink>
             <button
               onClick={() => void completeSignOut()}
               disabled={accountAction !== 'ready'}

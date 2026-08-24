@@ -47,7 +47,7 @@ describe('CostSummary chart density', () => {
     expect(screen.queryByRole('dialog')).toBeNull()
     fireEvent.click(trigger)
 
-    expect(screen.getByRole('dialog', { name: 'Alpha University cost components and visa funds' })).toBeTruthy()
+    expect(screen.getByRole('dialog', { name: 'Alpha University cost components and visa funds' }).className).toContain('cost-modal-dialog')
     expect(cardSection?.textContent).not.toContain('Mandatory fees')
     fireEvent.keyDown(document, { key: 'Escape' })
     expect(screen.queryByRole('dialog')).toBeNull()

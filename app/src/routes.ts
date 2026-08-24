@@ -73,6 +73,7 @@ export function parseRoutePath(pathname: string): AppRoute {
   }
 
   if (path === '/learn') return { ...defaultRoute, view: 'learn' }
+  if (path === '/') return defaultRoute
 
   const profile = path.match(/^\/universities\/([^/]+)$/)
   if (profile) {

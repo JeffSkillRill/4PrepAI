@@ -72,6 +72,9 @@ describe('DashboardScreen stage and goal', () => {
     expect(editLink.getAttribute('href')).toBe('/intake')
     fireEvent.click(editLink)
     expect(onNavigate).toHaveBeenCalledWith('intake')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Account details' }))
+    expect(onNavigate).toHaveBeenCalledWith('auth')
   })
 
   it('states that intake is incomplete instead of rendering blank goal facts', async () => {

@@ -10,6 +10,15 @@ describe('dashboard route parsing', () => {
   })
 })
 
+describe('public landing route parsing', () => {
+  it('opens the university search catalogue at the bare root', () => {
+    expect(parseRoutePath('/')).toMatchObject({
+      view: 'search',
+      universityId: null,
+    })
+  })
+})
+
 describe('learning route parsing', () => {
   it('parses the track home', () => {
     expect(parseRoutePath('/learn')).toMatchObject({

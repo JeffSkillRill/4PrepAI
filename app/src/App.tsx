@@ -1,4 +1,4 @@
-import { LogIn, Menu, Search, UserRound, X } from 'lucide-react'
+import { LogIn, Menu, UserRound, X } from 'lucide-react'
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react'
 import { useAuth } from './auth/AuthProvider'
 import {
@@ -29,6 +29,7 @@ import { NotFoundScreen } from './screens/NotFoundScreen'
 import { ConnectionStatus, DesignedState, LoadingState } from './components/States'
 import { AppLink } from './components/AppLink'
 import { EnvironmentBanner } from './components/EnvironmentBanner'
+import { CounselorWidget } from './components/CounselorWidget'
 import {
   LearningAssignmentScreen,
   LearningLessonScreen,
@@ -60,12 +61,10 @@ const SupportScreen = lazy(async () => {
 // It sat behind a route with no link for weeks, which made two shipped tools
 // reachable only by typing a path.
 const navItems: { label: string; view: View }[] = [
-  { label: 'Dashboard', view: 'dashboard' },
   { label: 'Search', view: 'search' },
   { label: 'Tools', view: 'tools' },
   { label: 'Learn', view: 'learn' },
   { label: 'Compare', view: 'compare' },
-  { label: 'Counselor', view: 'counselor' },
   { label: 'Saved', view: 'saved' },
 ]
 
@@ -86,29 +85,30 @@ function Logo({ href, onNavigate, inverse = false }: { href: string; onNavigate:
   )
 }
 
-function Navbar({ view, query, setQuery, onNavigate }: { view: View; query: string; setQuery: (value: string) => void; onNavigate: (view: View) => void }) {
+function Navbar({ view, onNavigate }: { view: View; onNavigate: (view: View) => void }) {
   const [menuOpen, setMenuOpen] = useState(false)
   const { user } = useAuth()
+  const accountView: View = user ? 'dashboard' : 'auth'
   return (
     <header className="sticky top-0 z-40 border-b border-line bg-white">
       <div className="page-container flex h-[72px] items-center gap-4">
-        <Logo href={viewPaths[user ? 'dashboard' : 'search'] as string} onNavigate={() => onNavigate(user ? 'dashboard' : 'search')} />
+        <Logo href={viewPaths.search as string} onNavigate={() => onNavigate('search')} />
         <nav className="hidden items-center gap-1 xl:flex" aria-label="Primary navigation">
           {navItems.map((item) => <AppLink key={item.view} href={viewPaths[item.view] as string} onNavigate={() => onNavigate(item.view)} aria-current={view === item.view ? 'page' : undefined} className={`rounded-lg px-3 py-2 text-sm font-bold transition ${view === item.view ? 'bg-forest-50 text-forest-800' : 'text-muted hover:bg-canvas hover:text-ink'}`}>{item.label}</AppLink>)}
         </nav>
-        {view !== 'search' ? <label className="ml-auto hidden min-w-0 max-w-[300px] flex-1 items-center gap-2 rounded-xl border border-line bg-canvas px-3 py-2.5 md:flex focus-within:border-forest-500"><span className="sr-only">Search universities</span><Search size={17} className="shrink-0 text-forest-700" aria-hidden="true" /><input value={query} onChange={(event) => setQuery(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') onNavigate('search') }} placeholder="Search universities" className="min-w-0 flex-1 bg-transparent text-sm outline-none" /></label> : <div className="ml-auto" />}
-        <AppLink href={viewPaths.auth as string} onNavigate={() => onNavigate('auth')} className="hidden shrink-0 items-center gap-2 rounded-xl border border-line px-3 py-2.5 text-sm font-bold text-forest-800 sm:flex"><LogIn size={16} /> {user ? 'Account' : 'Sign in'}</AppLink>
+        <AppLink href={viewPaths[accountView] as string} onNavigate={() => onNavigate(accountView)} className="ml-auto hidden shrink-0 items-center gap-2 rounded-xl border border-line px-3 py-2.5 text-sm font-bold text-forest-800 sm:flex"><LogIn size={16} /> {user ? 'Account' : 'Sign in'}</AppLink>
         <button onClick={() => onNavigate('intake')} className="hidden shrink-0 items-center gap-2 rounded-xl bg-forest-800 px-4 py-2.5 text-sm font-bold text-white sm:flex"><UserRound size={17} /> Build my plan</button>
         <button onClick={() => setMenuOpen(!menuOpen)} className="grid size-11 place-items-center rounded-xl border border-line xl:hidden" aria-label="Toggle menu" aria-expanded={menuOpen}>{menuOpen ? <X size={20} /> : <Menu size={20} />}</button>
       </div>
-      {menuOpen && <div className="border-t border-line bg-white xl:hidden"><nav className="page-container grid gap-1 py-3" aria-label="Mobile navigation">{navItems.map((item) => <AppLink key={item.view} href={viewPaths[item.view] as string} onNavigate={() => { onNavigate(item.view); setMenuOpen(false) }} aria-current={view === item.view ? 'page' : undefined} className={`rounded-xl px-4 py-3 text-left font-bold ${view === item.view ? 'bg-forest-50 text-forest-800' : 'text-muted'}`}>{item.label}</AppLink>)}<AppLink href={viewPaths.auth as string} onNavigate={() => { onNavigate('auth'); setMenuOpen(false) }} className="rounded-xl px-4 py-3 text-left font-bold text-muted">{user ? 'Account' : 'Sign in'}</AppLink><button onClick={() => { onNavigate('intake'); setMenuOpen(false) }} className="mt-2 rounded-xl bg-forest-800 px-4 py-3 text-left font-bold text-white">Build my plan</button></nav></div>}
+      {menuOpen && <div className="border-t border-line bg-white xl:hidden"><nav className="page-container grid gap-1 py-3" aria-label="Mobile navigation">{navItems.map((item) => <AppLink key={item.view} href={viewPaths[item.view] as string} onNavigate={() => { onNavigate(item.view); setMenuOpen(false) }} aria-current={view === item.view ? 'page' : undefined} className={`rounded-xl px-4 py-3 text-left font-bold ${view === item.view ? 'bg-forest-50 text-forest-800' : 'text-muted'}`}>{item.label}</AppLink>)}<AppLink href={viewPaths[accountView] as string} onNavigate={() => { onNavigate(accountView); setMenuOpen(false) }} className="rounded-xl px-4 py-3 text-left font-bold text-muted">{user ? 'Account' : 'Sign in'}</AppLink><button onClick={() => { onNavigate('intake'); setMenuOpen(false) }} className="mt-2 rounded-xl bg-forest-800 px-4 py-3 text-left font-bold text-white">Build my plan</button></nav></div>}
     </header>
   )
 }
 
 function Footer({ onNavigate }: { onNavigate: (view: View) => void }) {
   const { user } = useAuth()
-  return <footer className="mt-8 border-t border-forest-800 bg-forest-950 text-white"><div className="page-container grid gap-8 py-10 sm:grid-cols-[1fr_auto] sm:items-end"><div><Logo inverse href={viewPaths[user ? 'dashboard' : 'search'] as string} onNavigate={() => onNavigate(user ? 'dashboard' : 'search')} /><p className="mt-4 max-w-md text-sm leading-6 text-white/75">A calmer, source-backed way for Central Asian students to explore university pathways.</p></div><div className="flex flex-wrap gap-5 text-sm font-bold text-white/75"><AppLink href={viewPaths.tools as string} onNavigate={() => onNavigate('tools')}>Tools</AppLink><AppLink href={viewPaths.counselor as string} onNavigate={() => onNavigate('counselor')}>Counselor</AppLink><AppLink href={viewPaths.support as string} onNavigate={() => onNavigate('support')}>Platform support</AppLink><AppLink href={viewPaths.privacy as string} onNavigate={() => onNavigate('privacy')}>Privacy</AppLink><AppLink href={viewPaths.auth as string} onNavigate={() => onNavigate('auth')}>Account</AppLink></div></div><div className="border-t border-forest-800"><div className="page-container flex flex-wrap items-center justify-between gap-2 py-4 text-xs text-white/65"><span>© 2026 4Prep</span><span>Verify university details before applying</span></div></div></footer>
+  const accountView: View = user ? 'dashboard' : 'auth'
+  return <footer className="mt-8 border-t border-forest-800 bg-forest-950 text-white"><div className="page-container grid gap-8 py-10 sm:grid-cols-[1fr_auto] sm:items-end"><div><Logo inverse href={viewPaths.search as string} onNavigate={() => onNavigate('search')} /></div><div className="flex flex-wrap gap-5 text-sm font-bold text-white/75"><AppLink href={viewPaths.tools as string} onNavigate={() => onNavigate('tools')}>Tools</AppLink><AppLink href={viewPaths.counselor as string} onNavigate={() => onNavigate('counselor')}>Counselor</AppLink><AppLink href={viewPaths.support as string} onNavigate={() => onNavigate('support')}>Platform support</AppLink><AppLink href={viewPaths.privacy as string} onNavigate={() => onNavigate('privacy')}>Privacy</AppLink><AppLink href={viewPaths[accountView] as string} onNavigate={() => onNavigate(accountView)}>Account</AppLink></div></div><div className="border-t border-forest-800"><div className="page-container flex flex-wrap items-center justify-between gap-2 py-4 text-xs text-white/65"><span>© 2026 4Prep</span><span>Verify university details before applying</span></div></div></footer>
 }
 
 export default function App() {
@@ -140,7 +140,7 @@ export default function App() {
   const authStorage = getAuthStorage()
   const [initialPendingAuth] = useState(() => readPendingAuth(authStorage))
   const [returnDestination, setReturnDestination] = useState<PendingDestination>(
-    () => initialPendingAuth?.destination ?? { view: 'dashboard', universityId: null },
+    () => initialPendingAuth?.destination ?? { view: 'search', universityId: null },
   )
   const [shouldReturnAfterAuth, setShouldReturnAfterAuth] = useState(
     () => initialPendingAuth !== null,
@@ -333,14 +333,6 @@ export default function App() {
     void getRankedPathway(profile).then(setPathway)
   }, [view, profile, pathway])
 
-  useEffect(() => {
-    if (authLoading || privateLoading || !user || typeof window === 'undefined') return
-    if (window.location.pathname !== '/') return
-    window.history.replaceState({}, '', viewPaths.dashboard)
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- The bare root is the signed-in landing route after auth state resolves.
-    setView('dashboard')
-  }, [authLoading, privateLoading, user])
-
   const navigate = (requested: View) => {
     // The intake is answered once. Every "Build my plan" entry point in the app
     // lands on the saved plan instead once one exists, so a student edits rather
@@ -480,7 +472,7 @@ export default function App() {
   const finishDeletion = () => {
     finishSignOut()
     setReturnDestination({
-      view: 'dashboard',
+      view: 'search',
       universityId: null,
       moduleSlug: null,
       lessonSlug: null,
@@ -604,10 +596,11 @@ export default function App() {
   return (
     <div className="min-h-screen bg-canvas">
       <a href="#main-content" className="skip-link">Skip to main content</a>
-      <Navbar view={view} query={query} setQuery={setQuery} onNavigate={navigate} />
+      <Navbar view={view} onNavigate={navigate} />
       <ConnectionStatus />
       <main id="main-content" tabIndex={-1}>{screen}</main>
       <Footer onNavigate={navigate} />
+      <CounselorWidget />
       <EnvironmentBanner />
     </div>
   )
