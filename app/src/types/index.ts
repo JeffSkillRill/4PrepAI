@@ -2,7 +2,6 @@ export type View =
   | 'dashboard'
   | 'search'
   | 'profile'
-  | 'compare'
   | 'intake'
   | 'plan'
   | 'results'

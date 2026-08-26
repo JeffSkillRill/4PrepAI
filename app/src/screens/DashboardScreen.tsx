@@ -279,7 +279,7 @@ function SignedInDashboard({
           <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2">
             <AppLink href={viewPaths[saved.size > 0 ? 'saved' : 'search'] as string} onNavigate={() => onNavigate(saved.size > 0 ? 'saved' : 'search')} className="inline-flex items-center gap-2 font-bold text-forest-700">{saved.size > 0 ? 'Open saved plans' : 'Explore universities'} <ArrowRight size={17} /></AppLink>
             {saved.size > 1 && (
-              <AppLink href={viewPaths.compare as string} onNavigate={() => onNavigate('compare')} className="inline-flex items-center gap-2 text-sm font-bold text-muted transition hover:text-forest-700">Compare saved</AppLink>
+              <AppLink href={viewPaths.counselor as string} onNavigate={() => onNavigate('counselor')} className="inline-flex items-center gap-2 text-sm font-bold text-muted transition hover:text-forest-700">Compare in counselor</AppLink>
             )}
           </div>
         </DashboardCard>

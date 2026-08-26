@@ -92,7 +92,7 @@ export function LearningProgressChart({
 
   return (
     // Keyboard-focusable with the real values in its label, matching every other
-    // visualisation (CompareScreen, CostSummary, FitBreakdown, the timeline) and
+    // visualisation (comparison cards, CostSummary, FitBreakdown, the timeline) and
     // the commitment in docs/DASHBOARD.md. Not role="img": this region contains a
     // progressbar, a list, and a screen-reader table, and role="img" would hide
     // all three.

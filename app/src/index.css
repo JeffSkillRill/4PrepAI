@@ -141,6 +141,18 @@ a[href]::after {
   transition-timing-function: var(--motion-ease-enter);
 }
 .interactive-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-card); border-color: var(--color-forest-200); }
+.university-card-reveal {
+  opacity: 0;
+  transform: translateY(18px) scale(.985);
+  transition:
+    opacity var(--motion-duration-large) var(--motion-ease-enter),
+    transform var(--motion-duration-large) var(--motion-ease-enter),
+    box-shadow var(--motion-duration-element) var(--motion-ease-enter),
+    border-color var(--motion-duration-element) var(--motion-ease-enter);
+  transition-delay: var(--university-card-reveal-delay, 0ms);
+}
+.university-card-reveal.is-revealed { opacity: 1; transform: translateY(0) scale(1); }
+.university-card-reveal.is-revealed:hover { transform: translateY(-2px); }
 .transition {
   transition-property: transform, opacity !important;
   transition-duration: var(--motion-duration-feedback) !important;
@@ -150,6 +162,8 @@ a[href]::after {
   transition: transform var(--motion-duration-large) var(--motion-ease-enter);
 }
 .motion-resolve { animation: motion-resolve var(--motion-duration-element) var(--motion-ease-enter) both; }
+.comparison-picker-pop { animation: comparison-pop var(--motion-duration-large) var(--motion-ease-celebrate) both; }
+.comparison-turn-pop { animation: comparison-pop var(--motion-duration-large) var(--motion-ease-celebrate) both; }
 .motion-celebrate { animation: motion-celebrate var(--motion-duration-large) var(--motion-ease-celebrate) both; }
 .motion-disclosure {
   display: grid;
@@ -248,6 +262,10 @@ details:not([open]) > .motion-disclosure { grid-template-rows: 0fr; }
   from { transform: scale(.96); opacity: .72; }
   to { transform: scale(1); opacity: 1; }
 }
+@keyframes comparison-pop {
+  from { transform: translateY(14px) scale(.96); opacity: .7; }
+  to { transform: translateY(0) scale(1); opacity: 1; }
+}
 @keyframes modal-scrim {
   from { opacity: 0; }
   to { opacity: 1; }
@@ -270,12 +288,6 @@ details:not([open]) > .motion-disclosure { grid-template-rows: 0fr; }
   height: 2px;
   background: var(--color-forest-200);
 }
-
-.compare-scroll { scrollbar-color: var(--color-forest-200) transparent; scrollbar-width: thin; }
-.compare-table th:first-child,
-.compare-table td:first-child { position: sticky; left: 0; z-index: 12; }
-.compare-table thead th { position: sticky; top: 0; z-index: 15; }
-.compare-table thead th:first-child { z-index: 20; }
 
 .counselor-thinking-dot {
   animation: counselor-thinking var(--motion-duration-large) var(--motion-ease-enter) infinite alternate;
@@ -304,6 +316,7 @@ details:not([open]) > .motion-disclosure { grid-template-rows: 0fr; }
 @media (max-width: 767px) {
   .page-container { width: min(100% - 32px, 1200px); }
   .interactive-card:hover { transform: none; }
+  .university-card-reveal.is-revealed:hover { transform: none; }
   .timeline-line::before { display: none; }
 }
 
@@ -313,5 +326,6 @@ details:not([open]) > .motion-disclosure { grid-template-rows: 0fr; }
     animation: none !important;
     transition: none !important;
   }
+  .university-card-reveal { opacity: 1 !important; transform: none !important; }
   :where(button, a, summary, [role="button"]):active { transform: none !important; }
 }

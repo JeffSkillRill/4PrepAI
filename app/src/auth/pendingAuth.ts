@@ -22,7 +22,6 @@ const validDestinations = new Set<View>([
   'dashboard',
   'search',
   'profile',
-  'compare',
   'intake',
   'results',
   'tools',

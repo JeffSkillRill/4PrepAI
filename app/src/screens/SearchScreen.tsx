@@ -137,7 +137,7 @@ export function SearchScreen({ query, setQuery, saved, onToggleSave, onOpen }: P
           {status === 'loading' ? <CatalogueListSkeleton /> : loadState ? (
             <DesignedState state={loadState} headingLevel={2} onReset={reload} />
           ) : filtered.length > 0 ? <div className="grid gap-6" data-testid="university-results">
-            {filtered.map(({ university, fitsAfterScholarship }) => <UniversityCard key={university.id} university={university} layout="list" fitsAfterScholarship={fitsAfterScholarship} saved={saved.has(university.id)} onSave={() => onToggleSave(university.id)} onOpen={() => onOpen(university)} />)}
+            {filtered.map(({ university, fitsAfterScholarship }, index) => <UniversityCard key={university.id} university={university} layout="list" revealIndex={index} fitsAfterScholarship={fitsAfterScholarship} saved={saved.has(university.id)} onSave={() => onToggleSave(university.id)} onOpen={() => onOpen(university)} />)}
           </div> : <DesignedState state="no_results" headingLevel={2} onReset={() => { setQuery(''); setField(''); setBudget(budgetLimits.max) }} />}
         </div>
       </div>

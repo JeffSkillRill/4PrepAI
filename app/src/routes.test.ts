@@ -58,7 +58,6 @@ describe('route round trips', () => {
     { view: 'dashboard', universityId: null, moduleSlug: null, lessonSlug: null },
     { view: 'search', universityId: null, moduleSlug: null, lessonSlug: null },
     { view: 'profile', universityId: 'university/with spaces', moduleSlug: null, lessonSlug: null },
-    { view: 'compare', universityId: null, moduleSlug: null, lessonSlug: null },
     { view: 'intake', universityId: null, moduleSlug: null, lessonSlug: null },
     { view: 'plan', universityId: null, moduleSlug: null, lessonSlug: null },
     { view: 'results', universityId: null, moduleSlug: null, lessonSlug: null },
@@ -83,6 +82,7 @@ describe('route round trips', () => {
 
   it('distinguishes an unknown path from the university catalogue', () => {
     expect(parseRoutePath('/does-not-exist')).toMatchObject({ view: 'not_found' })
+    expect(parseRoutePath('/compare')).toMatchObject({ view: 'not_found' })
     expect(parseRoutePath('/universities')).toMatchObject({ view: 'search' })
   })
 

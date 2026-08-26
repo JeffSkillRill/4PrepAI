@@ -10,7 +10,6 @@ import {
   type PendingDestination,
 } from './auth/pendingAuth'
 import type { Pathway, StudentProfile, University, View } from './types'
-import { CompareScreen } from './screens/CompareScreen'
 import { IntakeScreen, ResultsScreen } from './screens/FlowScreens'
 import { ProfileScreen } from './screens/ProfileScreen'
 import { SearchScreen } from './screens/SearchScreen'
@@ -507,7 +506,6 @@ export default function App() {
   else if (view === 'search') screen = <SearchScreen query={query} setQuery={setQuery} saved={saved} onToggleSave={toggleSave} onOpen={openUniversity} />
   else if (view === 'profile' && selectedUniversityId) screen = <ProfileScreen universityId={selectedUniversityId} profile={profile} saved={saved.has(selectedUniversityId)} onToggleSave={() => toggleSave(selectedUniversityId)} />
   else if (view === 'profile') screen = <DesignedState state="empty" onReset={() => navigate('search')} />
-  else if (view === 'compare') screen = <CompareScreen profile={profile} saved={saved} />
   else if (view === 'intake') screen = <IntakeScreen initialProfile={rebuildRequested ? profile : null} onComplete={completeIntake} />
   else if (view === 'plan' && profile) screen = (
     <PlanScreen
@@ -522,11 +520,11 @@ export default function App() {
   else if (view === 'results') screen = <DesignedState state="empty" onReset={() => navigate('intake')} />
   else if (view === 'tools') screen = <ToolsScreen onNavigate={navigate} />
   else if (view === 'saved') screen = user
-    ? <SavedScreen saved={saved} onToggleSave={toggleSave} onOpen={openUniversity} onExplore={() => navigate('search')} />
+    ? <SavedScreen saved={saved} onToggleSave={toggleSave} onOpen={openUniversity} onExplore={() => navigate('search')} onOpenCounselor={() => navigate('counselor')} />
     : authScreen
   else if (view === 'skill_gap') screen = <SkillGapScreen profile={profile} saved={saved} onNavigate={navigate} />
   else if (view === 'scholarships') screen = <ScholarshipScreen profile={profile} saved={saved} onNavigate={navigate} />
-  else if (view === 'counselor') screen = <CounselorScreen onOpenCompare={() => navigate('compare')} />
+  else if (view === 'counselor') screen = <CounselorScreen profile={profile} saved={saved} />
   else if (view === 'support') screen = (
     <Suspense fallback={<LoadingState kind="private" />}>
       <SupportScreen

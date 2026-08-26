@@ -4,14 +4,28 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { FunctionsHttpError } from '@supabase/supabase-js'
 import { CounselorScreen } from './CounselorScreen'
+import type { University } from '../types'
 
 const clientMocks = vi.hoisted(() => ({ invoke: vi.fn() }))
+const comparisonUniversities = vi.hoisted(() => ['Alpha University', 'Beta College', 'Gamma Institute', 'Delta University'].map((name, index) => ({
+  id: `university-${index + 1}`,
+  name,
+  city: `City ${index + 1}`,
+  country: 'United States',
+  highlights: [],
+})) as unknown as University[])
 
 vi.mock('../data/client', () => ({
   getSupabaseClient: () => ({
     functions: { invoke: clientMocks.invoke },
   }),
 }))
+vi.mock('../data/useRepositoryData', () => ({ useRepositoryData: () => ({ data: comparisonUniversities, status: 'ready', reload: vi.fn() }) }))
+vi.mock('../components/CostSummary', () => ({ PublishedNetCost: () => <span>Not computable</span> }))
+vi.mock('../components/Trust', () => ({ DataValue: () => <span>Unknown</span>, ExpandableFit: () => <span>Five-part fit disclosure</span>, MissingValue: ({ title }: { title: string }) => <span>{title}</span>, SourceChip: () => null }))
+vi.mock('../scoring/costs', () => ({ bestPublishedCostScenario: () => null, hasComprehensiveInternationalFunding: () => false, hasFullNeedPolicy: () => false }))
+
+const counselorProps = { profile: null, saved: new Set<string>() }
 
 beforeEach(() => {
   clientMocks.invoke.mockReset()
@@ -31,19 +45,30 @@ async function submitAnswer(answerType: 'verified_fact' | 'general_guidance' | '
     },
     error: null,
   })
-  render(<CounselorScreen />)
+  render(<CounselorScreen {...counselorProps} />)
   fireEvent.change(screen.getByLabelText('What would you like to know?'), { target: { value: 'How should I prepare?' } })
   fireEvent.click(screen.getByRole('button', { name: 'Ask counselor' }))
 }
 
 describe('CounselorScreen answer hierarchy', () => {
-  it('opens university comparison from the counselor', () => {
-    const onOpenCompare = vi.fn()
-    render(<CounselorScreen onOpenCompare={onOpenCompare} />)
+  it('opens the searchable picker and adds a stacked comparison turn to the conversation', () => {
+    const first = render(<CounselorScreen {...counselorProps} />)
 
     fireEvent.click(screen.getByRole('button', { name: 'Compare universities' }))
+    expect(screen.getByRole('dialog')).toBeTruthy()
+    fireEvent.change(screen.getByLabelText('Search universities'), { target: { value: 'delta' } })
+    expect(screen.getByRole('button', { name: /Delta University/ })).toBeTruthy()
+    fireEvent.change(screen.getByLabelText('Search universities'), { target: { value: '' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Remove Alpha University from selection' }))
+    fireEvent.click(screen.getByRole('button', { name: /Delta University/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'Add comparison to chat' }))
 
-    expect(onOpenCompare).toHaveBeenCalledOnce()
+    expect(screen.getByRole('heading', { name: 'See the trade-offs clearly' })).toBeTruthy()
+    expect(screen.getByText('Mandatory fees')).toBeTruthy()
+    expect(first.container.querySelector('table')).toBeNull()
+    first.unmount()
+    render(<CounselorScreen {...counselorProps} />)
+    expect(screen.getByRole('heading', { name: 'See the trade-offs clearly' })).toBeTruthy()
   })
 
   it('resolves a verified fact with its explicit record label', async () => {
@@ -51,7 +76,7 @@ describe('CounselorScreen answer hierarchy', () => {
       data: { answerType: 'verified_fact', answer: 'A **verified detail** is formatted safely.', recordCitations: [], webCitations: [], requestId: 'request-markdown' },
       error: null,
     })
-    render(<CounselorScreen />)
+    render(<CounselorScreen {...counselorProps} />)
     fireEvent.change(screen.getByLabelText('What would you like to know?'), { target: { value: 'Show formatted answer' } })
     fireEvent.click(screen.getByRole('button', { name: 'Ask counselor' }))
 
@@ -64,7 +89,7 @@ describe('CounselorScreen answer hierarchy', () => {
       data: { answerType: 'verified_fact', answer: 'A saved answer.', recordCitations: [], webCitations: [], requestId: 'request-history' },
       error: null,
     })
-    render(<CounselorScreen />)
+    render(<CounselorScreen {...counselorProps} />)
     const input = screen.getByLabelText('What would you like to know?')
     fireEvent.change(input, { target: { value: 'First question' } })
     fireEvent.click(screen.getByRole('button', { name: 'Ask counselor' }))
@@ -109,7 +134,7 @@ describe('CounselorScreen answer hierarchy', () => {
     }), { status: 503, headers: { 'content-type': 'application/json' } })
     clientMocks.invoke.mockResolvedValue({ data: null, error: new FunctionsHttpError(response) })
 
-    render(<CounselorScreen />)
+    render(<CounselorScreen {...counselorProps} />)
     fireEvent.change(screen.getByLabelText('What would you like to know?'), { target: { value: 'How should I prepare?' } })
     fireEvent.click(screen.getByRole('button', { name: 'Ask counselor' }))
 
@@ -121,7 +146,7 @@ describe('CounselorScreen answer hierarchy', () => {
     const response = new Response(JSON.stringify({ code: 'NOT_FOUND' }), { status: 404, headers: { 'content-type': 'application/json' } })
     clientMocks.invoke.mockResolvedValue({ data: null, error: new FunctionsHttpError(response) })
 
-    render(<CounselorScreen />)
+    render(<CounselorScreen {...counselorProps} />)
     fireEvent.change(screen.getByLabelText('What would you like to know?'), { target: { value: 'How should I prepare?' } })
     fireEvent.click(screen.getByRole('button', { name: 'Ask counselor' }))
 
@@ -132,7 +157,7 @@ describe('CounselorScreen answer hierarchy', () => {
   it('identifies a browser-level counselor fetch failure as an environment configuration problem', async () => {
     clientMocks.invoke.mockResolvedValue({ data: null, error: { name: 'FunctionsFetchError' } })
 
-    render(<CounselorScreen />)
+    render(<CounselorScreen {...counselorProps} />)
     fireEvent.change(screen.getByLabelText('What would you like to know?'), { target: { value: 'How should I prepare?' } })
     fireEvent.click(screen.getByRole('button', { name: 'Ask counselor' }))
 

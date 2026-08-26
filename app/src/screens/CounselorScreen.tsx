@@ -11,6 +11,8 @@ import {
 } from 'lucide-react'
 import { useState } from 'react'
 import { type CounselorAnswer, useCounselorConversation } from '../counselor/conversation'
+import { CounselorComparison, UniversityPickerModal } from '../counselor/UniversityComparison'
+import type { StudentProfile } from '../types'
 import { SourceChip } from '../components/Trust'
 import { SafeMarkdown, webCitationDetails } from '../components/SafeMarkdown'
 import { getSupabaseClient } from '../data/client'
@@ -130,10 +132,11 @@ export async function requestCounselorAnswer(message: string): Promise<{ answer:
   return { answer: null, error: 'The grounded counselor returned an invalid response. No unverified answer was displayed.' }
 }
 
-export function CounselorScreen({ onOpenCompare }: { onOpenCompare?: () => void }) {
+export function CounselorScreen({ profile, saved }: { profile: StudentProfile | null; saved: ReadonlySet<string> }) {
   const [message, setMessage] = useState('')
   const [loading, setLoading] = useState(false)
-  const { turns, addTurn, clearTurns } = useCounselorConversation()
+  const [comparisonPickerOpen, setComparisonPickerOpen] = useState(false)
+  const { turns, addTurn, addComparison, updateComparison, clearTurns } = useCounselorConversation()
   const remainingCharacters = 1000 - message.length
   const budgetTone = remainingCharacters <= 100 ? 'text-rose-800' : remainingCharacters <= 250 ? 'text-chart-awaiting' : 'text-muted'
 
@@ -184,7 +187,7 @@ export function CounselorScreen({ onOpenCompare }: { onOpenCompare?: () => void 
             )}
             {turns.length > 0 && <section className="mt-6" aria-label="Counselor conversation">
               <div className="mb-3 flex flex-wrap items-center justify-between gap-3"><div><h2 className="font-extrabold">Conversation</h2><p className="mt-1 text-xs text-muted">The last 20 turns stay visible in this browser tab.</p></div><button type="button" onClick={clearTurns} className="min-h-0 rounded-lg px-2 py-1 text-sm font-bold text-muted underline hover:text-forest-800">Clear chat</button></div>
-              <div className="space-y-5">{turns.map((turn) => <article key={turn.id}>
+              <div className="space-y-5">{turns.map((turn) => turn.type === 'comparison' ? <CounselorComparison key={turn.id} universityIds={turn.universityIds} profile={profile} saved={saved} onRemoveUniversity={(universityId) => updateComparison(turn.id, turn.universityIds.filter((id) => id !== universityId))} /> : <article key={turn.id}>
                 <div className="ml-auto max-w-[90%] rounded-2xl rounded-br-md bg-forest-800 px-4 py-3 text-sm leading-6 text-white"><p className="text-xs font-extrabold uppercase tracking-[.12em] text-white/65">You</p><p className="mt-1 whitespace-pre-wrap">{turn.question}</p></div>
                 {turn.answer ? <CounselorResponse answer={turn.answer} onSuggestion={setMessage} /> : turn.error ? <p role="alert" className="trust-static mt-3 rounded-xl border border-rose-200 bg-rose-50 p-4 text-rose-900">{turn.error}</p> : null}
               </article>)}</div>
@@ -203,13 +206,14 @@ export function CounselorScreen({ onOpenCompare }: { onOpenCompare?: () => void 
             <div className="mt-6 border-t border-line pt-5">
               <h2 className="font-extrabold">Ready to compare?</h2>
               <p className="mt-2 text-sm leading-6 text-muted">Review verified costs, deadlines, and requirements side by side.</p>
-              <button type="button" onClick={onOpenCompare} className="mt-4 inline-flex items-center gap-2 rounded-xl border border-forest-200 bg-forest-50 px-4 py-3 text-sm font-bold text-forest-800 transition hover:bg-forest-100">
+              <button type="button" onClick={() => setComparisonPickerOpen(true)} className="mt-4 inline-flex items-center gap-2 rounded-xl border border-forest-200 bg-forest-50 px-4 py-3 text-sm font-bold text-forest-800 transition hover:bg-forest-100">
                 <GitCompareArrows size={17} /> Compare universities
               </button>
             </div>
           </aside>
         </div>
       </section>
+      {comparisonPickerOpen && <UniversityPickerModal saved={saved} onClose={() => setComparisonPickerOpen(false)} onConfirm={(universityIds) => { addComparison(universityIds); setComparisonPickerOpen(false) }} />}
     </div>
   )
 }

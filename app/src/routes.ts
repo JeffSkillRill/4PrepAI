@@ -10,7 +10,6 @@ export type AppRoute = {
 export const viewPaths: Partial<Record<View, string>> = {
   dashboard: '/dashboard',
   search: '/universities',
-  compare: '/compare',
   intake: '/intake',
   plan: '/plan',
   results: '/results',
