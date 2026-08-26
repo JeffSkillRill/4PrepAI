@@ -57,14 +57,13 @@ const SupportScreen = lazy(async () => {
   return { default: module.SupportScreen }
 })
 
-// Tools carries the planning tools — skill gap, scholarships, compare, pathway.
+// Tools carries the planning tools — skill gap, scholarships, and pathway.
 // It sat behind a route with no link for weeks, which made two shipped tools
 // reachable only by typing a path.
 const navItems: { label: string; view: View }[] = [
   { label: 'Search', view: 'search' },
   { label: 'Tools', view: 'tools' },
   { label: 'Learn', view: 'learn' },
-  { label: 'Compare', view: 'compare' },
   { label: 'Saved', view: 'saved' },
 ]
 
@@ -527,7 +526,7 @@ export default function App() {
     : authScreen
   else if (view === 'skill_gap') screen = <SkillGapScreen profile={profile} saved={saved} onNavigate={navigate} />
   else if (view === 'scholarships') screen = <ScholarshipScreen profile={profile} saved={saved} onNavigate={navigate} />
-  else if (view === 'counselor') screen = <CounselorScreen />
+  else if (view === 'counselor') screen = <CounselorScreen onOpenCompare={() => navigate('compare')} />
   else if (view === 'support') screen = (
     <Suspense fallback={<LoadingState kind="private" />}>
       <SupportScreen
@@ -600,7 +599,7 @@ export default function App() {
       <ConnectionStatus />
       <main id="main-content" tabIndex={-1}>{screen}</main>
       <Footer onNavigate={navigate} />
-      <CounselorWidget />
+      <CounselorWidget onOpenCounselor={() => navigate('counselor')} />
       <EnvironmentBanner />
     </div>
   )

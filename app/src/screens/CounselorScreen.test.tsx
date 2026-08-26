@@ -13,7 +13,10 @@ vi.mock('../data/client', () => ({
   }),
 }))
 
-beforeEach(() => clientMocks.invoke.mockReset())
+beforeEach(() => {
+  clientMocks.invoke.mockReset()
+  window.sessionStorage.clear()
+})
 afterEach(cleanup)
 
 async function submitAnswer(answerType: 'verified_fact' | 'general_guidance' | 'out_of_scope' | 'refusal') {
@@ -34,6 +37,46 @@ async function submitAnswer(answerType: 'verified_fact' | 'general_guidance' | '
 }
 
 describe('CounselorScreen answer hierarchy', () => {
+  it('opens university comparison from the counselor', () => {
+    const onOpenCompare = vi.fn()
+    render(<CounselorScreen onOpenCompare={onOpenCompare} />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Compare universities' }))
+
+    expect(onOpenCompare).toHaveBeenCalledOnce()
+  })
+
+  it('resolves a verified fact with its explicit record label', async () => {
+    clientMocks.invoke.mockResolvedValue({
+      data: { answerType: 'verified_fact', answer: 'A **verified detail** is formatted safely.', recordCitations: [], webCitations: [], requestId: 'request-markdown' },
+      error: null,
+    })
+    render(<CounselorScreen />)
+    fireEvent.change(screen.getByLabelText('What would you like to know?'), { target: { value: 'Show formatted answer' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Ask counselor' }))
+
+    expect(await screen.findByText('verified detail', { selector: 'strong' })).toBeTruthy()
+    expect(screen.getByText('Show formatted answer')).toBeTruthy()
+  })
+
+  it('keeps prior questions and replies visible as a conversation', async () => {
+    clientMocks.invoke.mockResolvedValue({
+      data: { answerType: 'verified_fact', answer: 'A saved answer.', recordCitations: [], webCitations: [], requestId: 'request-history' },
+      error: null,
+    })
+    render(<CounselorScreen />)
+    const input = screen.getByLabelText('What would you like to know?')
+    fireEvent.change(input, { target: { value: 'First question' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Ask counselor' }))
+    await screen.findByText('A saved answer.')
+    fireEvent.change(input, { target: { value: 'Second question' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Ask counselor' }))
+
+    expect(await screen.findByText('First question')).toBeTruthy()
+    expect(screen.getByText('Second question')).toBeTruthy()
+    expect(screen.getAllByText('A saved answer.')).toHaveLength(2)
+  })
+
   it('resolves a verified fact with its explicit record label', async () => {
     await submitAnswer('verified_fact')
     const label = await screen.findByText('Verified 4Prep fact')

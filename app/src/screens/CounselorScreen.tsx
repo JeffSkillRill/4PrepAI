@@ -4,29 +4,16 @@ import {
   Compass,
   Database,
   FileQuestion,
+  GitCompareArrows,
   Globe2,
   Send,
   ShieldCheck,
 } from 'lucide-react'
 import { useState } from 'react'
+import { type CounselorAnswer, useCounselorConversation } from '../counselor/conversation'
 import { SourceChip } from '../components/Trust'
 import { SafeMarkdown, webCitationDetails } from '../components/SafeMarkdown'
 import { getSupabaseClient } from '../data/client'
-
-type CounselorAnswer = {
-  /**
-   * `refusal` means 4Prep has no verified figure for an admissions question.
-   * `out_of_scope` means the question was not an admissions question at all.
-   * They read very differently to a student, so they render differently.
-   */
-  answerType: 'verified_fact' | 'general_guidance' | 'refusal' | 'out_of_scope'
-  answer: string
-  recordCitations: string[]
-  webCitations: string[]
-  /** Example questions returned with an out-of-scope reply. */
-  suggestions?: string[]
-  requestId: string
-}
 
 function isCounselorAnswer(value: unknown): value is CounselorAnswer {
   if (!value || typeof value !== 'object') return false
@@ -143,24 +130,22 @@ export async function requestCounselorAnswer(message: string): Promise<{ answer:
   return { answer: null, error: 'The grounded counselor returned an invalid response. No unverified answer was displayed.' }
 }
 
-export function CounselorScreen() {
+export function CounselorScreen({ onOpenCompare }: { onOpenCompare?: () => void }) {
   const [message, setMessage] = useState('')
-  const [answer, setAnswer] = useState<CounselorAnswer | null>(null)
   const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
+  const { turns, addTurn, clearTurns } = useCounselorConversation()
   const remainingCharacters = 1000 - message.length
   const budgetTone = remainingCharacters <= 100 ? 'text-rose-800' : remainingCharacters <= 250 ? 'text-chart-awaiting' : 'text-muted'
 
   const ask = async (event: React.FormEvent) => {
     event.preventDefault()
     if (!message.trim()) return
+    const question = message.trim()
     setLoading(true)
-    setError('')
-    setAnswer(null)
-    const result = await requestCounselorAnswer(message.trim())
+    const result = await requestCounselorAnswer(question)
     setLoading(false)
-    if (result.answer) setAnswer(result.answer)
-    if (result.error) setError(result.error)
+    addTurn({ question, answer: result.answer, error: result.error })
+    setMessage('')
   }
 
   return (
@@ -197,70 +182,13 @@ export function CounselorScreen() {
                 </div>
               </div>
             )}
-            {error && <p role="alert" className="trust-static mt-5 rounded-xl border border-rose-200 bg-rose-50 p-4 text-rose-900">{error}</p>}
-            {answer?.answerType === 'verified_fact' && (
-              <div className="motion-resolve mt-6 overflow-hidden rounded-2xl border border-forest-200 bg-white">
-                <div className="flex items-center gap-2 bg-forest-800 px-5 py-3 text-sm font-extrabold text-white"><BadgeCheck size={18} /> Verified 4Prep fact</div>
-                <div className="p-5">
-                  <p className="whitespace-pre-wrap text-sm leading-7 text-ink">{answer.answer}</p>
-                  <div className="mt-4 flex flex-wrap gap-2">{answer.recordCitations.map((id) => <SourceChip key={id} sourceId={id} />)}</div>
-                </div>
-              </div>
-            )}
-            {answer?.answerType === 'general_guidance' && (
-              <div className="motion-resolve mt-6 overflow-hidden rounded-2xl border border-sky-200 bg-white">
-                <div className="flex items-center gap-2 bg-sky-100 px-5 py-3 text-sm font-extrabold text-sky-950"><Globe2 size={18} /> General web guidance · not verified 4Prep data</div>
-                <div className="p-5">
-                  <SafeMarkdown text={answer.answer} className="text-sm leading-7 text-sky-950" />
-                  {answer.webCitations.length > 0 && <ul className="mt-4 space-y-2 text-sm">{answer.webCitations.map((url, index) => {
-                    const citation = webCitationDetails(url, index)
-                    return (
-                      <li key={`${url}-${index}`}>
-                        {citation ? (
-                          <a href={citation.href} target="_blank" rel="noreferrer" aria-label={citation.accessibleName} className="inline-flex min-h-11 items-center gap-1 font-bold text-sky-800 underline">
-                            {citation.label} <ArrowUpRight size={13} />
-                          </a>
-                        ) : <span className="inline-flex min-h-11 items-center text-muted">Source {index + 1}: unavailable link</span>}
-                      </li>
-                    )
-                  })}</ul>}
-                </div>
-              </div>
-            )}
-            {answer?.answerType === 'out_of_scope' && (
-              <div className="trust-static soft-grid mt-6 rounded-2xl border border-forest-200 bg-white p-6">
-                <Compass size={36} className="text-forest-700" />
-                <h2 className="display mt-4 text-2xl font-extrabold">That is outside what I advise on</h2>
-                <p className="mt-3 leading-7 text-muted">{answer.answer}</p>
-                {answer.suggestions && answer.suggestions.length > 0 && (
-                  <>
-                    <p className="mt-6 text-sm font-bold text-forest-900">Try asking instead:</p>
-                    <ul className="mt-3 grid gap-2">
-                      {answer.suggestions.map((suggestion) => (
-                        <li key={suggestion}>
-                          <button
-                            type="button"
-                            onClick={() => { setMessage(suggestion); setAnswer(null) }}
-                            className="w-full rounded-xl border border-line px-4 py-3 text-left text-sm leading-6 text-forest-900 transition hover:border-forest-500 hover:bg-forest-50"
-                          >
-                            {suggestion}
-                          </button>
-                        </li>
-                      ))}
-                    </ul>
-                  </>
-                )}
-              </div>
-            )}
-            {answer?.answerType === 'refusal' && (
-              <div className="trust-static soft-grid mt-6 rounded-2xl border border-forest-100 bg-white p-6">
-                <FileQuestion size={36} className="text-forest-700" />
-                <p className="mt-4 text-xs font-extrabold uppercase tracking-[.13em] text-forest-700">Honest refusal · no guess</p>
-                <h2 className="display mt-1 text-2xl font-extrabold">Verified answer unavailable</h2>
-                <p className="mt-3 leading-7 text-muted">{answer.answer}</p>
-                <p className="mt-4 rounded-xl bg-canvas p-3 text-xs leading-5 text-muted">No citation is attached because no verified figure was used. Confirm the requested detail with the university office named above.</p>
-              </div>
-            )}
+            {turns.length > 0 && <section className="mt-6" aria-label="Counselor conversation">
+              <div className="mb-3 flex flex-wrap items-center justify-between gap-3"><div><h2 className="font-extrabold">Conversation</h2><p className="mt-1 text-xs text-muted">The last 20 turns stay visible in this browser tab.</p></div><button type="button" onClick={clearTurns} className="min-h-0 rounded-lg px-2 py-1 text-sm font-bold text-muted underline hover:text-forest-800">Clear chat</button></div>
+              <div className="space-y-5">{turns.map((turn) => <article key={turn.id}>
+                <div className="ml-auto max-w-[90%] rounded-2xl rounded-br-md bg-forest-800 px-4 py-3 text-sm leading-6 text-white"><p className="text-xs font-extrabold uppercase tracking-[.12em] text-white/65">You</p><p className="mt-1 whitespace-pre-wrap">{turn.question}</p></div>
+                {turn.answer ? <CounselorResponse answer={turn.answer} onSuggestion={setMessage} /> : turn.error ? <p role="alert" className="trust-static mt-3 rounded-xl border border-rose-200 bg-rose-50 p-4 text-rose-900">{turn.error}</p> : null}
+              </article>)}</div>
+            </section>}
           </div>
           <aside className="card p-5">
             <h2 className="font-extrabold">What the counselor will do</h2>
@@ -272,9 +200,63 @@ export function CounselorScreen() {
               <li>• Label web-assisted study or visa guidance as general information.</li>
               <li>• Never compute your Φ fit score.</li>
             </ul>
+            <div className="mt-6 border-t border-line pt-5">
+              <h2 className="font-extrabold">Ready to compare?</h2>
+              <p className="mt-2 text-sm leading-6 text-muted">Review verified costs, deadlines, and requirements side by side.</p>
+              <button type="button" onClick={onOpenCompare} className="mt-4 inline-flex items-center gap-2 rounded-xl border border-forest-200 bg-forest-50 px-4 py-3 text-sm font-bold text-forest-800 transition hover:bg-forest-100">
+                <GitCompareArrows size={17} /> Compare universities
+              </button>
+            </div>
           </aside>
         </div>
       </section>
+    </div>
+  )
+}
+
+function CounselorResponse({ answer, onSuggestion }: { answer: CounselorAnswer; onSuggestion: (suggestion: string) => void }) {
+  if (answer.answerType === 'verified_fact') {
+    return (
+      <div className="motion-resolve mt-3 overflow-hidden rounded-2xl border border-forest-200 bg-white">
+        <div className="flex items-center gap-2 bg-forest-800 px-5 py-3 text-sm font-extrabold text-white"><BadgeCheck size={18} /> Verified 4Prep fact</div>
+        <div className="p-5"><SafeMarkdown text={answer.answer} className="text-sm leading-7 text-ink" /><div className="mt-4 flex flex-wrap gap-2">{answer.recordCitations.map((id) => <SourceChip key={id} sourceId={id} />)}</div></div>
+      </div>
+    )
+  }
+
+  if (answer.answerType === 'general_guidance') {
+    return (
+      <div className="motion-resolve mt-3 overflow-hidden rounded-2xl border border-sky-200 bg-white">
+        <div className="flex items-center gap-2 bg-sky-100 px-5 py-3 text-sm font-extrabold text-sky-950"><Globe2 size={18} /> General web guidance · not verified 4Prep data</div>
+        <div className="p-5">
+          <SafeMarkdown text={answer.answer} className="text-sm leading-7 text-sky-950" />
+          {answer.webCitations.length > 0 && <ul className="mt-4 space-y-2 text-sm">{answer.webCitations.map((url, index) => {
+            const citation = webCitationDetails(url, index)
+            return <li key={`${url}-${index}`}>{citation ? <a href={citation.href} target="_blank" rel="noreferrer" aria-label={citation.accessibleName} className="inline-flex min-h-11 items-center gap-1 font-bold text-sky-800 underline">{citation.label} <ArrowUpRight size={13} /></a> : <span className="inline-flex min-h-11 items-center text-muted">Source {index + 1}: unavailable link</span>}</li>
+          })}</ul>}
+        </div>
+      </div>
+    )
+  }
+
+  if (answer.answerType === 'out_of_scope') {
+    return (
+      <div className="trust-static soft-grid mt-3 rounded-2xl border border-forest-200 bg-white p-6">
+        <Compass size={36} className="text-forest-700" />
+        <h3 className="display mt-4 text-2xl font-extrabold">That is outside what I advise on</h3>
+        <SafeMarkdown text={answer.answer} className="mt-3 leading-7 text-muted" />
+        {answer.suggestions && answer.suggestions.length > 0 && <><p className="mt-6 text-sm font-bold text-forest-900">Try asking instead:</p><ul className="mt-3 grid gap-2">{answer.suggestions.map((suggestion) => <li key={suggestion}><button type="button" onClick={() => onSuggestion(suggestion)} className="w-full rounded-xl border border-line px-4 py-3 text-left text-sm leading-6 text-forest-900 transition hover:border-forest-500 hover:bg-forest-50">{suggestion}</button></li>)}</ul></>}
+      </div>
+    )
+  }
+
+  return (
+    <div className="trust-static soft-grid mt-3 rounded-2xl border border-forest-100 bg-white p-6">
+      <FileQuestion size={36} className="text-forest-700" />
+      <p className="mt-4 text-xs font-extrabold uppercase tracking-[.13em] text-forest-700">Honest refusal · no guess</p>
+      <h3 className="display mt-1 text-2xl font-extrabold">Verified answer unavailable</h3>
+      <SafeMarkdown text={answer.answer} className="mt-3 leading-7 text-muted" />
+      <p className="mt-4 rounded-xl bg-canvas p-3 text-xs leading-5 text-muted">No citation is attached because no verified figure was used. Confirm the requested detail with the university office named above.</p>
     </div>
   )
 }
