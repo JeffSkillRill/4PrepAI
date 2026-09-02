@@ -74,6 +74,9 @@ export type FitComponent = {
   grade: string
   tone: FitTone
   reason: string
+  /** True when the component was computed from published, cited data; false when
+   *  it is unresolved and therefore excluded from the weighted overall. */
+  resolved: boolean
 }
 
 export type FitScore = {

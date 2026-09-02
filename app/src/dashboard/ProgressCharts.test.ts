@@ -10,6 +10,7 @@ import {
   deriveLearningModuleChartData,
   deriveRecordedLearningEvents,
   HomeworkStatusChart,
+  JourneyPositionChart,
   LearningProgressChart,
 } from './ProgressCharts'
 
@@ -109,6 +110,11 @@ describe('dashboard chart derivation', () => {
     expect(screen.getByText('In progress')).toBeTruthy()
     expect(screen.getByText('Locked')).toBeTruthy()
     expect(screen.getByText('Continue Module 0: Module 0')).toBeTruthy()
+
+    const modules = screen.getByRole('list', { name: 'Modules' })
+    expect(modules.className).toContain('[grid-template-columns:repeat(auto-fill,minmax(4.25rem,1fr))]')
+    expect(modules.className).not.toMatch(/grid-cols-|sm:grid-cols-|xl:grid-cols-/)
+    expect(screen.getByText('Locked').className).not.toContain('truncate')
   })
 
   it('replaces three zero counters with one useful homework empty state', () => {
@@ -117,6 +123,16 @@ describe('dashboard chart derivation', () => {
     expect(screen.getByText('No submitted homework yet')).toBeTruthy()
     expect(screen.queryByText('Waiting')).toBeNull()
     expect(screen.queryByText('Reviewed')).toBeNull()
+  })
+
+  it('uses a calm visible step caption while retaining the full no-score description for screen readers', () => {
+    const { container } = render(createElement(JourneyPositionChart, { stageId: 'planning' }))
+
+    expect(screen.getByRole('img').getAttribute('aria-label')).toBe('Current recorded journey position: Building your plan, step 2 of 5. This is not a score.')
+    expect(screen.getByText('Step 2 of 5')).toBeTruthy()
+    expect(screen.queryByText(/Position 2 of 5|not a score/i)).toBeNull()
+    expect(container.querySelector('ol li:nth-child(2)')?.textContent).toBe('2')
+    expect(screen.getByRole('table', { name: 'Five-stage journey' })).toBeTruthy()
   })
 
   // docs/DASHBOARD.md promises that *every* visualisation is a keyboard-focusable

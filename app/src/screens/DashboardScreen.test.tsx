@@ -67,6 +67,10 @@ describe('DashboardScreen stage and goal', () => {
     expect(screen.getByText('Computer Science')).toBeTruthy()
     expect(screen.getByText('USD 5,000')).toBeTruthy()
     expect(screen.getByText('Spring 2027')).toBeTruthy()
+    expect(screen.getByText("Tracks steps you've completed — not your chances of admission.")).toBeTruthy()
+    expect(screen.queryByText(/Recorded actions only.*not a grade or admission prediction/i)).toBeNull()
+    expect(screen.queryByText(/typically cost well above this/i)).toBeNull()
+    expect(screen.queryByRole('button', { name: /counsellor about funding/i })).toBeNull()
 
     const editLink = screen.getByRole('link', { name: /Change intake answers/ })
     expect(editLink.getAttribute('href')).toBe('/intake')
@@ -93,6 +97,7 @@ describe('DashboardScreen stage and goal', () => {
     expect(screen.getByText(/cannot show a destination, field, budget, or intake goal yet/)).toBeTruthy()
     expect(screen.getByRole('link', { name: /Complete intake/ }).getAttribute('href')).toBe('/intake')
   })
+
 
   it('shows the getting-started stage and intake route in the true empty state', async () => {
     render(

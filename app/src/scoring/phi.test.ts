@@ -59,12 +59,13 @@ const profile: StudentProfile = {
   intake: 'Autumn 2027',
 }
 
-describe('computeFit Φ v0.2 contract', () => {
+describe('computeFit Φ v0.3 contract', () => {
   it('is deterministic, versioned, and exposes exactly five bounded components', () => {
     const first = computeFit(profile, university)
     const second = computeFit(profile, university)
     expect(first).toEqual(second)
     expect(first.version).toBe(PHI_VERSION)
+    expect(PHI_VERSION).toBe('phi-v0.3')
     expect(Object.keys(first.components)).toEqual(['academic', 'financial', 'language', 'career', 'geographic'])
     expect(first.overall).toBeGreaterThanOrEqual(0)
     expect(first.overall).toBeLessThanOrEqual(100)
@@ -72,6 +73,8 @@ describe('computeFit Φ v0.2 contract', () => {
       expect(item.score).toBeGreaterThanOrEqual(0)
       expect(item.score).toBeLessThanOrEqual(100)
       expect(item.reason.length).toBeGreaterThan(10)
+      expect(item.reason).toContain('not an admission prediction')
+      expect(typeof item.resolved).toBe('boolean')
     }
   })
 
@@ -93,7 +96,7 @@ describe('computeFit Φ v0.2 contract', () => {
     const otherField = computeFit({ ...profile, field: 'Engineering' }, university)
     const noIelts = computeFit({ ...profile, languageScore: null }, university)
     expect(baseline.components.geographic.score).toBeGreaterThan(otherDestination.components.geographic.score)
-    expect(baseline.components.academic.score).toBeGreaterThan(otherField.components.academic.score)
+    expect(baseline.components.career.score).toBeGreaterThan(otherField.components.career.score)
     expect(baseline.components.language.score).toBeGreaterThan(noIelts.components.language.score)
   })
 
@@ -148,6 +151,89 @@ describe('computeFit Φ v0.2 contract', () => {
     const result = computeFit({ ...profile, budgetMax: 5000 }, comprehensive)
     expect(result.components.financial.score).toBe(65)
     expect(result.components.financial.reason).toContain('personal net cost is unresolved')
+  })
+
+  it('scores academic fit against THIS university\'s published test bar', () => {
+    const withSatBar: University = { ...university, sat: known('1300', 'source', { numericValue: 1300 }) }
+    const above = computeFit({ ...profile, admissionTest: 'sat', admissionTestScore: 1450 }, withSatBar)
+    const below = computeFit({ ...profile, admissionTest: 'sat', admissionTestScore: 1100 }, withSatBar)
+    expect(above.components.academic.resolved).toBe(true)
+    expect(below.components.academic.resolved).toBe(true)
+    expect(above.components.academic.score).toBeGreaterThan(below.components.academic.score)
+    expect(above.components.academic.reason).toContain('1300')
+    expect(above.components.academic.reason).toContain('not an admission prediction')
+  })
+
+  it('gives the same student distinct labels for published university bars and costs', () => {
+    const student = { ...profile, admissionTest: 'sat' as const, admissionTestScore: 1450, languageScore: 7 }
+    const strongOption: University = {
+      ...university,
+      id: 'strong-option',
+      sat: known('1200', 'source', { numericValue: 1200 }),
+    }
+    const stretchOption: University = {
+      ...university,
+      id: 'stretch-option',
+      sat: known('1500', 'source', { numericValue: 1500 }),
+      ielts: known('8.0 overall', 'source', { numericValue: 8 }),
+      totalCostOfAttendance: known('US$60,000 / year', 'cost-source', { numericValue: 60000, currency: 'USD', period: 'year' }),
+    }
+
+    const strong = computeFit(student, strongOption)
+    const stretch = computeFit(student, stretchOption)
+    expect(strong.overall).toBeGreaterThan(stretch.overall)
+    expect(strong.label).toBe('Strong fit')
+    expect(stretch.label).toBe('Consider carefully')
+  })
+
+  it('leaves academic fit unresolved when no test/GPA benchmark can be compared', () => {
+    const result = computeFit({ ...profile, admissionTest: null, admissionTestScore: null, gpa: null }, university)
+    expect(result.components.academic.resolved).toBe(false)
+    expect(result.components.academic.reason).toContain('unresolved')
+  })
+
+  it('drops geographic fit from the overall when it equals the chosen destination', () => {
+    const sameCountry = computeFit(profile, university)
+    expect(sameCountry.components.geographic.resolved).toBe(false)
+    const otherCountry = computeFit({ ...profile, country: 'Canada' }, university)
+    expect(otherCountry.components.geographic.resolved).toBe(true)
+  })
+
+  it('scores career fit by published program depth for the field', () => {
+    const twoExact: University = {
+      ...university,
+      programs: [
+        university.programs[0],
+        { id: 'cs2', name: 'Computer Science and AI', degree: 'BSc', field: 'Computer Science', duration: known('4 years', 'source'), tuition: known('US$10,000 / year', 'source', { numericValue: 10000, currency: 'USD', period: 'year' }) },
+      ],
+    }
+    const deep = computeFit(profile, twoExact)
+    const shallow = computeFit(profile, university)
+    const none = computeFit({ ...profile, field: 'Underwater Basket Weaving' }, university)
+    expect(deep.components.career.score).toBe(85)
+    expect(deep.components.career.reason).toContain('2 published programs')
+    expect(shallow.components.career.score).toBe(60)
+    expect(none.components.career.resolved).toBe(false)
+    expect(deep.components.career.score).toBeGreaterThan(none.components.career.score)
+  })
+
+  it('excludes unresolved components and renormalizes over the resolved ones', () => {
+    const onlyFinancial = computeFit({
+      ...profile,
+      admissionTest: null, admissionTestScore: null, gpa: null,
+      languageTest: null, languageScore: null,
+      field: 'Underwater Basket Weaving',
+      country: 'United States',
+      budgetMax: 25000, budgetCurrency: 'USD',
+    }, university)
+    expect(onlyFinancial.components.academic.resolved).toBe(false)
+    expect(onlyFinancial.components.language.resolved).toBe(false)
+    expect(onlyFinancial.components.career.resolved).toBe(false)
+    expect(onlyFinancial.components.geographic.resolved).toBe(false)
+    expect(onlyFinancial.components.financial.resolved).toBe(true)
+    // A single resolved component means the overall equals that component's score,
+    // not a midpoint diluted by neutral 50s.
+    expect(onlyFinancial.overall).toBe(onlyFinancial.components.financial.score)
   })
 
   it('compares TOEFL and Duolingo on their own scales', () => {

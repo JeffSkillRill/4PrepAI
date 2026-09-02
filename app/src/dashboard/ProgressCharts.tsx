@@ -140,7 +140,7 @@ export function LearningProgressChart({
           : 'All currently published modules have a recorded homework submission.'}
       </p>
 
-      <ol className="mt-4 grid grid-cols-3 gap-2 sm:grid-cols-6 xl:grid-cols-11" aria-label="Modules">
+      <ol className="mt-4 grid gap-2 [grid-template-columns:repeat(auto-fill,minmax(4.25rem,1fr))]" aria-label="Modules">
         {data.map((item) => {
           const statusLabel = moduleStatusLabel(item.status)
           return (
@@ -153,7 +153,7 @@ export function LearningProgressChart({
                 <ModuleStatusIcon status={item.status} />
               </span>
               <strong className="mt-2 block text-sm">{item.number}</strong>
-              <span className="mt-0.5 block truncate text-[10px] font-extrabold uppercase tracking-[.04em]">{statusLabel}</span>
+              <span className="mt-0.5 block text-[10px] font-extrabold uppercase tracking-[.04em]">{statusLabel}</span>
               <span className="sr-only">Module {item.number}: {item.title}. {item.completedLessons} of {item.totalLessons} lessons complete.</span>
             </li>
           )
@@ -229,11 +229,11 @@ export function JourneyPositionChart({ stageId }: { stageId: DashboardStageId })
         {stages.map((stage, index) => (
           <li key={stage.id} className="min-w-0 text-center">
             <span className={`mx-auto grid size-8 place-items-center rounded-full border-2 text-xs font-extrabold ${index === currentIndex ? 'border-forest-700 bg-forest-50 text-forest-800' : index < currentIndex ? 'border-forest-700 bg-forest-700 text-white' : 'border-muted bg-white text-muted'}`}>{index + 1}</span>
-            <span className={`mt-2 hidden text-[10px] font-bold leading-3 sm:block ${index === currentIndex ? 'text-forest-800' : 'text-muted'}`}>{stage.label}</span>
+            {index !== currentIndex ? <span className="mt-2 hidden text-[10px] font-bold leading-3 text-muted sm:block">{stage.label}</span> : null}
           </li>
         ))}
       </ol>
-      <p className="mt-3 text-xs font-bold text-forest-700">Position {currentIndex + 1} of {stages.length}: {stages[currentIndex].label} · not a score</p>
+      <p className="mt-3 text-xs font-bold text-forest-700">Step {currentIndex + 1} of {stages.length}</p>
       <div className="sr-only"><table><caption>Five-stage journey</caption><tbody>{stages.map((stage, index) => <tr key={stage.id}><th>{index + 1}. {stage.label}</th><td>{index === currentIndex ? 'Current recorded position' : index < currentIndex ? 'Earlier recorded position' : 'Not yet reached'}</td></tr>)}</tbody></table></div>
     </div>
   )

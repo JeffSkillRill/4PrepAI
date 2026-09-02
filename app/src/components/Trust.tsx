@@ -138,14 +138,13 @@ export function HonestGapCluster({ items, contextRef = null }: { items: HonestGa
 const componentOrder: FitDimension[] = ['academic', 'financial', 'language', 'career', 'geographic']
 
 function FitComponentRow({ item }: { item: FitComponent }) {
-  const colors = item.tone === 'strong' ? 'bg-emerald-100 text-emerald-800' : item.tone === 'medium' ? 'bg-amber-100 text-amber-800' : 'bg-rose-100 text-rose-800'
   return (
     <div className="flex items-start gap-3 rounded-xl border border-line p-3">
-      <span className={`grid size-10 shrink-0 place-items-center rounded-lg text-xs font-extrabold ${colors}`}>{item.grade}</span>
-      <span>
-        <span className="block font-bold">{item.label} · {item.score}/100</span>
+      <span className="min-w-0 flex-1">
+        <span className="block font-bold">{item.label}</span>
         <span className="mt-1 block text-xs leading-5 text-muted">{item.reason}</span>
       </span>
+      <span className="shrink-0 text-right text-xs text-muted">{item.score}/100</span>
     </div>
   )
 }
@@ -181,14 +180,17 @@ export function FitBreakdown({ fit }: { fit: FitScore }) {
 
 export function ExpandableFit({ fit, compact = false }: { fit: FitScore; compact?: boolean }) {
   return (
-    <details className="group w-full rounded-xl bg-white text-forest-900 shadow-lg ring-1 ring-black/5">
-      <summary className={`flex min-h-11 cursor-pointer list-none items-center gap-2 ${compact ? 'p-1.5 pr-2.5' : 'p-2 pr-3'}`}>
-        <span className={`grid place-items-center rounded-lg bg-forest-600 font-extrabold text-white ${compact ? 'size-8 text-sm' : 'size-11 text-lg'}`}>{fit.grade}</span>
-        <span className="min-w-0 text-left">
-          <span className="block text-[10px] font-bold uppercase tracking-[.12em] text-muted">4Prep fit · {fit.overall}/100</span>
-          <span className="block truncate text-xs font-bold">{fit.label} · open five reasons</span>
+    <details className="group w-full rounded-2xl bg-white text-forest-900 shadow-sm ring-1 ring-line transition-shadow open:shadow-md">
+      <summary className={`flex cursor-pointer list-none items-center gap-3 rounded-2xl transition hover:bg-forest-50/60 ${compact ? 'min-h-14 p-2.5' : 'min-h-16 p-3'}`}>
+        <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-forest-50 text-forest-700 ring-1 ring-forest-100">
+          <Sparkles size={18} aria-hidden="true" />
         </span>
-        <ChevronDown size={14} className="ml-auto transition group-open:rotate-180" />
+        <span className="min-w-0 flex-1 text-left">
+          <span className="block text-[10px] font-extrabold uppercase tracking-[.14em] text-muted">4Prep fit</span>
+          <span className="mt-0.5 block truncate text-sm font-bold text-forest-900">{fit.label}</span>
+        </span>
+        <span className="hidden shrink-0 items-center rounded-full bg-forest-50 px-2.5 py-1 text-[11px] font-extrabold text-forest-700 sm:inline-flex">5 reasons</span>
+        <ChevronDown size={16} className="shrink-0 text-muted transition group-open:rotate-180" />
       </summary>
       <div className="motion-disclosure">
         <div className="overflow-hidden">

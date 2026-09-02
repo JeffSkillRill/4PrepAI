@@ -3,12 +3,10 @@ import {
   Bookmark,
   BookOpenCheck,
   ClipboardList,
-  Compass,
   Flag,
   LayoutDashboard,
-  ShieldCheck,
+  Sparkles,
   UserRound,
-  Wrench,
 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import type {
@@ -220,14 +218,15 @@ function SignedInDashboard({
         </div>
       </section>
 
-      <div className="mt-6 gap-5 lg:columns-2 [&>section]:mb-5 [&>section]:break-inside-avoid">
+      <div className="mt-6 grid gap-5 lg:grid-cols-2 lg:items-stretch">
+        <div className="flex flex-col gap-5">
         <DashboardCard icon={<Flag />} eyebrow="Where you are" title={data.learningUserStateUnavailable ? 'Stage could not be checked' : stage.label}>
           {data.learningUserStateUnavailable ? (
             <UnavailableNote>Your private lesson and homework records could not be loaded, so 4Prep will not guess your stage. Reconnect and retry.</UnavailableNote>
           ) : (
             <>
               <p className="text-sm leading-6 text-muted">{stage.description}</p>
-              <p className="mt-3 text-xs font-bold uppercase tracking-[.1em] text-forest-700">Recorded actions only · not a grade or admission prediction</p>
+              <p className="mt-3 text-sm leading-6 text-muted">Tracks steps you've completed — not your chances of admission.</p>
               <JourneyPositionChart stageId={stage.id} />
             </>
           )}
@@ -244,7 +243,7 @@ function SignedInDashboard({
               </dl>
               {topRoute?.fit ? (
                 <div className="mt-4">
-                  <p className="mb-2 text-xs font-bold uppercase tracking-[.12em] text-muted">First route to review · not an outcome prediction</p>
+                  <p className="mb-2 text-sm text-muted">A route worth reviewing</p>
                   <ExpandableFit fit={topRoute.fit} compact />
                 </div>
               ) : null}
@@ -258,22 +257,32 @@ function SignedInDashboard({
           )}
         </DashboardCard>
 
-        <DashboardCard icon={<Bookmark />} eyebrow="Saved plans" title={`${saved.size} universit${saved.size === 1 ? 'y' : 'ies'} saved`}>
+        <DashboardCard className="lg:flex-1" icon={<Bookmark />} eyebrow="Saved plans" title={`${saved.size} universit${saved.size === 1 ? 'y' : 'ies'} saved`}>
           {savedUniversities.length > 0 ? (
-            <ul className="grid gap-2.5">
-              {savedUniversities.slice(0, 4).map((university) => (
-                <li key={university.id}>
-                  <SavedUniversityRow university={university} onOpen={() => onOpenUniversity(university)} />
-                </li>
-              ))}
-            </ul>
+            <>
+              <ul className="grid gap-3">
+                {savedUniversities.slice(0, 4).map((university) => (
+                  <li key={university.id}>
+                    <SavedUniversityRow university={university} onOpen={() => onOpenUniversity(university)} />
+                  </li>
+                ))}
+              </ul>
+              <div className="mt-4 flex items-start gap-3 rounded-2xl bg-forest-50/60 p-4">
+                <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-white text-forest-700 ring-1 ring-forest-100"><Sparkles size={16} aria-hidden="true" /></span>
+                <p className="text-sm leading-6 text-muted">
+                  {saved.size > 1
+                    ? 'Ask the counselor to line these up side by side on cost, fit, and entry requirements.'
+                    : 'Save a few more universities and you can compare them side by side on cost, fit, and entry requirements.'}
+                </p>
+              </div>
+            </>
           ) : data.catalogueUnavailable ? (
             <UnavailableNote>Saved university names could not be checked. Your saved-plan records were not changed.</UnavailableNote>
           ) : (
-            <div className="rounded-xl border border-dashed border-forest-200 bg-forest-50/50 p-5 text-center">
-              <div className="mx-auto grid size-11 place-items-center rounded-full bg-forest-100 text-forest-700"><Bookmark size={20} /></div>
-              <p className="mt-3 text-sm font-bold text-forest-900">No universities saved yet</p>
-              <p className="mx-auto mt-1 max-w-xs text-sm leading-6 text-muted">Bookmark a university and it lands here, ready to compare side by side.</p>
+            <div className="rounded-2xl border border-dashed border-forest-200 bg-forest-50/50 px-5 py-8 text-center">
+              <div className="mx-auto grid size-12 place-items-center rounded-full bg-forest-100 text-forest-700"><Bookmark size={22} /></div>
+              <p className="mt-4 text-sm font-bold text-forest-900">No universities saved yet</p>
+              <p className="mx-auto mt-1.5 max-w-xs text-sm leading-6 text-muted">Bookmark a university and it lands here, ready to compare side by side on cost, fit, and entry requirements.</p>
             </div>
           )}
           <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2">
@@ -284,7 +293,9 @@ function SignedInDashboard({
           </div>
         </DashboardCard>
 
-        <DashboardCard icon={<BookOpenCheck />} eyebrow="Learning portal" title={`${signals.completedLessonCount} lessons complete · ${signals.submittedHomeworkCount} homework submitted`}>
+        </div>
+        <div className="flex flex-col gap-5">
+        <DashboardCard className="lg:flex-1" icon={<BookOpenCheck />} eyebrow="Learning portal" title={`${signals.completedLessonCount} lessons complete · ${signals.submittedHomeworkCount} homework submitted`}>
           {data.learningUnavailable ? (
             <UnavailableNote>Learning progress could not be checked. Nothing was changed; reconnect and retry from the Learning Portal.</UnavailableNote>
           ) : (
@@ -302,14 +313,7 @@ function SignedInDashboard({
           )}
           <AppLink href={viewPaths.learn as string} onNavigate={() => onNavigate('learn')} className="mt-4 inline-flex items-center gap-2 font-bold text-forest-700">Open Learning Portal <ArrowRight size={17} /></AppLink>
         </DashboardCard>
-
-        <DashboardCard icon={<ShieldCheck />} eyebrow="Trusted help" title="Research tools stay separate from outcomes">
-          <p className="text-sm leading-6 text-muted">Use the counselor for sourced facts or clearly labeled general guidance. Its operational request log is not exposed as a student activity score.</p>
-          <div className="mt-4 flex flex-wrap gap-3">
-            <AppLink href={viewPaths.counselor as string} onNavigate={() => onNavigate('counselor')} className="inline-flex items-center gap-2 rounded-xl border border-line px-4 py-3 font-bold text-forest-800"><Compass size={17} /> Counselor</AppLink>
-            <AppLink href={viewPaths.tools as string} onNavigate={() => onNavigate('tools')} className="inline-flex items-center gap-2 rounded-xl border border-line px-4 py-3 font-bold text-forest-800"><Wrench size={17} /> All tools</AppLink>
-          </div>
-        </DashboardCard>
+        </div>
       </div>
     </div>
   )
@@ -424,8 +428,8 @@ function DashboardCard({
   )
 }
 
-function DashboardFact({ label, value }: { label: string; value: string }) {
-  return <div className="rounded-xl bg-canvas p-3"><dt className="text-xs font-bold text-muted">{label}</dt><dd className="mt-1 break-words font-bold">{value}</dd></div>
+function DashboardFact({ label, value, children }: { label: string; value: string; children?: React.ReactNode }) {
+  return <div className="rounded-xl bg-canvas p-3"><dt className="text-xs font-bold text-muted">{label}</dt><dd className="mt-1 break-words font-bold">{value}</dd>{children ? <dd>{children}</dd> : null}</div>
 }
 
 /**
@@ -446,17 +450,16 @@ function SavedUniversityRow({ university, onOpen }: { university: University; on
     <AppLink
       href={`/universities/${encodeURIComponent(university.id)}`}
       onNavigate={onOpen}
-      className="group flex items-center gap-3 rounded-xl border border-line px-4 py-3 text-left transition hover:border-forest-300 hover:bg-forest-50/40"
+      className="group flex items-center gap-3.5 rounded-2xl border border-line bg-white px-4 py-4 text-left transition hover:border-forest-300 hover:bg-forest-50/40 hover:shadow-sm"
     >
-      <span className="grid size-10 shrink-0 place-items-center rounded-lg bg-forest-800 text-lg" aria-hidden="true">{university.flag}</span>
+      <span className="grid size-12 shrink-0 place-items-center rounded-xl bg-forest-800 text-xl ring-1 ring-forest-900/10" aria-hidden="true">{university.flag}</span>
       <span className="min-w-0 flex-1">
         <span className="block truncate font-bold text-forest-900">{university.name}</span>
         <span className="mt-0.5 block truncate text-xs text-muted">{university.city}, {university.country}</span>
+        <span className={`mt-2 inline-flex rounded-full px-2.5 py-0.5 text-[11px] font-extrabold sm:hidden ${fitTone}`}>{fit ? fit.label : 'Sourced'}</span>
       </span>
-      <span className={`hidden shrink-0 rounded-full px-2.5 py-1 text-[11px] font-extrabold sm:inline ${fitTone}`}>
-        {fit ? `${fit.label} · ${fit.grade}` : 'Sourced'}
-      </span>
-      <ArrowRight size={17} className="shrink-0 text-muted transition group-hover:translate-x-0.5 group-hover:text-forest-700" />
+      <span className={`hidden shrink-0 rounded-full px-3 py-1 text-[11px] font-extrabold sm:inline ${fitTone}`}>{fit ? fit.label : 'Sourced'}</span>
+      <ArrowRight size={18} className="shrink-0 text-muted transition group-hover:translate-x-0.5 group-hover:text-forest-700" />
     </AppLink>
   )
 }
@@ -465,6 +468,7 @@ function formatBudget(profile: StudentProfile): string {
   if (profile.budgetMax === null || !profile.budgetCurrency) return 'Still working it out'
   return `${profile.budgetCurrency} ${profile.budgetMax.toLocaleString()}`
 }
+
 
 function EmptyStep({
   step,

@@ -15,7 +15,7 @@ import {
 import { useEffect, useId, useState } from 'react'
 import type { FormEvent } from 'react'
 import { logUnmappedAuthError, mapAuthError, type AuthProblem } from '../auth/errors'
-import { useAuth } from '../auth/AuthProvider'
+import { displayNameForUser, initialsForDisplayName, useAuth } from '../auth/AuthProvider'
 import type { View } from '../types'
 import { AppLink } from '../components/AppLink'
 import { viewPaths } from '../routes'
@@ -32,6 +32,74 @@ type AuthStatus = 'ready' | 'loading' | 'loading_google' | 'confirmation'
 
 const fieldClass = 'mt-2 w-full rounded-xl border border-line bg-white px-4 py-3 font-normal outline-none transition focus:border-forest-500 focus-visible:ring-2 focus-visible:ring-forest-300'
 const focusButtonClass = 'outline-none focus-visible:ring-2 focus-visible:ring-forest-400 focus-visible:ring-offset-2'
+const maxAvatarFileSize = 2 * 1024 * 1024
+
+function avatarValidationError(file: File): string | null {
+  if (!file.type.startsWith('image/')) return 'Choose an image file for your profile photo.'
+  if (file.size > maxAvatarFileSize) return 'Choose a profile photo smaller than 2 MB.'
+  return null
+}
+
+function AvatarPicker({
+  avatarUrl = null,
+  displayName,
+  file,
+  onChange,
+  onRemove,
+  disabled = false,
+}: {
+  avatarUrl?: string | null
+  displayName: string
+  file: File | null
+  onChange: (file: File | null) => void
+  onRemove: () => void
+  disabled?: boolean
+}) {
+  const inputId = useId()
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!file) return
+    const reader = new FileReader()
+    let active = true
+    reader.addEventListener('load', () => {
+      if (active && typeof reader.result === 'string') setPreviewUrl(reader.result)
+    })
+    reader.readAsDataURL(file)
+    return () => { active = false }
+  }, [file])
+
+  const preview = file ? previewUrl : avatarUrl
+  const name = displayName.trim() || 'Student'
+  return (
+    <fieldset>
+      <legend className="block text-sm font-bold">Profile photo <span className="font-normal text-muted">(optional)</span></legend>
+      <div className="mt-2 flex items-center gap-3 rounded-xl border border-line bg-canvas p-3">
+        {preview ? (
+          <img src={preview} alt="Profile photo preview" className="size-12 shrink-0 rounded-full object-cover" />
+        ) : (
+          <span aria-hidden="true" className="grid size-12 shrink-0 place-items-center rounded-full bg-forest-100 text-sm font-extrabold text-forest-800">{initialsForDisplayName(name)}</span>
+        )}
+        {!preview && <span className="sr-only">No profile photo selected; showing initials for {name}.</span>}
+        <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
+          <label htmlFor={inputId} className={`inline-flex min-h-11 items-center rounded-xl border border-forest-200 bg-white px-3 py-2 text-sm font-bold text-forest-700 ${disabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer hover:bg-forest-50'} ${focusButtonClass}`}>
+            {preview ? 'Replace photo' : 'Choose photo'}
+          </label>
+          <input
+            id={inputId}
+            type="file"
+            accept="image/*"
+            disabled={disabled}
+            onChange={(event) => onChange(event.target.files?.[0] ?? null)}
+            className="sr-only"
+          />
+          {file ? <button type="button" onClick={onRemove} disabled={disabled} className={`min-h-11 px-2 text-sm font-bold text-forest-700 underline disabled:opacity-50 ${focusButtonClass}`}>Remove</button> : null}
+        </div>
+      </div>
+      <p className="mt-2 text-xs leading-5 text-muted">Optional image files up to 2 MB are stored with your account and can be changed later.</p>
+    </fieldset>
+  )
+}
 
 function GoogleMark() {
   return (
@@ -135,6 +203,7 @@ export function AuthScreen({
     signInWithGoogle,
     resendConfirmation,
     updatePassword,
+    updateProfile,
     deleteAccount,
     signOut,
   } = useAuth()
@@ -143,15 +212,21 @@ export function AuthScreen({
   const accountPasswordId = useId()
   const deleteEmailId = useId()
   const [mode, setMode] = useState<'sign_in' | 'sign_up'>('sign_in')
+  const [displayName, setDisplayName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [avatarFile, setAvatarFile] = useState<File | null>(null)
+  const [avatarError, setAvatarError] = useState('')
   const [consented, setConsented] = useState(false)
   const [googleConsented, setGoogleConsented] = useState(false)
   const [status, setStatus] = useState<AuthStatus>('ready')
   const [problem, setProblem] = useState<AuthProblem | null>(null)
   const [notice, setNotice] = useState('')
   const [accountPassword, setAccountPassword] = useState('')
-  const [accountAction, setAccountAction] = useState<'ready' | 'password' | 'sign_out' | 'delete'>('ready')
+  const [accountDisplayName, setAccountDisplayName] = useState('')
+  const [accountAvatarFile, setAccountAvatarFile] = useState<File | null>(null)
+  const [accountAvatarError, setAccountAvatarError] = useState('')
+  const [accountAction, setAccountAction] = useState<'ready' | 'profile' | 'password' | 'sign_out' | 'delete'>('ready')
   const [deleteStep, setDeleteStep] = useState<'closed' | 'confirm'>('closed')
   const [deleteEmail, setDeleteEmail] = useState('')
   const [accountDeleted, setAccountDeleted] = useState(false)
@@ -161,6 +236,26 @@ export function AuthScreen({
     const nextProblem = mapAuthError(reason)
     logUnmappedAuthError(reason, nextProblem)
     setProblem(nextProblem)
+  }
+
+  const chooseAvatar = (
+    file: File | null,
+    setFile: (file: File | null) => void,
+    setError: (message: string) => void,
+  ) => {
+    if (!file) {
+      setFile(null)
+      setError('')
+      return
+    }
+    const error = avatarValidationError(file)
+    if (error) {
+      setFile(null)
+      setError(error)
+      return
+    }
+    setFile(file)
+    setError('')
   }
 
   if (accountDeleted) {
@@ -192,6 +287,29 @@ export function AuthScreen({
   if (user) {
     const normalizedEmail = user.email?.trim().toLowerCase() ?? ''
     const canDelete = normalizedEmail.length > 0 && deleteEmail.trim().toLowerCase() === normalizedEmail
+    const currentDisplayName = accountDisplayName || displayNameForUser(user)
+    const currentAvatarUrl = typeof user.user_metadata.avatar_url === 'string' ? user.user_metadata.avatar_url : null
+    const saveProfile = async (event: FormEvent) => {
+      event.preventDefault()
+      const fullName = currentDisplayName.trim()
+      if (!fullName) return
+      setAccountAction('profile')
+      setProblem(null)
+      setNotice('')
+      try {
+        const updatedUser = await updateProfile({
+          fullName,
+          avatarFile: accountAvatarFile ?? undefined,
+        })
+        setAccountDisplayName(displayNameForUser(updatedUser))
+        setAccountAvatarFile(null)
+        setNotice('Your profile details are updated.')
+      } catch (reason) {
+        handleProblem(reason)
+      } finally {
+        setAccountAction('ready')
+      }
+    }
     const saveAccountPassword = async (event: FormEvent) => {
       event.preventDefault()
       setAccountAction('password')
@@ -253,6 +371,40 @@ export function AuthScreen({
             </button>
           </div>
           <p className="mt-3 text-center text-xs leading-5 text-muted">Sign out before leaving a shared device.</p>
+
+          <div className="mt-8 border-t border-line pt-7">
+            <h2 className="display text-xl font-extrabold">Profile</h2>
+            <p className="mt-2 text-sm leading-6 text-muted">Choose the name and optional photo that appear in your 4Prep account.</p>
+            <form onSubmit={(event) => void saveProfile(event)} className="mt-4 space-y-4">
+              <div>
+                <label htmlFor={`${emailId}-display-name`} className="block text-sm font-bold">Display name</label>
+                <input
+                  required
+                  id={`${emailId}-display-name`}
+                  autoComplete="name"
+                  value={currentDisplayName}
+                  onChange={(event) => setAccountDisplayName(event.target.value)}
+                  className={fieldClass}
+                />
+              </div>
+              <AvatarPicker
+                avatarUrl={currentAvatarUrl}
+                displayName={currentDisplayName}
+                file={accountAvatarFile}
+                onChange={(file) => chooseAvatar(file, setAccountAvatarFile, setAccountAvatarError)}
+                onRemove={() => { setAccountAvatarFile(null); setAccountAvatarError('') }}
+                disabled={accountAction !== 'ready'}
+              />
+              {accountAvatarError && <p role="alert" className="text-sm text-rose-800">{accountAvatarError}</p>}
+              <button
+                disabled={accountAction !== 'ready'}
+                aria-busy={accountAction === 'profile'}
+                className={`w-full rounded-xl border border-forest-700 px-4 py-3 font-bold text-forest-800 disabled:opacity-50 ${focusButtonClass}`}
+              >
+                {accountAction === 'profile' ? 'Saving profile…' : 'Save profile'}
+              </button>
+            </form>
+          </div>
 
           <div className="mt-8 border-t border-line pt-7">
             <h2 className="display text-xl font-extrabold">Email password</h2>
@@ -335,18 +487,19 @@ export function AuthScreen({
 
   const submit = async (event: FormEvent) => {
     event.preventDefault()
-    if (mode === 'sign_up' && !consented) return
+    if (mode === 'sign_up' && (!consented || !displayName.trim())) return
     setStatus('loading')
     setProblem(null)
     setNotice('')
     try {
       if (mode === 'sign_up') {
-        const result = await signUp(email, password)
+        const result = await signUp(email, password, displayName.trim())
         if (result === 'confirmation_required') {
           setStatus('confirmation')
           cooldown.start()
           return
         }
+        if (avatarFile) await updateProfile({ avatarFile })
       } else {
         await signIn(email, password)
       }
@@ -386,7 +539,7 @@ export function AuthScreen({
             <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-5 text-emerald-950">
               <Mail size={24} />
               <h2 className="display mt-3 text-xl font-extrabold">Check your email</h2>
-              <p className="mt-2 break-words text-sm leading-6">We sent a confirmation link to <strong>{email}</strong>. Open it to finish creating your account.</p>
+              <p className="mt-2 break-words text-sm leading-6">We sent a confirmation link to <strong>{email}</strong>. Open it to finish creating your account. You can add your optional profile photo from your account after confirming.</p>
             </div>
             <div className="mt-4" aria-live="polite">
               {notice && <p className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm leading-6 text-emerald-950">{notice}</p>}
@@ -438,6 +591,29 @@ export function AuthScreen({
             </div>
 
             <form onSubmit={(event) => void submit(event)} className="space-y-5">
+              {mode === 'sign_up' && (
+                <>
+                  <div>
+                    <label htmlFor={`${emailId}-display-name`} className="block text-sm font-bold">Display name</label>
+                    <input
+                      required
+                      id={`${emailId}-display-name`}
+                      autoComplete="name"
+                      value={displayName}
+                      onChange={(event) => setDisplayName(event.target.value)}
+                      className={fieldClass}
+                    />
+                  </div>
+                  <AvatarPicker
+                    displayName={displayName}
+                    file={avatarFile}
+                    onChange={(file) => chooseAvatar(file, setAvatarFile, setAvatarError)}
+                    onRemove={() => { setAvatarFile(null); setAvatarError('') }}
+                    disabled={status !== 'ready'}
+                  />
+                  {avatarError && <p role="alert" className="text-sm text-rose-800">{avatarError}</p>}
+                </>
+              )}
               <div>
                 <label htmlFor={emailId} className="block text-sm font-bold">Email</label>
                 <input

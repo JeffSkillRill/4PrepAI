@@ -11,10 +11,11 @@ type AuthContextValue = {
   authEvent: AuthChangeEvent | null
   isPasswordRecovery: boolean
   signIn: (email: string, password: string) => Promise<void>
-  signUp: (email: string, password: string) => Promise<'active' | 'confirmation_required'>
+  signUp: (email: string, password: string, fullName?: string) => Promise<'active' | 'confirmation_required'>
   signInWithGoogle: () => Promise<void>
   resetPassword: (email: string) => Promise<void>
   updatePassword: (password: string) => Promise<void>
+  updateProfile: ({ fullName, avatarFile }: { fullName?: string; avatarFile?: File }) => Promise<User>
   resendConfirmation: (email: string) => Promise<void>
   recordPrivacyConsent: (consentedAt: string) => Promise<void>
   deleteAccount: () => Promise<void>
@@ -39,6 +40,31 @@ function isRecoveryUrl(): boolean {
   const query = new URLSearchParams(window.location.search)
   const fragment = new URLSearchParams(window.location.hash.replace(/^#/, ''))
   return query.get('type') === 'recovery' || fragment.get('type') === 'recovery'
+}
+
+export function displayNameForUser(user: User): string {
+  const fullName = user.user_metadata.full_name
+  if (typeof fullName === 'string' && fullName.trim()) return fullName.trim()
+  return user.email?.split('@')[0] || 'Student'
+}
+
+export function initialsForDisplayName(displayName: string): string {
+  const initials = displayName
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0])
+    .join('')
+    .toUpperCase()
+  return initials || 'S'
+}
+
+function avatarExtension(file: File): string {
+  const extension = file.name.split('.').pop()?.toLowerCase() ?? ''
+  if (/^[a-z0-9]{1,8}$/.test(extension)) return extension
+  const subtype = file.type.split('/')[1]?.replace(/[^a-z0-9]/gi, '').toLowerCase()
+  return subtype || 'image'
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -100,7 +126,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const { error } = await getSupabaseClient().auth.signInWithPassword({ email, password })
       if (error) throw error
     },
-    signUp: async (email, password) => {
+    signUp: async (email, password, fullName) => {
       const consentedAt = new Date().toISOString()
       const { data, error } = await getSupabaseClient().auth.signUp({
         email,
@@ -108,6 +134,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         options: {
           emailRedirectTo: appUrl('/auth/callback?kind=confirmation'),
           data: {
+            full_name: fullName?.trim() || undefined,
             privacy_consent_version: PRIVACY_CONSENT_VERSION,
             privacy_consented_at: consentedAt,
           },
@@ -138,6 +165,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (error) throw error
       setIsPasswordRecovery(false)
     },
+    updateProfile: async ({ fullName, avatarFile }) => {
+      const client = getSupabaseClient()
+      const { data: userData, error: userError } = await client.auth.getUser()
+      if (userError) throw userError
+      const currentUser = userData.user
+      if (!currentUser) throw new Error('Sign in before updating your profile.')
+
+      const metadata: Record<string, string> = {}
+      if (fullName !== undefined) metadata.full_name = fullName.trim()
+      if (avatarFile) {
+        const path = `${currentUser.id}/avatar-${Date.now()}.${avatarExtension(avatarFile)}`
+        const { error: uploadError } = await client.storage.from('avatars').upload(path, avatarFile, {
+          upsert: true,
+          contentType: avatarFile.type,
+        })
+        if (uploadError) throw uploadError
+        const { data: publicUrl } = client.storage.from('avatars').getPublicUrl(path)
+        metadata.avatar_url = publicUrl.publicUrl
+      }
+
+      if (Object.keys(metadata).length === 0) return currentUser
+      const { data, error } = await client.auth.updateUser({ data: metadata })
+      if (error) throw error
+      if (!data.user) throw new Error('4Prep could not update your profile.')
+      return data.user
+    },
     resendConfirmation: async (email) => {
       const { error } = await getSupabaseClient().auth.resend({
         type: 'signup',
@@ -166,6 +219,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         throw new Error('Account deletion is blocked in local development while connected to the production Supabase project.')
       }
       const client = getSupabaseClient()
+      const avatarOwnerId = session?.user.id
+      if (avatarOwnerId) {
+        // Public avatar URLs should not outlive the account. RLS limits this
+        // best-effort cleanup to the signed-in user's folder.
+        const bucket = client.storage.from('avatars')
+        const { data: avatars } = await bucket.list(avatarOwnerId, { limit: 100 })
+        const paths = avatars?.map((avatar) => `${avatarOwnerId}/${avatar.name}`) ?? []
+        if (paths.length > 0) await bucket.remove(paths)
+      }
       const { data, error } = await client.functions.invoke<{
         deleted: boolean
         orphanedRows: number

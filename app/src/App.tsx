@@ -1,6 +1,6 @@
-import { LogIn, Menu, UserRound, X } from 'lucide-react'
+import { CheckCircle2, LogIn, Menu, UserRound, X } from 'lucide-react'
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react'
-import { useAuth } from './auth/AuthProvider'
+import { displayNameForUser, initialsForDisplayName, useAuth } from './auth/AuthProvider'
 import {
   clearPendingAuth,
   getAuthStorage,
@@ -56,14 +56,9 @@ const SupportScreen = lazy(async () => {
   return { default: module.SupportScreen }
 })
 
-// Tools carries the planning tools — skill gap, scholarships, and pathway.
-// It sat behind a route with no link for weeks, which made two shipped tools
-// reachable only by typing a path.
 const navItems: { label: string; view: View }[] = [
-  { label: 'Search', view: 'search' },
-  { label: 'Tools', view: 'tools' },
-  { label: 'Learn', view: 'learn' },
-  { label: 'Saved', view: 'saved' },
+  { label: 'University List', view: 'search' },
+  { label: 'Admission', view: 'learn' },
 ]
 
 function Logo({ href, onNavigate, inverse = false }: { href: string; onNavigate: () => void; inverse?: boolean }) {
@@ -83,10 +78,24 @@ function Logo({ href, onNavigate, inverse = false }: { href: string; onNavigate:
   )
 }
 
-function Navbar({ view, onNavigate }: { view: View; onNavigate: (view: View) => void }) {
+function AccountAvatar({ avatarUrl, displayName }: { avatarUrl: string | null; displayName: string }) {
+  if (avatarUrl) {
+    return <img src={avatarUrl} alt="Your profile photo" className="size-7 shrink-0 rounded-full object-cover" />
+  }
+  return <>
+    <span aria-hidden="true" className="grid size-7 shrink-0 place-items-center rounded-full bg-forest-100 text-[11px] font-extrabold text-forest-800">{initialsForDisplayName(displayName)}</span>
+    <span className="sr-only">{displayName}</span>
+  </>
+}
+
+export function Navbar({ view, onNavigate, hasPlan }: { view: View; onNavigate: (view: View) => void; hasPlan: boolean }) {
   const [menuOpen, setMenuOpen] = useState(false)
   const { user } = useAuth()
   const accountView: View = user ? 'dashboard' : 'auth'
+  const displayName = user ? displayNameForUser(user) : ''
+  const avatarUrl = user && typeof user.user_metadata.avatar_url === 'string' ? user.user_metadata.avatar_url : null
+  const planView: View = hasPlan ? 'dashboard' : 'intake'
+  const planLabel = hasPlan ? 'View my plan' : 'Build my plan'
   return (
     <header className="sticky top-0 z-40 border-b border-line bg-white">
       <div className="page-container flex h-[72px] items-center gap-4">
@@ -94,11 +103,16 @@ function Navbar({ view, onNavigate }: { view: View; onNavigate: (view: View) => 
         <nav className="hidden items-center gap-1 xl:flex" aria-label="Primary navigation">
           {navItems.map((item) => <AppLink key={item.view} href={viewPaths[item.view] as string} onNavigate={() => onNavigate(item.view)} aria-current={view === item.view ? 'page' : undefined} className={`rounded-lg px-3 py-2 text-sm font-bold transition ${view === item.view ? 'bg-forest-50 text-forest-800' : 'text-muted hover:bg-canvas hover:text-ink'}`}>{item.label}</AppLink>)}
         </nav>
-        <AppLink href={viewPaths[accountView] as string} onNavigate={() => onNavigate(accountView)} className="ml-auto hidden shrink-0 items-center gap-2 rounded-xl border border-line px-3 py-2.5 text-sm font-bold text-forest-800 sm:flex"><LogIn size={16} /> {user ? 'Account' : 'Sign in'}</AppLink>
-        <button onClick={() => onNavigate('intake')} className="hidden shrink-0 items-center gap-2 rounded-xl bg-forest-800 px-4 py-2.5 text-sm font-bold text-white sm:flex"><UserRound size={17} /> Build my plan</button>
+        {user ? (
+          <AppLink href={viewPaths[accountView] as string} onNavigate={() => onNavigate(accountView)} className="ml-auto hidden min-w-0 shrink items-center gap-2 rounded-xl border border-line px-3 py-2.5 text-sm font-bold text-forest-800 sm:flex">
+            <AccountAvatar avatarUrl={avatarUrl} displayName={displayName} />
+            <span className="max-w-28 truncate" aria-hidden={avatarUrl ? undefined : true}>{displayName}</span>
+          </AppLink>
+        ) : <AppLink href={viewPaths.auth as string} onNavigate={() => onNavigate('auth')} className="ml-auto hidden shrink-0 items-center gap-2 rounded-xl border border-line px-3 py-2.5 text-sm font-bold text-forest-800 sm:flex"><LogIn size={16} /> Sign in</AppLink>}
+        <button onClick={() => onNavigate(planView)} className="hidden shrink-0 items-center gap-2 rounded-xl bg-forest-800 px-4 py-2.5 text-sm font-bold text-white sm:flex">{hasPlan ? <CheckCircle2 size={17} /> : <UserRound size={17} />} {planLabel}</button>
         <button onClick={() => setMenuOpen(!menuOpen)} className="grid size-11 place-items-center rounded-xl border border-line xl:hidden" aria-label="Toggle menu" aria-expanded={menuOpen}>{menuOpen ? <X size={20} /> : <Menu size={20} />}</button>
       </div>
-      {menuOpen && <div className="border-t border-line bg-white xl:hidden"><nav className="page-container grid gap-1 py-3" aria-label="Mobile navigation">{navItems.map((item) => <AppLink key={item.view} href={viewPaths[item.view] as string} onNavigate={() => { onNavigate(item.view); setMenuOpen(false) }} aria-current={view === item.view ? 'page' : undefined} className={`rounded-xl px-4 py-3 text-left font-bold ${view === item.view ? 'bg-forest-50 text-forest-800' : 'text-muted'}`}>{item.label}</AppLink>)}<AppLink href={viewPaths[accountView] as string} onNavigate={() => { onNavigate(accountView); setMenuOpen(false) }} className="rounded-xl px-4 py-3 text-left font-bold text-muted">{user ? 'Account' : 'Sign in'}</AppLink><button onClick={() => { onNavigate('intake'); setMenuOpen(false) }} className="mt-2 rounded-xl bg-forest-800 px-4 py-3 text-left font-bold text-white">Build my plan</button></nav></div>}
+      {menuOpen && <div className="border-t border-line bg-white xl:hidden"><nav className="page-container grid gap-1 py-3" aria-label="Mobile navigation">{navItems.map((item) => <AppLink key={item.view} href={viewPaths[item.view] as string} onNavigate={() => { onNavigate(item.view); setMenuOpen(false) }} aria-current={view === item.view ? 'page' : undefined} className={`rounded-xl px-4 py-3 text-left font-bold ${view === item.view ? 'bg-forest-50 text-forest-800' : 'text-muted'}`}>{item.label}</AppLink>)}{user ? <AppLink href={viewPaths[accountView] as string} onNavigate={() => { onNavigate(accountView); setMenuOpen(false) }} className="flex min-w-0 items-center gap-2 rounded-xl px-4 py-3 text-left font-bold text-muted"><AccountAvatar avatarUrl={avatarUrl} displayName={displayName} /><span className="truncate" aria-hidden={avatarUrl ? undefined : true}>{displayName}</span></AppLink> : <AppLink href={viewPaths.auth as string} onNavigate={() => { onNavigate('auth'); setMenuOpen(false) }} className="rounded-xl px-4 py-3 text-left font-bold text-muted">Sign in</AppLink>}<button onClick={() => { onNavigate(planView); setMenuOpen(false) }} className="mt-2 flex items-center gap-2 rounded-xl bg-forest-800 px-4 py-3 text-left font-bold text-white">{hasPlan ? <CheckCircle2 size={17} /> : <UserRound size={17} />} {planLabel}</button></nav></div>}
     </header>
   )
 }
@@ -593,7 +607,7 @@ export default function App() {
   return (
     <div className="min-h-screen bg-canvas">
       <a href="#main-content" className="skip-link">Skip to main content</a>
-      <Navbar view={view} onNavigate={navigate} />
+      <Navbar view={view} onNavigate={navigate} hasPlan={Boolean(profile)} />
       <ConnectionStatus />
       <main id="main-content" tabIndex={-1}>{screen}</main>
       <Footer onNavigate={navigate} />
