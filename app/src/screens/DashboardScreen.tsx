@@ -190,9 +190,6 @@ function SignedInDashboard({
     return (
       <DashboardEmpty
         learningUnavailable={data.learningUnavailable}
-        learningStates={learningStates}
-        completedLessonIds={data.learningUserState.completedLessonIds}
-        submissions={data.learningUserState.submissions}
         onNavigate={onNavigate}
         stage={stage}
       />
@@ -206,7 +203,7 @@ function SignedInDashboard({
         <div className="mt-3 grid gap-6 lg:grid-cols-[1fr_360px] lg:items-end">
           <div>
             <h1 className="display text-3xl font-extrabold sm:text-5xl">Pick up the next real step</h1>
-            <p className="mt-3 max-w-2xl leading-7 text-white/75">This page reports recorded actions only. It does not grade your progress or predict an admission outcome.</p>
+            <p className="mt-3 max-w-2xl leading-7 text-white/75">This is guidance based on recorded information, not an admission prediction.</p>
             <button type="button" onClick={() => onNavigate('auth')} className="mt-5 inline-flex items-center gap-2 rounded-xl border border-white/35 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-white/10"><UserRound size={17} /> Account details</button>
           </div>
           <NextAction
@@ -226,7 +223,6 @@ function SignedInDashboard({
           ) : (
             <>
               <p className="text-sm leading-6 text-muted">{stage.description}</p>
-              <p className="mt-3 text-sm leading-6 text-muted">Tracks steps you've completed — not your chances of admission.</p>
               <JourneyPositionChart stageId={stage.id} />
             </>
           )}
@@ -320,42 +316,32 @@ function SignedInDashboard({
 }
 
 function DashboardEmpty({
-  completedLessonIds,
   learningUnavailable,
-  learningStates,
   onNavigate,
   stage,
-  submissions,
 }: {
-  completedLessonIds: ReadonlySet<string>
   learningUnavailable: boolean
-  learningStates: ReturnType<typeof deriveLearningModuleStates>
   onNavigate: (view: View) => void
   stage: DashboardStage
-  submissions: LearningUserState['submissions']
 }) {
   return (
     <div className="page-container motion-resolve py-8 sm:py-12">
       <section className="soft-grid rounded-[28px] border border-line bg-white p-6 shadow-soft sm:p-10">
         <p className="text-sm font-extrabold uppercase tracking-[.14em] text-forest-700">Your stage · {stage.label}</p>
         <h1 className="display mt-2 max-w-2xl text-3xl font-extrabold sm:text-5xl">Start with facts, not empty metrics</h1>
-        <p className="mt-4 max-w-2xl leading-7 text-muted">{stage.description} Your intake is not complete, so there is no study goal to show yet. We will not fill the space with guessed chances, invented deadlines, or a readiness score.</p>
+        <p className="mt-4 max-w-2xl leading-7 text-muted">Start with your intake so 4Prep can organize the facts around your plan. We will not fill this page with guessed chances, invented deadlines, or a readiness score.</p>
+        <AppLink href={viewPaths.intake as string} onNavigate={() => onNavigate('intake')} className="mt-6 inline-flex min-h-12 items-center gap-2 rounded-xl bg-forest-800 px-5 py-3 font-bold text-white">Start intake <ArrowRight size={18} /></AppLink>
       </section>
-      <div className="mt-6 grid gap-4 lg:grid-cols-3">
-        <EmptyStep step="1" title="Tell us about your plan" body="Create the profile used by the five-part fit explanation." action="Start intake" href={viewPaths.intake as string} onClick={() => onNavigate('intake')} />
-        <EmptyStep step="2" title="Review official evidence" body="Browse costs, requirements, sources, and honest gaps before saving." action="Explore universities" href={viewPaths.search as string} onClick={() => onNavigate('search')} />
-        <EmptyStep step="3" title="Begin the application course" body={learningUnavailable ? 'The Learning Portal is currently unavailable; no progress has been invented.' : 'Browse the real modules and save progress when you complete work.'} action="Open Learning Portal" href={viewPaths.learn as string} onClick={() => onNavigate('learn')} />
-      </div>
-      {!learningUnavailable && learningStates.length > 0 ? (
-        <section className="card mt-6 p-5 sm:p-7">
-          <p className="text-xs font-extrabold uppercase tracking-[.13em] text-forest-700">Learning progress</p>
-          <h2 className="display mt-1 text-xl font-extrabold">Your learning path is ready</h2>
-          <p className="mt-2 text-sm leading-6 text-muted">Start with the first available module. This view updates only after a lesson or homework action is saved.</p>
-          <LearningProgressChart states={learningStates} completedLessonIds={completedLessonIds} />
-          <HomeworkStatusChart submissions={submissions} />
-          <RecordedEventTimeline completedLessons={[]} submissions={submissions} />
-        </section>
-      ) : null}
+      <details className="card mt-6">
+        <summary className="flex min-h-14 cursor-pointer list-none items-center justify-between gap-4 px-5 py-3 font-bold text-forest-800 sm:px-7">
+          More ways to continue
+          <ArrowRight size={18} aria-hidden="true" />
+        </summary>
+        <div className="grid gap-3 border-t border-line p-5 sm:grid-cols-2 sm:p-7">
+          <AppLink href={viewPaths.search as string} onNavigate={() => onNavigate('search')} className="rounded-xl border border-line px-4 py-3 text-sm font-bold text-forest-800">Explore universities</AppLink>
+          <AppLink href={viewPaths.learn as string} onNavigate={() => onNavigate('learn')} className="rounded-xl border border-line px-4 py-3 text-sm font-bold text-forest-800">{learningUnavailable ? 'Check Learning Portal later' : 'Open Learning Portal'}</AppLink>
+        </div>
+      </details>
     </div>
   )
 }
@@ -469,31 +455,6 @@ function formatBudget(profile: StudentProfile): string {
   return `${profile.budgetCurrency} ${profile.budgetMax.toLocaleString()}`
 }
 
-
-function EmptyStep({
-  step,
-  title,
-  body,
-  action,
-  href,
-  onClick,
-}: {
-  step: string
-  title: string
-  body: string
-  action: string
-  href: string
-  onClick: () => void
-}) {
-  return (
-    <section className="card flex flex-col p-5">
-      <span className="grid size-10 place-items-center rounded-xl bg-forest-800 font-extrabold text-white">{step}</span>
-      <h2 className="display mt-5 text-xl font-extrabold">{title}</h2>
-      <p className="mt-2 flex-1 text-sm leading-6 text-muted">{body}</p>
-      <AppLink href={href} onNavigate={onClick} className="mt-5 inline-flex items-center gap-2 font-bold text-forest-700">{action} <ArrowRight size={17} /></AppLink>
-    </section>
-  )
-}
 
 function UnavailableNote({ children }: { children: React.ReactNode }) {
   return <p className="trust-static rounded-xl border border-line bg-canvas p-3 text-sm leading-6 text-muted">{children}</p>

@@ -37,6 +37,7 @@ describe('CostSummary chart density', () => {
   it('keeps the composition chart in the full university profile', () => {
     render(<CostSummary university={university} />)
     expect(screen.getByText(/Published annual components/)).toBeTruthy()
+    expect(screen.getByText('Published aid is not your personal offer. Confirm eligibility and ask for an offer.')).toBeTruthy()
   })
 
   it('opens compact cost components in a modal instead of expanding the card', () => {

@@ -45,7 +45,13 @@ function FilterContent({ budget, setBudget, field, setField, fields }: FilterPro
       <label className="block text-sm font-bold">Field of study
         <span className="relative mt-2 block"><select value={field} onChange={(event) => setField(event.target.value)} className="w-full appearance-none rounded-xl border border-line bg-white px-3 py-2.5 pr-9 text-sm font-normal text-ink"><option value="">All fields</option>{fields.map((item) => <option key={item}>{item}</option>)}</select><ChevronDown size={16} className="pointer-events-none absolute right-3 top-3 text-muted" /></span>
       </label>
-      <p className="rounded-xl bg-forest-50 p-3 text-xs leading-5 text-muted"><strong className="block text-forest-900">Budget meaning</strong>Results compare official annual cost of attendance with the largest numeric institutional award published for international students. Competitive awards are scenarios, not promises. Full-need policies and incomplete figures stay visible for individual review.</p>
+      <details className="group rounded-xl border border-forest-100 bg-forest-50">
+        <summary className="flex min-h-10 cursor-pointer list-none items-center px-3 py-2 text-xs font-bold text-forest-800">
+          What does this budget mean?
+          <ChevronDown size={15} className="ml-auto shrink-0 transition group-open:rotate-180" aria-hidden="true" />
+        </summary>
+        <p className="border-t border-forest-100 px-3 py-2 text-xs leading-5 text-muted">Results compare official annual cost of attendance with the largest numeric institutional award published for international students. Competitive awards are scenarios, not promises. Full-need policies and incomplete figures stay visible for individual review.</p>
+      </details>
     </div>
   )
 }
@@ -128,7 +134,14 @@ export function SearchScreen({ query, setQuery, saved, onToggleSave, onOpen }: P
             ? `${filtered.length} ${filtered.length === 1 ? 'university matches' : 'universities match'} the current filters.`
             : 'No universities match the current filters. Clear filters or widen the budget or field to continue.'}
         </p>
-        {unknownCostCount > 0 && <div className="trust-static mb-5 flex items-start gap-2 rounded-xl border border-forest-100 bg-white p-4 text-sm text-forest-950"><FileSearch size={17} className="mt-0.5 shrink-0 text-forest-700" /><span><strong>Kept visible on purpose:</strong> {unknownCostCount} result{unknownCostCount === 1 ? '' : 's'} cannot be filtered by a published numeric net cost. Open the evidence to see what the university has and has not published.</span></div>}
+        {unknownCostCount > 0 && <details className="trust-static mb-5 rounded-xl border border-forest-100 bg-white text-sm text-forest-950">
+          <summary className="flex min-h-12 cursor-pointer list-none items-center gap-2 px-4 py-3 font-bold">
+            <FileSearch size={17} className="shrink-0 text-forest-700" aria-hidden="true" />
+            <span>{unknownCostCount} school{unknownCostCount === 1 ? '' : 's'} don’t publish a full numeric cost — Why?</span>
+            <ChevronDown size={16} className="ml-auto shrink-0 transition group-open:rotate-180" aria-hidden="true" />
+          </summary>
+          <p className="border-t border-forest-100 px-4 py-3 leading-6 text-muted">They stay in your results because no published numeric net cost lets us compare them to your ceiling. Open each school’s evidence to see the published funding or cost facts and the labelled gaps.</p>
+        </details>}
         <div className="grid items-start gap-7 lg:grid-cols-[240px_minmax(0,1fr)]">
           <aside className={`card sticky hidden p-5 lg:block ${searchPinned ? 'top-[220px]' : 'top-44'}`}>
             <div className="mb-5 flex items-center justify-between"><h3 className="display text-lg font-extrabold">Filters</h3><SlidersHorizontal size={18} className="text-forest-700" /></div>

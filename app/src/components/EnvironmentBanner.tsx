@@ -1,18 +1,38 @@
-import { Database, ShieldAlert } from 'lucide-react'
+import { Database, ShieldAlert, X } from 'lucide-react'
+import { useState } from 'react'
 import { describeSupabaseTarget } from '../data/environment'
 
+const dismissalStorageKey = '4prep.environment-banner-dismissed.v1'
+
+function readDismissal() {
+  try {
+    return typeof window !== 'undefined' && window.sessionStorage.getItem(dismissalStorageKey) === 'true'
+  } catch {
+    return false
+  }
+}
+
 export function EnvironmentBanner() {
+  const [dismissed, setDismissed] = useState(readDismissal)
   if (!import.meta.env.DEV) return null
   const target = describeSupabaseTarget(import.meta.env.VITE_SUPABASE_URL as string | undefined)
+  if (dismissed) return null
+  const dismiss = () => {
+    setDismissed(true)
+    try {
+      window.sessionStorage.setItem(dismissalStorageKey, 'true')
+    } catch {
+      // The pill can still be dismissed when storage is unavailable.
+    }
+  }
   return (
     <div
-      className={`fixed bottom-3 left-3 right-3 z-[60] rounded-xl shadow-lg sm:left-auto sm:max-w-lg ${target.production ? 'bg-rose-700 text-white' : 'bg-amber-200 text-amber-950'}`}
+      className={`fixed top-3 left-3 z-[60] flex max-w-[calc(100vw-1.5rem)] items-center gap-2 rounded-full py-1.5 pr-1.5 pl-3 shadow-lg ${target.production ? 'bg-rose-700 text-white' : 'bg-amber-200 text-amber-950'}`}
       role="status"
     >
-      <div className="flex min-h-11 items-center justify-center gap-2 px-4 py-2 text-center text-xs font-extrabold sm:text-sm">
-        {target.production ? <ShieldAlert size={16} className="shrink-0" /> : <Database size={15} className="shrink-0" />}
-        <span>Development build · Database: {target.label}{target.production ? ' · destructive operations blocked' : ''}</span>
-      </div>
+      {target.production ? <ShieldAlert size={16} className="shrink-0" /> : <Database size={15} className="shrink-0" />}
+      <span className="min-w-0 text-xs font-extrabold">DEV · {target.label}</span>
+      <button type="button" onClick={dismiss} className="grid size-7 shrink-0 place-items-center rounded-full hover:bg-black/10 focus-visible:ring-2 focus-visible:ring-current" aria-label="Dismiss development environment banner"><X size={14} /></button>
     </div>
   )
 }

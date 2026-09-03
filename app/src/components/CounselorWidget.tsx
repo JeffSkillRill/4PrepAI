@@ -1,14 +1,26 @@
 import { ArrowUpRight, Bot, ChevronDown, Send, X } from 'lucide-react'
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useCounselorConversation } from '../counselor/conversation'
 import { SafeMarkdown } from './SafeMarkdown'
 import { requestCounselorAnswer } from '../screens/CounselorScreen'
 
 export function CounselorWidget({ onOpenCounselor }: { onOpenCounselor?: () => void }) {
-  const [open, setOpen] = useState(true)
+  const [open, setOpen] = useState(false)
   const [message, setMessage] = useState('')
   const [loading, setLoading] = useState(false)
+  const launcherRef = useRef<HTMLButtonElement>(null)
+  const messageInputRef = useRef<HTMLInputElement>(null)
+  const hasOpenedRef = useRef(false)
   const { turns, addTurn, clearTurns } = useCounselorConversation()
+
+  useEffect(() => {
+    if (open) {
+      hasOpenedRef.current = true
+      messageInputRef.current?.focus()
+    } else if (hasOpenedRef.current) {
+      launcherRef.current?.focus()
+    }
+  }, [open])
 
   const ask = async (event: React.FormEvent) => {
     event.preventDefault()
@@ -22,7 +34,7 @@ export function CounselorWidget({ onOpenCounselor }: { onOpenCounselor?: () => v
   }
 
   return (
-    <aside className="counselor-widget fixed bottom-4 right-4 z-50 flex flex-col items-end sm:bottom-6 sm:right-6" aria-label="4Prep counselor">
+    <aside className="counselor-widget fixed top-24 right-4 z-50 flex flex-col items-end sm:top-auto sm:bottom-6 sm:right-6" aria-label="4Prep counselor">
       {open ? (
         <section className="counselor-widget-panel w-[calc(100vw-2rem)] max-w-sm overflow-hidden rounded-xl border border-forest-200 bg-white shadow-raised" aria-live="polite">
           <header className="flex items-start gap-3 bg-forest-800 px-4 py-3 text-white">
@@ -42,13 +54,13 @@ export function CounselorWidget({ onOpenCounselor }: { onOpenCounselor?: () => v
             {turns.length > 0 && <button type="button" onClick={clearTurns} className="mb-2 min-h-0 px-1 py-1 text-xs font-bold text-muted underline hover:text-forest-800">Clear chat</button>}
             <label className="sr-only" htmlFor="counselor-widget-message">Ask the counselor</label>
             <div className="flex items-center gap-2 rounded-lg border border-line bg-canvas px-3 focus-within:border-forest-500 focus-within:ring-2 focus-within:ring-forest-100">
-              <input id="counselor-widget-message" value={message} onChange={(event) => setMessage(event.target.value)} maxLength={1000} placeholder="Ask a question" className="min-w-0 flex-1 border-0 bg-transparent py-2 text-sm outline-none" />
+              <input ref={messageInputRef} id="counselor-widget-message" value={message} onChange={(event) => setMessage(event.target.value)} maxLength={1000} placeholder="Ask a question" className="min-w-0 flex-1 border-0 bg-transparent py-2 text-sm outline-none" />
               <button type="submit" disabled={!message.trim() || loading} className="grid size-9 min-h-0 min-w-0 place-items-center rounded-lg bg-forest-800 text-white disabled:bg-button-disabled disabled:text-muted" aria-label="Send question"><Send size={16} /></button>
             </div>
           </form>
         </section>
       ) : (
-        <button type="button" onClick={() => setOpen(true)} className="counselor-widget-launcher grid size-14 place-items-center rounded-full bg-forest-800 text-white shadow-raised hover:bg-forest-700 focus-visible:ring-4 focus-visible:ring-forest-200" aria-label="Open 4Prep counselor"><Bot size={25} /></button>
+        <button ref={launcherRef} type="button" onClick={() => setOpen(true)} className="counselor-widget-launcher grid size-14 place-items-center rounded-full bg-forest-800 text-white shadow-raised hover:bg-forest-700 focus-visible:ring-4 focus-visible:ring-forest-200" aria-label="Open 4Prep counselor"><Bot size={25} /></button>
       )}
       {open && <button type="button" onClick={() => setOpen(false)} className="mt-2 inline-flex min-h-9 items-center gap-1 rounded-full bg-white px-3 text-xs font-bold text-forest-800 shadow-soft hover:bg-forest-50 focus-visible:ring-2 focus-visible:ring-forest-500"><ChevronDown size={14} /> Hide counselor</button>}
     </aside>

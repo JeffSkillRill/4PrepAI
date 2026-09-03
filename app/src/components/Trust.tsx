@@ -68,8 +68,14 @@ export function MissingValue({
     <span className={`trust-static block rounded-xl border p-3 text-sm ${tone}`}>
       <span className="mb-1 block text-[10px] font-extrabold uppercase tracking-[.13em] opacity-70">{eyebrow}</span>
       <span className="flex items-start gap-2 font-semibold"><Icon size={16} className="mt-0.5 shrink-0" /> {title}</span>
-      <span className="mt-1 block text-xs leading-5 opacity-80">{reason}</span>
-      <span className="mt-2 inline-flex items-center gap-1 text-xs font-bold text-forest-700">{action} <ArrowUpRight size={12} /></span>
+      {kind === 'profile' ? <>
+        <span className="mt-1 block text-xs leading-5 opacity-80">{reason}</span>
+        <span className="mt-2 inline-flex items-center gap-1 text-xs font-bold text-forest-700">{action} <ArrowUpRight size={12} /></span>
+      </> : <details className="mt-2 text-xs">
+        <summary className="inline-flex min-h-9 cursor-pointer items-center rounded-lg px-1 font-bold text-forest-700 underline underline-offset-2 focus-visible:ring-2 focus-visible:ring-forest-500">Why unavailable?</summary>
+        <span className="mt-1 block leading-5 opacity-80">Published-data context: {reason}</span>
+        <span className="mt-2 inline-flex items-center gap-1 font-bold text-forest-700">{action} <ArrowUpRight size={12} /></span>
+      </details>}
     </span>
   )
 }
@@ -92,9 +98,7 @@ type HonestGapItem = {
 }
 
 export function HonestGapCluster({ items, contextRef = null }: { items: HonestGapItem[]; contextRef?: string | null }) {
-  const gaps = items.flatMap(({ label, point }) => (
-    point.status === 'unknown' ? [{ label, reason: point.reason, action: point.suggestedAction }] : []
-  ))
+  const gaps = items.flatMap(({ label, point }) => point.status === 'unknown' ? [label] : [])
   if (gaps.length === 0) return null
 
   return (
@@ -112,11 +116,10 @@ export function HonestGapCluster({ items, contextRef = null }: { items: HonestGa
       <div className="border-t border-line p-4">
         <p className="text-sm leading-6 text-muted">These are deliberate gaps in the university’s published information, not app errors.</p>
         <ul className="mt-4 grid gap-3">
-          {gaps.map((gap) => (
-            <li key={gap.label} className="rounded-xl bg-canvas p-3">
-              <p className="font-bold">{gap.label}</p>
-              <p className="mt-1 text-sm leading-6 text-muted">{gap.reason}</p>
-              <p className="mt-2 text-xs font-bold text-forest-700">{gap.action}</p>
+          {gaps.map((label) => (
+            <li key={label} className="rounded-xl bg-canvas p-3">
+              <p className="font-bold">{label}</p>
+              <p className="mt-1 text-sm leading-6 text-muted">See this field’s “Why unavailable?” disclosure for the published-data context and next step.</p>
             </li>
           ))}
         </ul>

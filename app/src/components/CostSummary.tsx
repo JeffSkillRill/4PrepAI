@@ -133,6 +133,7 @@ export function CostSummary({
           <div className={`${compact ? 'text-xs leading-5' : 'mt-1 text-xl'} font-extrabold text-forest-950`}>
             <PublishedNetCost university={university} compact={compact} showSources={!compact} />
           </div>
+          {!compact && <p id="published-aid-caution" className="mt-2 text-xs leading-5 text-muted">Published aid is not your personal offer. Confirm eligibility and ask for an offer.</p>}
         </div>
       </div>
 

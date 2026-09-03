@@ -2,8 +2,8 @@
 
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import type { FitScore } from '../types'
-import { ExpandableFit, FitBreakdown, SourceChip } from './Trust'
+import type { DataPoint, FitScore } from '../types'
+import { DataValue, ExpandableFit, FitBreakdown, HonestGapCluster, SourceChip } from './Trust'
 
 vi.mock('../data/DataProvider', () => ({
   useSource: () => ({
@@ -64,5 +64,36 @@ describe('fit disclosure', () => {
     const visibleReason = screen.getAllByText(fit.components.academic.reason).find((element) => element.tagName === 'SPAN')
     expect(visibleReason?.className).toContain('text-muted')
     expect(screen.getByRole('table', { name: 'Five deterministic fit components with reasons' })).toBeTruthy()
+  })
+})
+
+describe('published-data gap disclosures', () => {
+  const unknown: DataPoint<string> = {
+    status: 'unknown',
+    reason: 'The university does not publish this figure for international applicants.',
+    suggestedAction: 'Ask the admissions office for the current requirement.',
+  }
+
+  it('keeps the missing fact visible and puts its explanation behind a native disclosure', () => {
+    render(<DataValue point={unknown} />)
+
+    expect(screen.getByText('Not published')).toBeTruthy()
+    const details = screen.getByText('Why unavailable?').closest('details')!
+    expect(details.open).toBe(false)
+
+    fireEvent.click(screen.getByText('Why unavailable?'))
+    expect(details.open).toBe(true)
+    expect(screen.getByText(`Published-data context: ${unknown.reason}`)).toBeTruthy()
+    expect(screen.getByText(unknown.suggestedAction)).toBeTruthy()
+  })
+
+  it('keeps the coverage summary without repeating every field explanation', () => {
+    render(<HonestGapCluster items={[{ label: 'Mandatory fees', point: unknown }]} />)
+
+    expect(screen.getByText('1 official figure is not published')).toBeTruthy()
+    fireEvent.click(screen.getByText('Published-data coverage'))
+    expect(screen.getByText('Mandatory fees')).toBeTruthy()
+    expect(screen.queryByText(unknown.reason)).toBeNull()
+    expect(screen.queryByText(unknown.suggestedAction)).toBeNull()
   })
 })

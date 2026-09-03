@@ -67,7 +67,8 @@ describe('DashboardScreen stage and goal', () => {
     expect(screen.getByText('Computer Science')).toBeTruthy()
     expect(screen.getByText('USD 5,000')).toBeTruthy()
     expect(screen.getByText('Spring 2027')).toBeTruthy()
-    expect(screen.getByText("Tracks steps you've completed — not your chances of admission.")).toBeTruthy()
+    expect(screen.getByText('This is guidance based on recorded information, not an admission prediction.')).toBeTruthy()
+    expect(screen.queryByText("Tracks steps you've completed — not your chances of admission.")).toBeNull()
     expect(screen.queryByText(/Recorded actions only.*not a grade or admission prediction/i)).toBeNull()
     expect(screen.queryByText(/typically cost well above this/i)).toBeNull()
     expect(screen.queryByRole('button', { name: /counsellor about funding/i })).toBeNull()
@@ -111,8 +112,19 @@ describe('DashboardScreen stage and goal', () => {
     )
 
     expect(await screen.findByText('Your stage · Getting started')).toBeTruthy()
-    expect(screen.getByText(/Your intake is not complete, so there is no study goal to show yet/)).toBeTruthy()
+    expect(screen.getByText(/Start with your intake so 4Prep can organize the facts around your plan/)).toBeTruthy()
+    expect(screen.getAllByRole('link', { name: /Start intake/ })).toHaveLength(1)
     expect(screen.getByRole('link', { name: /Start intake/ }).getAttribute('href')).toBe('/intake')
+    expect(screen.queryByRole('progressbar')).toBeNull()
+    expect(screen.queryByText('Learning progress')).toBeNull()
+
+    const moreWays = screen.getByText('More ways to continue').closest('details')
+    expect(moreWays).toBeTruthy()
+    expect(moreWays?.open).toBe(false)
+    fireEvent.click(screen.getByText('More ways to continue'))
+    expect(moreWays?.open).toBe(true)
+    expect(screen.getByRole('link', { name: 'Explore universities' }).getAttribute('href')).toBe('/universities')
+    expect(screen.getByRole('link', { name: 'Open Learning Portal' }).getAttribute('href')).toBe('/learn')
   })
 
   it('uses recorded feedback as the strongest stage signal', async () => {

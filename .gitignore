@@ -14,3 +14,5 @@ app/supabase/.temp/
 docs/prompts/
 docs/
 **/README.md
+qa-ux/screens/
+qa-ux/step*/

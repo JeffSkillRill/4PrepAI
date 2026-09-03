@@ -215,6 +215,8 @@ export function LearningTrackScreen(props: LearningScreenProps) {
         )
         const submittedCount = states.filter(({ status }) => status === 'homework_submitted').length
         const continueModule = findLearningContinueModule(states)
+        const primaryState = states.find(({ module }) => module.id === continueModule?.id) ?? null
+        const laterStates = primaryState ? states.filter(({ module }) => module.id !== primaryState.module.id) : []
         return (
           <div className="page-container py-6 sm:py-10">
             <section className="rounded-[24px] border border-forest-100 bg-white p-5 shadow-soft sm:p-8">
@@ -224,16 +226,6 @@ export function LearningTrackScreen(props: LearningScreenProps) {
                   <h1 className="display text-3xl font-extrabold sm:text-5xl">{track.title}</h1>
                   <p className="mt-3 max-w-2xl leading-7 text-muted">{track.description}</p>
                 </div>
-                {continueModule ? (
-                  <AppLink
-                    href={learningPath('learn_module', continueModule.slug)}
-                    onNavigate={() => props.onOpenModule(continueModule.slug)}
-                    className="flex min-h-12 w-full items-center justify-between gap-3 rounded-xl bg-forest-800 px-5 py-3 text-left font-bold text-white"
-                  >
-                    <span><span className="block text-xs font-semibold text-forest-100">Continue where you left off</span>{continueModule.title}</span>
-                    <ArrowRight size={19} className="shrink-0" />
-                  </AppLink>
-                ) : null}
               </div>
               <div className="mt-7">
                 {props.userId
@@ -243,32 +235,51 @@ export function LearningTrackScreen(props: LearningScreenProps) {
             </section>
 
             <section className="mt-7" aria-labelledby="module-list-title">
-              <div className="mb-4 flex items-end justify-between gap-4">
-                <div>
-                  <p className="text-sm font-bold text-forest-700">{track.modules.length} modules</p>
-                  <h2 id="module-list-title" className="display text-2xl font-extrabold">Your course</h2>
+              <p className="text-sm font-bold text-forest-700">{track.modules.length} modules</p>
+              <h2 id="module-list-title" className="display mt-1 text-2xl font-extrabold">Your course</h2>
+              {primaryState ? <article className="mt-4 rounded-2xl border border-forest-200 bg-forest-50 p-5 shadow-soft sm:p-6">
+                <div className="flex items-start justify-between gap-3">
+                  <p className="text-sm font-extrabold uppercase tracking-[.13em] text-forest-700">Start here</p>
+                  <StatusBadge status={primaryState.status} />
                 </div>
-              </div>
-              <div className="grid gap-4 lg:grid-cols-2">
-                {states.map(({ module, status }) => (
-                  <article key={module.id} className="flex min-h-44 flex-col rounded-2xl border border-line bg-white p-5 shadow-soft">
-                    <div className="flex items-start justify-between gap-3">
-                      <p className="text-sm font-extrabold text-forest-700">Module {module.moduleNumber}</p>
-                      <StatusBadge status={status} />
-                    </div>
-                    <h3 className="display mt-3 text-xl font-extrabold">{module.title}</h3>
-                    <p className="mt-2 flex-1 text-sm leading-6 text-muted">{module.summary}</p>
-                    <AppLink
-                      href={learningPath('learn_module', module.slug)}
-                      onNavigate={() => props.onOpenModule(module.slug)}
-                      className="mt-4 inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-forest-200 px-4 py-2.5 font-bold text-forest-800"
-                    >
-                      {status === 'locked' ? 'Preview with warning' : 'Open module'}
-                      <ArrowRight size={17} />
-                    </AppLink>
-                  </article>
-                ))}
-              </div>
+                <h3 className="display mt-3 text-2xl font-extrabold">Module {primaryState.module.moduleNumber}: {primaryState.module.title}</h3>
+                <p className="mt-2 max-w-2xl text-sm leading-6 text-muted">{primaryState.module.summary}</p>
+                <AppLink
+                  href={learningPath('learn_module', primaryState.module.slug)}
+                  onNavigate={() => props.onOpenModule(primaryState.module.slug)}
+                  className="mt-5 inline-flex min-h-12 items-center gap-2 rounded-xl bg-forest-800 px-5 py-3 font-bold text-white"
+                >
+                  {primaryState.status === 'available' ? 'Start module' : 'Continue module'}
+                  <ArrowRight size={18} />
+                </AppLink>
+              </article> : null}
+              {laterStates.length > 0 ? <details className="group mt-4 rounded-2xl border border-line bg-white">
+                <summary className="flex min-h-14 cursor-pointer list-none items-center gap-3 px-5 py-3 font-bold text-forest-800">
+                  <span className="min-w-0 flex-1">{laterStates.length} later module{laterStates.length === 1 ? '' : 's'}</span>
+                  <ChevronDown size={18} className="shrink-0 transition group-open:rotate-180" aria-hidden="true" />
+                </summary>
+                <div className="grid gap-3 border-t border-line p-4">
+                  {laterStates.map(({ module, status }) => (
+                    <details key={module.id} className="rounded-xl border border-line bg-canvas/40">
+                      <summary className="flex min-h-12 cursor-pointer list-none items-center gap-3 px-4 py-3">
+                        <span className="min-w-0 flex-1"><span className="block text-xs font-bold text-muted">Module {module.moduleNumber}</span><span className="block truncate font-bold text-ink">{module.title}</span></span>
+                        <StatusBadge status={status} />
+                      </summary>
+                      <div className="border-t border-line px-4 py-3">
+                        <p className="text-sm leading-6 text-muted">{module.summary}</p>
+                        <AppLink
+                          href={learningPath('learn_module', module.slug)}
+                          onNavigate={() => props.onOpenModule(module.slug)}
+                          className="mt-3 inline-flex min-h-11 items-center gap-2 rounded-xl border border-forest-200 px-4 py-2.5 font-bold text-forest-800"
+                        >
+                          {status === 'locked' ? 'Preview with warning' : 'Open module'}
+                          <ArrowRight size={17} />
+                        </AppLink>
+                      </div>
+                    </details>
+                  ))}
+                </div>
+              </details> : null}
             </section>
           </div>
         )

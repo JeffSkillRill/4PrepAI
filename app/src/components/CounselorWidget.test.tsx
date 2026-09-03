@@ -18,20 +18,26 @@ describe('CounselorWidget', () => {
   })
   afterEach(cleanup)
 
-  it('opens by default and can be hidden then reopened', () => {
+  it('starts closed with a launcher, then moves focus into the panel and back on close', () => {
     render(<CounselorWidget />)
 
+    const launcher = screen.getByRole('button', { name: 'Open 4Prep counselor' })
+    expect(launcher).toBeTruthy()
+    expect(screen.queryByRole('heading', { name: '4Prep counselor' })).toBeNull()
+
+    fireEvent.click(launcher)
     expect(screen.getByRole('heading', { name: '4Prep counselor' })).toBeTruthy()
-    fireEvent.click(screen.getByRole('button', { name: 'Hide counselor' }))
-    expect(screen.getByRole('button', { name: 'Open 4Prep counselor' })).toBeTruthy()
-    fireEvent.click(screen.getByRole('button', { name: 'Open 4Prep counselor' }))
-    expect(screen.getByRole('heading', { name: '4Prep counselor' })).toBeTruthy()
+    expect(document.activeElement).toBe(screen.getByLabelText('Ask the counselor'))
+
+    fireEvent.click(screen.getByRole('button', { name: 'Close counselor' }))
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Open 4Prep counselor' }))
   })
 
   it('opens the full counselor page from the chat bar', () => {
     const onOpenCounselor = vi.fn()
     render(<CounselorWidget onOpenCounselor={onOpenCounselor} />)
 
+    fireEvent.click(screen.getByRole('button', { name: 'Open 4Prep counselor' }))
     fireEvent.click(screen.getByRole('button', { name: 'Open full counselor chat' }))
 
     expect(onOpenCounselor).toHaveBeenCalledOnce()
@@ -45,11 +51,16 @@ describe('CounselorWidget', () => {
     })
     render(<CounselorWidget />)
 
+    fireEvent.click(screen.getByRole('button', { name: 'Open 4Prep counselor' }))
     const input = screen.getByLabelText('Ask the counselor')
     fireEvent.change(input, { target: { value: 'What aid does Berea offer?' } })
     fireEvent.submit(input.closest('form')!)
 
     expect(await screen.findByText('full funding', { selector: 'strong' })).toBeTruthy()
+    expect(screen.getByText('What aid does Berea offer?')).toBeTruthy()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Close counselor' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Open 4Prep counselor' }))
     expect(screen.getByText('What aid does Berea offer?')).toBeTruthy()
   })
 })

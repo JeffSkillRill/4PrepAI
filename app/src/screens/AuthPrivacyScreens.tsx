@@ -215,8 +215,6 @@ export function AuthScreen({
   const [displayName, setDisplayName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [avatarFile, setAvatarFile] = useState<File | null>(null)
-  const [avatarError, setAvatarError] = useState('')
   const [consented, setConsented] = useState(false)
   const [googleConsented, setGoogleConsented] = useState(false)
   const [status, setStatus] = useState<AuthStatus>('ready')
@@ -499,7 +497,6 @@ export function AuthScreen({
           cooldown.start()
           return
         }
-        if (avatarFile) await updateProfile({ avatarFile })
       } else {
         await signIn(email, password)
       }
@@ -604,14 +601,6 @@ export function AuthScreen({
                       className={fieldClass}
                     />
                   </div>
-                  <AvatarPicker
-                    displayName={displayName}
-                    file={avatarFile}
-                    onChange={(file) => chooseAvatar(file, setAvatarFile, setAvatarError)}
-                    onRemove={() => { setAvatarFile(null); setAvatarError('') }}
-                    disabled={status !== 'ready'}
-                  />
-                  {avatarError && <p role="alert" className="text-sm text-rose-800">{avatarError}</p>}
                 </>
               )}
               <div>

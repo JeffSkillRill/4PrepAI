@@ -145,4 +145,51 @@ describe('SearchScreen result announcements', () => {
     expect(screen.getByText('Alpha University')).toBeTruthy()
     expect(screen.queryByText('Beta College')).toBeNull()
   })
+
+  it('keeps unknown-cost schools visible and defers both explanations behind disclosures', () => {
+    repositoryMocks.data = [{
+      id: 'unknown-cost',
+      name: 'Unknown Cost University',
+      city: 'Example City',
+      country: 'United States',
+      programs: [],
+      scholarships: [],
+      aidInternational: { status: 'unknown', reason: 'Not published', suggestedAction: 'Ask admissions' },
+      totalCostOfAttendance: { status: 'unknown', reason: 'Not published', suggestedAction: 'Ask admissions' },
+    } as unknown as University]
+
+    render(
+      <SearchScreen
+        query=""
+        setQuery={vi.fn()}
+        saved={new Set()}
+        onToggleSave={vi.fn()}
+        onOpen={vi.fn()}
+      />,
+    )
+
+    fireEvent.change(screen.getByLabelText(/Annual budget ceiling/), { target: { value: '5000' } })
+    expect(screen.getByText('Unknown Cost University')).toBeTruthy()
+
+    const budgetSummary = screen.getByText('What does this budget mean?')
+    const budgetDetails = budgetSummary.closest('details')
+    expect(budgetDetails?.open).toBe(false)
+    budgetSummary.focus()
+    fireEvent.click(budgetSummary)
+    expect(budgetDetails?.open).toBe(true)
+    fireEvent.click(budgetSummary)
+    expect(budgetDetails?.open).toBe(false)
+    expect(document.activeElement).toBe(budgetSummary)
+
+    const unknownSummary = screen.getByText(/1 school don’t publish a full numeric cost — Why\?/).closest('summary')
+    const unknownDetails = unknownSummary?.closest('details')
+    expect(unknownDetails?.open).toBe(false)
+    unknownSummary?.focus()
+    fireEvent.click(unknownSummary!)
+    expect(unknownDetails?.open).toBe(true)
+    expect(unknownDetails?.textContent).toContain('They stay in your results')
+    fireEvent.click(unknownSummary!)
+    expect(unknownDetails?.open).toBe(false)
+    expect(document.activeElement).toBe(unknownSummary)
+  })
 })
