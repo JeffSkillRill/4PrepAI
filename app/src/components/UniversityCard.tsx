@@ -1,30 +1,15 @@
 import { ArrowRight, Bookmark, BookmarkCheck, MapPin } from 'lucide-react'
-import { useEffect, useRef, useState } from 'react'
 import type { University } from '../types'
-import { shouldAnimateMotion } from '../motion/preference'
 import { DataValue, ExpandableFit, MissingValue } from './Trust'
 import { CostSummary } from './CostSummary'
 import { UniversityVisual } from './UniversityVisual'
 import { AppLink } from './AppLink'
 
-export function UniversityCard({ university, saved, onSave, onOpen, fitsAfterScholarship = false, layout = 'grid', revealIndex = 0 }: { university: University; saved: boolean; onSave: () => void; onOpen: () => void; fitsAfterScholarship?: boolean; layout?: 'grid' | 'list'; revealIndex?: number }) {
+export function UniversityCard({ university, saved, onSave, onOpen, fitsAfterScholarship = false, layout = 'grid' }: { university: University; saved: boolean; onSave: () => void; onOpen: () => void; fitsAfterScholarship?: boolean; layout?: 'grid' | 'list' }) {
   const isList = layout === 'list'
-  const cardRef = useRef<HTMLElement>(null)
-  const [revealed, setRevealed] = useState(() => !shouldAnimateMotion() || typeof IntersectionObserver === 'undefined')
-
-  useEffect(() => {
-    if (!shouldAnimateMotion() || typeof IntersectionObserver === 'undefined') return
-    const card = cardRef.current
-    if (!card) return
-    const observer = new IntersectionObserver(([entry]) => {
-      setRevealed(Boolean(entry?.isIntersecting))
-    }, { threshold: 0.15 })
-    observer.observe(card)
-    return () => observer.disconnect()
-  }, [])
 
   return (
-    <article ref={cardRef} className={`card interactive-card university-card-reveal group overflow-hidden ${revealed ? 'is-revealed' : ''} ${isList ? 'md:grid md:grid-cols-[200px_minmax(0,1fr)] xl:grid-cols-[240px_minmax(0,1fr)]' : ''}`} style={{ '--university-card-reveal-delay': `${Math.min(revealIndex, 4) * 70}ms` } as React.CSSProperties}>
+    <article className={`card interactive-card group overflow-hidden ${isList ? 'md:grid md:grid-cols-[200px_minmax(0,1fr)] xl:grid-cols-[240px_minmax(0,1fr)]' : ''}`}>
       <div className={`relative aspect-video overflow-hidden bg-forest-800 ${isList ? 'md:aspect-auto md:min-h-[220px]' : ''}`}>
         <UniversityVisual university={university} className="motion-media absolute inset-0 group-hover:scale-[1.025]" />
         <div className="image-scrim absolute inset-0" />

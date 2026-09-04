@@ -141,18 +141,6 @@ a[href]::after {
   transition-timing-function: var(--motion-ease-enter);
 }
 .interactive-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-card); border-color: var(--color-forest-200); }
-.university-card-reveal {
-  opacity: 0;
-  transform: translateY(18px) scale(.985);
-  transition:
-    opacity var(--motion-duration-large) var(--motion-ease-enter),
-    transform var(--motion-duration-large) var(--motion-ease-enter),
-    box-shadow var(--motion-duration-element) var(--motion-ease-enter),
-    border-color var(--motion-duration-element) var(--motion-ease-enter);
-  transition-delay: var(--university-card-reveal-delay, 0ms);
-}
-.university-card-reveal.is-revealed { opacity: 1; transform: translateY(0) scale(1); }
-.university-card-reveal.is-revealed:hover { transform: translateY(-2px); }
 .transition {
   transition-property: transform, opacity !important;
   transition-duration: var(--motion-duration-feedback) !important;
@@ -316,7 +304,6 @@ details:not([open]) > .motion-disclosure { grid-template-rows: 0fr; }
 @media (max-width: 767px) {
   .page-container { width: min(100% - 32px, 1200px); }
   .interactive-card:hover { transform: none; }
-  .university-card-reveal.is-revealed:hover { transform: none; }
   .timeline-line::before { display: none; }
 }
 
@@ -326,6 +313,5 @@ details:not([open]) > .motion-disclosure { grid-template-rows: 0fr; }
     animation: none !important;
     transition: none !important;
   }
-  .university-card-reveal { opacity: 1 !important; transform: none !important; }
   :where(button, a, summary, [role="button"]):active { transform: none !important; }
 }

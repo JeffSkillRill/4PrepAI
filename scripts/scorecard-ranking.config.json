@@ -1,0 +1,33 @@
+{
+  "dataYear": 2023,
+  "weights": {
+    "selectivity": 0.3,
+    "academics": 0.25,
+    "completion": 0.2,
+    "earnings": 0.25
+  },
+  "topN": 200,
+  "includeTerritories": false,
+  "existingSchoolUnitids": {
+    "berea": 156295,
+    "brown": 217156,
+    "clark": 165334,
+    "columbia": 190150,
+    "cornell": 190415,
+    "duke": 198419,
+    "harvard": 166027,
+    "illinois-wesleyan": 145646,
+    "jhu": 162928,
+    "mit": 166683,
+    "northwestern": 147767,
+    "princeton": 186131,
+    "stanford": 243744,
+    "alabama": 100751,
+    "unk": 181215,
+    "upenn": 215062,
+    "usm": 176372,
+    "yale": 130794
+  },
+  "manualExclude": [],
+  "manualInclude": []
+}
