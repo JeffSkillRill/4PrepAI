@@ -17,6 +17,9 @@ vi.mock('../data/useRepositoryData', () => ({
       description: 'Example description',
       highlights: [],
       programs: [],
+      rankings: [],
+      campuses: [],
+      scholarships: [],
       verification: 'verified',
     },
     status: 'ready',
@@ -32,6 +35,8 @@ vi.mock('../components/Trust', () => ({
   DataValue: () => <span>Data value</span>,
   ExpandableFit: () => <details><summary>4Prep fit</summary></details>,
   HonestGapCluster: () => <span>Published-data coverage</span>,
+  AIResponseBlock: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  SourceChip: () => <span>Source</span>,
   MissingValue: ({ title }: { title: string }) => <span>{title}</span>,
   SampleNotice: () => null,
 }))
@@ -56,13 +61,13 @@ describe('ProfileScreen fit and aid explanations', () => {
     expect(screen.queryByText('4Prep fit')).toBeNull()
   })
 
-  it('shows one expandable fit and links Scholarships to the single aid caution after intake', () => {
+  it('shows one expandable fit and sourced-section empty states after intake', () => {
     render(<ProfileScreen {...props} profile={{} as StudentProfile} />)
 
     expect(screen.getAllByText('4Prep fit')).toHaveLength(1)
     expect(screen.queryByText('Your fit isn’t calculated yet')).toBeNull()
     expect(screen.queryByText('Your route here')).toBeNull()
-    expect(screen.getAllByText('Published aid is not your personal offer. Confirm eligibility and ask for an offer.')).toHaveLength(1)
-    expect(screen.getByRole('link', { name: 'See the published-aid caution in Costs.' }).getAttribute('href')).toBe('#published-aid-caution')
+    expect(screen.getAllByText('Coming soon').length).toBeGreaterThan(0)
+    expect(screen.getByText('Rankings & ratings')).toBeTruthy()
   })
 })

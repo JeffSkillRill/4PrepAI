@@ -11,6 +11,7 @@ import {
 } from '../_shared/adminAuth.ts'
 import {
   ADMIN_FILE_URL_TTL_SECONDS,
+  QS_INGEST_MAX_BYTES,
   cleanSupportMessage,
   formatAdminGoal,
   happenedWithinDays,
@@ -20,6 +21,8 @@ import {
   submissionStoragePathBelongsToUser,
   supportMessagePreview,
   supportThreadIsWaiting,
+  parseQsIngestPayload,
+  type QsIngestPayload,
   type ProfileGoalRow,
 } from './contract.ts'
 
@@ -118,6 +121,7 @@ type AdminAction =
   | { action: 'lead_inbox'; status: LeadStatus }
   | { action: 'lead_claim'; leadId: string }
   | { action: 'lead_resolve'; leadId: string; status: 'answered' | 'closed' }
+  | { action: 'ingest_university_profile'; payload: QsIngestPayload }
 
 type LeadStatus = 'new' | 'claimed' | 'answered' | 'closed'
 
@@ -211,6 +215,10 @@ function parseAction(value: unknown): AdminAction | null {
     && (candidate.status === 'answered' || candidate.status === 'closed')
   ) {
     return { action: 'lead_resolve', leadId: candidate.leadId, status: candidate.status }
+  }
+  if (candidate.action === 'ingest_university_profile') {
+    const payload = parseQsIngestPayload(candidate.payload)
+    return payload ? { action: 'ingest_university_profile', payload } : null
   }
   return null
 }
@@ -790,6 +798,32 @@ async function supportReplyResponse(
   return { message: adminSupportMessage(data as SupportMessageRow) }
 }
 
+async function ingestUniversityProfileResponse(
+  context: AdminContext,
+  payload: QsIngestPayload,
+) {
+  // The database function performs every profile mutation in one PostgreSQL
+  // transaction. This function has already proven the caller's active grant;
+  // only the server-side service client can invoke the revoked RPC.
+  const { data, error } = await context.database.rpc('ingest_qs_university_profile', {
+    p_payload: payload,
+  })
+  if (error) throw new Error(error.message)
+  await auditAdminEvent(context, {
+    action: 'university_profile.ingest',
+    resourceType: 'university',
+    resourceId: payload.universityId,
+    outcome: 'allowed',
+    metadata: {
+      source_host: 'www.topuniversities.com',
+      rankings_provided: payload.rankings?.length ?? 0,
+      campuses_provided: payload.campuses?.length ?? 0,
+      programmes_provided: payload.programmes?.length ?? 0,
+    },
+  })
+  return data
+}
+
 export default {
   async fetch(request: Request) {
     const requestId = crypto.randomUUID()
@@ -801,6 +835,10 @@ export default {
       })
     }
     if (request.method !== 'POST') return json(request, requestId, { error: 'Method not allowed.' }, 405)
+    const contentLength = Number(request.headers.get('content-length'))
+    if (Number.isFinite(contentLength) && contentLength > QS_INGEST_MAX_BYTES) {
+      return json(request, requestId, { error: 'Request is too large.', requestId }, 413)
+    }
 
     const authorization = await authorizeAdmin(request, requestId)
     if (!authorization.ok) {
@@ -816,7 +854,13 @@ export default {
       )
     }
 
-    const action = parseAction(await request.json().catch(() => null))
+    const bodyText = await request.text()
+    if (bodyText.length > QS_INGEST_MAX_BYTES) {
+      return json(request, requestId, { error: 'Request is too large.', requestId }, 413)
+    }
+    const action = parseAction((() => {
+      try { return JSON.parse(bodyText) as unknown } catch { return null }
+    })())
     if (!action) return json(request, requestId, { error: 'Invalid admin request.', requestId }, 400)
 
     try {
@@ -833,6 +877,9 @@ export default {
       }
       if (action.action === 'chat_inbox') {
         return json(request, requestId, await supportInboxResponse(authorization.context))
+      }
+      if (action.action === 'ingest_university_profile') {
+        return json(request, requestId, await ingestUniversityProfileResponse(authorization.context, action.payload))
       }
       if (action.action === 'lead_inbox') {
         return json(request, requestId, await leadInboxResponse(authorization.context, action.status))

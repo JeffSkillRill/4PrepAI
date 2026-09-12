@@ -325,3 +325,31 @@ export function buildVerifiedFactAnswer(kind: string, records: GroundingRecord[]
     citations: [...new Set(known.map((record) => record.citationId as string))],
   }
 }
+
+/** A deterministic, server-side profile explanation. It deliberately chooses
+ * only already-grounded record text; it does not browse or infer facts. */
+export function buildProfileFitRationale(
+  university: string,
+  profileField: string,
+  fitLabel: string,
+  records: GroundingRecord[],
+) {
+  const relevant = records.filter((record) => record.status === 'known' && record.value && record.citationId)
+  const preferredKinds = ['test_policy', 'aid_international', 'tuition', 'deadline', 'ielts', 'toefl', 'gpa']
+  const selected = preferredKinds
+    // Reuse the same verified-record gate as direct counselor fact replies.
+    .map((kind) => buildVerifiedFactAnswer(kind, records) ? relevant.find((record) => record.field === kind) : undefined)
+    .filter((record): record is GroundingRecord & { value: string; citationId: string } => Boolean(record?.value && record.citationId))
+    .slice(0, 2)
+  if (selected.length === 0) {
+    return {
+      answer: `${fitLabel} for your entered ${profileField} plan. 4Prep does not have additional sourced university details to explain that fit yet, so review the component breakdown before deciding.`,
+      citations: [] as string[],
+    }
+  }
+  const evidence = selected.map((record) => `${record.field.replaceAll('_', ' ')}: ${record.value}`).join('; ')
+  return {
+    answer: `${fitLabel} for your entered ${profileField} plan. ${university} publishes ${evidence}; use these sourced details alongside the fit components, not as an admission prediction.`,
+    citations: [...new Set(selected.map((record) => record.citationId))],
+  }
+}

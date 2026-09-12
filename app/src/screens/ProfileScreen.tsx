@@ -1,123 +1,53 @@
-import { Bookmark, BookmarkCheck, CalendarDays, Check, Clock3, Languages, MapPin } from 'lucide-react'
-import { useMemo } from 'react'
-import type { StudentProfile } from '../types'
-import { DataValue, ExpandableFit, HonestGapCluster, MissingValue, SampleNotice } from '../components/Trust'
+import { Bookmark, BookmarkCheck, CalendarDays, Check, ChevronDown, Clock3, Languages, MapPin, Search } from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
+import type { DataPoint, Program, StudentProfile, University } from '../types'
+import { AIResponseBlock, DataValue, ExpandableFit, MissingValue, SampleNotice, SourceChip } from '../components/Trust'
 import { DesignedState, LoadingState } from '../components/States'
 import { getUniversity } from '../data/repository'
+import { getSupabaseClient } from '../data/client'
 import { useRepositoryData } from '../data/useRepositoryData'
 import { computeFit } from '../scoring/phi'
 import { UniversityVisual } from '../components/UniversityVisual'
-import { CostSummary, PublishedNetCost } from '../components/CostSummary'
+import { CostSummary } from '../components/CostSummary'
+
+const sections = ['Overview', 'Chat to a student', 'Programmes', 'University Information', 'Cost of Living', 'Tuition Fees', 'Scholarships', 'Employability', 'Rankings & Ratings', 'Videos & Media', 'Campus Locations'] as const
+const levels: Program['degreeLevel'][] = ['bachelor', 'master', 'mba', 'phd']
+const levelLabels: Record<Program['degreeLevel'], string> = { bachelor: 'Bachelor', master: 'Master', mba: 'MBA', phd: 'PhD' }
+const idFor = (title: string) => title.toLowerCase().replaceAll(/[^a-z0-9]+/g, '-').replaceAll(/(^-|-$)/g, '')
+
+export function filterProgrammes(programs: Program[], query: string) { const q = query.trim().toLowerCase(); return q ? programs.filter((program) => program.name.toLowerCase().includes(q)) : programs }
+export function groupProgrammes(programs: Program[]) { return levels.flatMap((level) => { const atLevel = programs.filter((program) => program.degreeLevel === level); return atLevel.length ? [{ level, programs: atLevel, subjects: [...new Set(atLevel.map((program) => program.subjectArea))].map((subjectArea) => ({ subjectArea, programs: atLevel.filter((program) => program.subjectArea === subjectArea) })) }] : [] }) }
 
 export function ProfileScreen({ universityId, profile, saved, onToggleSave }: { universityId: string; profile: StudentProfile | null; saved: boolean; onToggleSave: () => void }) {
   const { data, status, reload } = useRepositoryData(() => getUniversity(universityId), [universityId])
-  const university = useMemo(() => data ? {
-    ...data,
-    ...(profile ? { fit: computeFit(profile, data) } : {}),
-  } : null, [data, profile])
-
+  const university = useMemo(() => data ? { ...data, ...(profile ? { fit: computeFit(profile, data) } : {}) } : null, [data, profile])
+  const [active, setActive] = useState('overview')
+  useEffect(() => { if (typeof IntersectionObserver === 'undefined') return; const observer = new IntersectionObserver((entries) => { const visible = entries.find((entry) => entry.isIntersecting); if (visible) setActive(visible.target.id) }, { rootMargin: '-20% 0px -65% 0px' }); const elements = sections.map((section) => document.getElementById(idFor(section))).filter((item): item is HTMLElement => Boolean(item)); elements.forEach((item) => observer.observe(item)); return () => observer.disconnect() }, [university?.id])
   if (status === 'loading') return <LoadingState kind="profile" />
   if (status === 'error' || status === 'offline') return <DesignedState state={status} onReset={reload} />
   if (!university) return <DesignedState state="empty" onReset={reload} />
-
-  return (
-    <div>
-      <section className="relative h-[390px] min-h-[340px] overflow-hidden bg-forest-900 sm:h-[440px]">
-        <UniversityVisual university={university} className="absolute inset-0" />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-black/10" />
-        <div className="page-container absolute inset-x-0 bottom-0 pb-8 text-white sm:pb-10">
-          <div className="flex flex-col items-start justify-between gap-5 md:flex-row md:items-end">
-            <div className="max-w-3xl"><p className="flex items-center gap-2 text-sm font-semibold text-white/80"><MapPin size={17} /> {university.city}, {university.country} {university.flag}</p><h1 className="display mt-3 text-4xl font-extrabold leading-tight sm:text-5xl">{university.name}</h1><p className="mt-3 text-lg text-white/80">{university.tagline}</p></div>
-          </div>
-        </div>
-      </section>
-
-      <nav className="sticky top-[73px] z-30 border-b border-line bg-canvas/95 backdrop-blur" aria-label="University sections">
-        <div className="page-container flex gap-7 overflow-x-auto text-sm font-bold text-muted">
-          {['Overview', 'Costs', 'Admissions', 'Scholarships'].map((tab, index) => <a key={tab} href={`#${tab.toLowerCase()}`} className={`whitespace-nowrap border-b-[3px] py-4 transition hover:text-forest-800 ${index === 0 ? 'border-forest-700 text-forest-800' : 'border-transparent'}`}>{tab}</a>)}
-        </div>
-      </nav>
-
-      <div className="page-container motion-resolve pt-6">
-        {university.fit ? (
-          <div className="max-w-md"><ExpandableFit fit={university.fit} /></div>
-        ) : (
-          <MissingValue
-            title="Your fit isn’t calculated yet"
-            reason="We haven’t got your profile yet, so we can’t score this university for you."
-            action="Complete the intake to see all five fit components."
-            kind="profile"
-          />
-        )}
-      </div>
-
-      <div className="page-container grid items-start gap-8 py-8 lg:grid-cols-[minmax(0,1fr)_340px]">
-        <div className="space-y-8">
-          <SampleNotice verification={university.verification} />
-          <HonestGapCluster items={[
-            { label: 'Published cost of attendance', point: university.totalCostOfAttendance },
-            { label: 'Mandatory fees', point: university.fees },
-            { label: 'Room and board', point: university.roomBoard },
-            { label: 'International aid', point: university.aidInternational },
-            { label: 'F-1 financial certification', point: university.financialCertification },
-            { label: 'Application deadline', point: university.deadline },
-            { label: 'Duolingo requirement', point: university.duolingo },
-            { label: 'GPA expectation', point: university.gpa },
-          ]} contextRef={university.id} />
-          <section id="overview" className="card scroll-mt-36 p-6 sm:p-8">
-            <p className="text-sm font-bold uppercase tracking-[.14em] text-forest-700">Overview</p>
-            <h2 className="display mt-2 text-3xl font-extrabold">Why this could fit your plan</h2>
-            <p className="mt-4 leading-7 text-muted">{university.description}</p>
-            <div className="mt-6 grid gap-3 sm:grid-cols-3">{university.highlights.map((highlight) => <div key={highlight} className="flex items-start gap-2 rounded-xl bg-forest-50 p-4 text-sm font-semibold text-forest-900"><Check size={17} className="mt-0.5 shrink-0 text-forest-600" />{highlight}</div>)}</div>
-          </section>
-
-          <section className="card p-6 sm:p-8">
-            <p className="text-sm font-bold uppercase tracking-[.14em] text-forest-700">Programs</p><h2 className="display mt-2 text-3xl font-extrabold">Courses to explore</h2>
-            <div className="mt-6 divide-y divide-line border-y border-line">{university.programs.map((program) => <div key={program.id} className="grid gap-4 py-5 sm:grid-cols-[1fr_auto] sm:items-center"><div><h3 className="font-bold">{program.name}</h3><p className="mt-1 text-sm text-muted">{program.degree}</p></div><div className="text-sm"><span className="block text-xs font-bold uppercase tracking-wide text-muted">Field</span><span className="mt-1 block font-semibold">{program.field}</span></div></div>)}</div>
-          </section>
-
-          <section id="costs" className="card scroll-mt-36 p-6 sm:p-8">
-            <p className="text-sm font-bold uppercase tracking-[.14em] text-forest-700">Costs</p><h2 className="display mt-2 text-3xl font-extrabold">Build a complete budget</h2>
-            <p className="mt-3 text-sm leading-6 text-muted">Sticker cost and aid-adjusted cost are shown separately. The net figure uses only a numeric institutional award published for international students.</p>
-            <div className="mt-6">
-              <CostSummary university={university} />
-            </div>
-          </section>
-
-          <section id="admissions" className="card scroll-mt-36 p-6 sm:p-8">
-            <p className="text-sm font-bold uppercase tracking-[.14em] text-forest-700">Admissions</p><h2 className="display mt-2 text-3xl font-extrabold">Key application checkpoints</h2>
-            <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              <Fact icon={<CalendarDays />} label="Application deadline" value={<DataValue point={university.deadline} />} />
-              <Fact icon={<CalendarDays />} label="Intake term" value={<DataValue point={university.intake} />} />
-              <Fact icon={<Languages />} label="Teaching language" value={<DataValue point={university.language} />} />
-              <Fact icon={<Clock3 />} label="Test policy" value={<DataValue point={university.testPolicy} />} />
-              <Fact icon={<Languages />} label="TOEFL" value={<DataValue point={university.toefl} />} />
-              <Fact icon={<Languages />} label="IELTS" value={<DataValue point={university.ielts} />} />
-              <Fact icon={<Languages />} label="Duolingo" value={<DataValue point={university.duolingo} />} />
-              <Fact icon={<Clock3 />} label="SAT expectation" value={<DataValue point={university.sat} />} />
-              <Fact icon={<Clock3 />} label="ACT expectation" value={<DataValue point={university.act} />} />
-              <Fact icon={<Clock3 />} label="GPA expectation" value={<DataValue point={university.gpa} />} />
-            </div>
-          </section>
-
-          <section id="scholarships" className="card scroll-mt-36 p-6 sm:p-8"><p className="text-sm font-bold uppercase tracking-[.14em] text-forest-700">Scholarships</p><h2 className="display mt-2 text-3xl font-extrabold">International funding evidence</h2><div className="mt-5 rounded-2xl bg-forest-50 p-5"><DataValue point={university.aidInternational} className="font-bold" /><p className="mt-3 text-sm leading-6 text-muted"><a href="#published-aid-caution" className="font-bold text-forest-800 underline underline-offset-2">See the published-aid caution in Costs.</a></p></div></section>
-        </div>
-
-        <aside className="card sticky top-36 overflow-hidden">
-          <div className="bg-forest-900 p-6 text-white"><p className="text-xs font-bold uppercase tracking-[.14em] text-forest-200">At a glance</p></div>
-          <div className="space-y-5 p-6"><Summary label="Published cost of attendance" value={<DataValue point={university.totalCostOfAttendance} />} /><Summary label="Aid-adjusted net-cost scenario" value={<PublishedNetCost university={university} compact />} /><Summary label="International aid" value={<DataValue point={university.aidInternational} />} /><Summary label="Test policy" value={<DataValue point={university.testPolicy} />} /><Summary label="Deadline" value={<DataValue point={university.deadline} />} />
-            <button onClick={onToggleSave} className={`flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3.5 font-bold transition ${saved ? 'bg-forest-100 text-forest-900' : 'bg-forest-800 text-white hover:bg-forest-700'}`}>{saved ? <BookmarkCheck size={19} /> : <Bookmark size={19} />}{saved ? 'Saved to shortlist' : 'Save university'}</button>
-          </div>
-        </aside>
-      </div>
-    </div>
-  )
+  const topRanking = university.rankings[0]
+  return <div>
+    <section className="relative h-[410px] min-h-[360px] overflow-hidden bg-forest-900 sm:h-[460px]"><UniversityVisual university={university} className="absolute inset-0" /><div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-black/10" /><div className="page-container absolute inset-x-0 bottom-0 pb-8 text-white sm:pb-10"><p className="flex items-center gap-2 text-sm font-semibold text-white/80"><MapPin size={17} /> {university.city}, {university.country} {university.flag}</p><h1 className="display mt-3 text-4xl font-extrabold leading-tight sm:text-5xl">{university.name}</h1><p className="mt-3 max-w-3xl text-lg text-white/80">{university.tagline}</p><div className="mt-6 grid max-w-3xl gap-3 sm:grid-cols-3"><HeroStat label="Available programmes" value={String(university.programs.length)} /><HeroStat label="Top ranking" value={topRanking?.rankDisplay ?? 'Coming soon'} sourceId={topRanking?.sourceId} /><HeroStat label="International students" point={university.internationalStudentPct} /></div></div></section>
+    <div className="page-container grid items-start gap-8 py-8 lg:grid-cols-[230px_minmax(0,1fr)]"><aside className="sticky top-24 hidden max-h-[calc(100vh-7rem)] overflow-y-auto rounded-2xl border border-line bg-white p-4 lg:block"><p className="px-2 text-xs font-extrabold uppercase tracking-[.14em] text-forest-700">Table of contents</p><nav className="mt-3 grid" aria-label="University profile sections">{sections.map((section) => <a key={section} href={`#${idFor(section)}`} className={`rounded-lg px-2 py-2 text-sm font-bold ${active === idFor(section) ? 'bg-forest-50 text-forest-800' : 'text-muted hover:bg-canvas'}`}>{section}</a>)}</nav></aside><main className="min-w-0 space-y-8"><SampleNotice verification={university.verification} />{university.fit && profile ? <div className="max-w-xl space-y-3"><ExpandableFit fit={university.fit} /><FitRationale university={university} profile={profile} /></div> : <MissingValue title="Your fit isn’t calculated yet" reason="We haven’t got your profile yet, so we can’t score this university for you." action="Complete the intake to see all five fit components." kind="profile" />}
+      <Section title="Overview"><h2 className="display text-3xl font-extrabold">Why this could fit your plan</h2><p className="mt-4 leading-7 text-muted">{university.description}</p><div className="mt-6 grid gap-3 sm:grid-cols-3">{university.highlights.map((highlight) => <div key={highlight} className="flex items-start gap-2 rounded-xl bg-forest-50 p-4 text-sm font-semibold text-forest-900"><Check size={17} className="mt-0.5 shrink-0 text-forest-600" />{highlight}</div>)}</div><div className="mt-6"><p className="text-sm font-bold text-muted">Faculty</p><DataValue point={university.facultyCount} className="mt-1 font-bold" /></div></Section>
+      <ComingSoon title="Chat to a student" message="Student conversations are not published in 4Prep yet." /><Programmes university={university} />
+      <Section title="University Information"><h2 className="display text-3xl font-extrabold">Key application checkpoints</h2><div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3"><Fact icon={<CalendarDays />} label="Application deadline" point={university.deadline} /><Fact icon={<CalendarDays />} label="Intake term" point={university.intake} /><Fact icon={<Languages />} label="Teaching language" point={university.language} /><Fact icon={<Clock3 />} label="Test policy" point={university.testPolicy} /><Fact icon={<Languages />} label="TOEFL" point={university.toefl} /><Fact icon={<Languages />} label="IELTS" point={university.ielts} /><Fact icon={<Languages />} label="Duolingo" point={university.duolingo} /><Fact icon={<Clock3 />} label="SAT" point={university.sat} /><Fact icon={<Clock3 />} label="ACT" point={university.act} /><Fact icon={<Clock3 />} label="GPA" point={university.gpa} />{['GRE', 'GMAT', 'ATAR', 'IB', 'PTE', 'Cambridge'].map((label) => <Fact key={label} icon={<Clock3 />} label={label} missing />)}</div></Section>
+      <Section title="Cost of Living"><h2 className="display text-3xl font-extrabold">Living costs</h2><p className="mt-3 text-sm text-muted">Published living-cost details are shown separately from tuition.</p><div className="mt-6 grid gap-4 sm:grid-cols-2"><Fact label="Accommodation" point={university.livingAccommodation} /><Fact label="Food" point={university.livingFood} /><Fact label="Transport" point={university.livingTransport} /><Fact label="Utilities" point={university.livingUtilities} /><Fact label="Room and board" point={university.roomBoard} /><Fact label="Published living cost" point={university.livingCost} /></div></Section>
+      <Section title="Tuition Fees"><h2 className="display text-3xl font-extrabold">Build a complete budget</h2><div className="mt-6"><CostSummary university={university} /></div></Section><Scholarships university={university} />
+      <Section title="Employability"><h2 className="display text-3xl font-extrabold">Published career outcomes</h2><div className="mt-6 grid gap-4 sm:grid-cols-2"><Fact label="Employability summary" point={university.employabilitySummary} /><Fact label="Employment rate" point={university.employabilityRate} /></div></Section><Rankings university={university} /><ComingSoon title="Videos & Media" message="University videos and media have not been published in 4Prep yet." /><Campuses university={university} />
+      <button onClick={onToggleSave} className={`flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3.5 font-bold transition sm:w-auto ${saved ? 'bg-forest-100 text-forest-900' : 'bg-forest-800 text-white hover:bg-forest-700'}`}>{saved ? <BookmarkCheck size={19} /> : <Bookmark size={19} />}{saved ? 'Saved to shortlist' : 'Save university'}</button></main></div>
+  </div>
 }
-
-function Fact({ icon, label, value }: { icon: React.ReactNode; label: string; value: React.ReactNode }) {
-  return <div className="rounded-xl border border-line p-4"><div className="flex items-center gap-2 text-sm font-bold text-muted"><span className="text-forest-600 [&>svg]:size-5">{icon}</span>{label}</div><div className="mt-3 font-bold text-ink">{value}</div></div>
-}
-
-function Summary({ label, value }: { label: string; value: React.ReactNode }) {
-  return <div className="border-b border-line pb-4 last:border-0"><span className="block text-xs font-bold uppercase tracking-wide text-muted">{label}</span><div className="mt-1 text-sm font-bold [&_.inline-flex]:mt-1">{value}</div></div>
-}
+function Section({ title, children }: { title: string; children: React.ReactNode }) { return <section id={idFor(title)} className="card scroll-mt-28 p-6 sm:p-8"><p className="text-sm font-bold uppercase tracking-[.14em] text-forest-700">{title}</p><div className="mt-2">{children}</div></section> }
+function HeroStat({ label, value, sourceId, point }: { label: string; value?: string; sourceId?: string; point?: DataPoint<string> }) { return <div className="rounded-xl border border-white/20 bg-black/20 p-3 backdrop-blur"><p className="text-[10px] font-extrabold uppercase tracking-[.12em] text-white/65">{label}</p>{point ? <DataValue point={point} className="mt-1 text-sm font-bold" /> : <p className="mt-1 text-sm font-bold">{value}{sourceId && <span className="ml-2 inline-block align-middle"><SourceChip sourceId={sourceId} /></span>}</p>}</div> }
+function Fact({ icon, label, point, missing = false }: { icon?: React.ReactNode; label: string; point?: DataPoint<string>; missing?: boolean }) { return <div className="rounded-xl border border-line p-4"><div className="flex items-center gap-2 text-sm font-bold text-muted">{icon && <span className="text-forest-600 [&>svg]:size-5">{icon}</span>}{label}</div><div className="mt-3 font-bold text-ink">{missing ? <MissingValue title="Coming soon" reason={`${label} is not a published field in the 4Prep catalogue yet.`} action="Check the university’s admissions pages." /> : point ? <DataValue point={point} /> : null}</div></div> }
+function ComingSoon({ title, message }: { title: string; message: string }) { return <Section title={title}><h2 className="display text-3xl font-extrabold">{title}</h2><div className="mt-5"><MissingValue title="Coming soon" reason={message} action="Check back when sourced university content is published." /></div></Section> }
+function toggle<T>(current: Set<T>, value: T) { const next = new Set(current); if (next.has(value)) next.delete(value); else next.add(value); return next }
+function Programmes({ university }: { university: University }) { const [query, setQuery] = useState(''); const [openLevels, setOpenLevels] = useState<Set<Program['degreeLevel']>>(new Set()); const [openSubjects, setOpenSubjects] = useState<Set<string>>(new Set()); const [all, setAll] = useState<Set<string>>(new Set()); const searching = Boolean(query.trim()); const groups = groupProgrammes(filterProgrammes(university.programs, query)); return <Section title="Programmes"><h2 className="display text-3xl font-extrabold">Courses to explore</h2><label className="mt-5 flex items-center gap-2 rounded-xl border border-line bg-white px-3"><Search size={18} className="text-muted" /><span className="sr-only">Search university programmes</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search university programmes" className="min-h-12 w-full bg-transparent text-sm outline-none" /></label>{groups.length === 0 ? <div className="mt-5"><MissingValue title="Coming soon" reason={university.programs.length === 0 ? 'No sourced programmes have been published for this university.' : 'No sourced programme matches that search.'} action="Check the university catalogue or try another search." /></div> : <div className="mt-5 space-y-3">{groups.map((group) => { const levelOpen = searching || openLevels.has(group.level); return <div key={group.level} className="rounded-xl border border-line"><button type="button" onClick={() => setOpenLevels((current) => toggle(current, group.level))} className="flex min-h-12 w-full items-center gap-3 px-4 text-left font-bold">{levelLabels[group.level]} ({group.programs.length})<ChevronDown className={`ml-auto size-4 ${levelOpen ? 'rotate-180' : ''}`} /></button>{levelOpen && <div className="space-y-2 border-t border-line p-3">{group.subjects.map((subject) => { const key = `${group.level}:${subject.subjectArea}`; const subjectOpen = searching || openSubjects.has(key); const rows = all.has(key) || searching ? subject.programs : subject.programs.slice(0, 6); return <div key={key} className="rounded-lg bg-canvas"><button type="button" onClick={() => setOpenSubjects((current) => toggle(current, key))} className="flex min-h-11 w-full items-center gap-3 px-3 text-left text-sm font-bold">{subject.subjectArea} ({subject.programs.length})<ChevronDown className={`ml-auto size-4 ${subjectOpen ? 'rotate-180' : ''}`} /></button>{subjectOpen && <div className="divide-y divide-line border-t border-line bg-white">{rows.map((program) => <ProgramRow key={program.id} program={program} />)}{subject.programs.length > 6 && !searching && <button type="button" className="w-full px-3 py-3 text-left text-sm font-bold text-forest-800" onClick={() => setAll((current) => toggle(current, key))}>{all.has(key) ? 'Show less' : `View all ${subject.programs.length}`}</button>}</div>}</div> })}</div>}</div> })}</div>}</Section> }
+function ProgramRow({ program }: { program: Program }) { return <details className="group px-3"><summary className="flex min-h-12 cursor-pointer list-none items-center gap-3 py-2 text-sm font-bold">{program.name}<ChevronDown className="ml-auto size-4 group-open:rotate-180" /></summary><div className="grid gap-3 border-t border-line py-3 sm:grid-cols-2"><div><p className="text-xs font-bold text-muted">Duration</p><DataValue point={program.duration} className="mt-1" /></div><div><p className="text-xs font-bold text-muted">Tuition</p><DataValue point={program.tuition} className="mt-1" /></div></div></details> }
+function Scholarships({ university }: { university: University }) { return <Section title="Scholarships"><h2 className="display text-3xl font-extrabold">University scholarships</h2>{university.scholarships.length === 0 ? <div className="mt-5"><MissingValue title="Coming soon" reason="No sourced scholarships are linked to this university." action="Check the university’s financial-aid pages." /></div> : <div className="mt-5 space-y-4">{university.scholarships.map((award) => <article key={award.id} className="rounded-xl border border-line p-4"><h3 className="font-bold">{award.name}</h3><div className="mt-3"><DataValue point={award.amount} /></div>{award.conditions.length > 0 && <ul className="mt-4 list-disc space-y-2 pl-5 text-sm text-muted">{award.conditions.map((condition) => <li key={`${condition.kind}:${condition.publishedText}`}>{condition.publishedText} <SourceChip sourceId={condition.sourceId} /></li>)}</ul>}</article>)}</div>}</Section> }
+function Rankings({ university }: { university: University }) { return <Section title="Rankings & Ratings"><h2 className="display text-3xl font-extrabold">Rankings & ratings</h2>{university.rankings.length === 0 ? <div className="mt-5"><MissingValue title="Coming soon" reason="No sourced ranking records have been published for this university." action="Check back when a ranking source is added." /></div> : <div className="mt-5 grid gap-4 sm:grid-cols-2">{university.rankings.map((ranking) => <div key={ranking.id} className="rounded-xl border border-line p-4"><p className="text-sm font-bold text-muted">{ranking.label}</p><p className="mt-2 text-2xl font-extrabold">{ranking.rankDisplay}</p>{ranking.year && <p className="mt-1 text-sm text-muted">{ranking.year}</p>}<div className="mt-3"><SourceChip sourceId={ranking.sourceId} /></div></div>)}</div>}</Section> }
+function Campuses({ university }: { university: University }) { return <Section title="Campus Locations"><h2 className="display text-3xl font-extrabold">Campus locations</h2>{university.campuses.length === 0 ? <div className="mt-5"><MissingValue title="Coming soon" reason="No sourced campus records have been published for this university." action="Check the university’s official locations page." /></div> : <div className="mt-5 grid gap-4 sm:grid-cols-2">{university.campuses.map((campus) => <div key={campus.id} className="rounded-xl border border-line p-4"><h3 className="font-bold">{campus.name}</h3><p className="mt-1 text-sm text-muted">{campus.city}, {campus.country}</p><div className="mt-3"><SourceChip sourceId={campus.sourceId} /></div></div>)}</div>}</Section> }
+type Rationale = { answer: string; recordCitations: string[] }
+function FitRationale({ university, profile }: { university: University; profile: StudentProfile }) { const [result, setResult] = useState<Rationale | null>(null); useEffect(() => { let alive = true; getSupabaseClient().functions.invoke('counselor', { body: { mode: 'profile_rationale', universityId: university.id, profile, fit: university.fit } }).then(({ data }) => { if (alive && data && typeof data.answer === 'string' && Array.isArray(data.recordCitations)) setResult({ answer: data.answer, recordCitations: data.recordCitations.filter((id: unknown): id is string => typeof id === 'string') }) }).catch(() => undefined); return () => { alive = false } }, [university.id, university.fit, profile]); return result ? <AIResponseBlock><p>{result.answer}</p><div className="mt-3 flex flex-wrap gap-2">{result.recordCitations.map((id) => <SourceChip key={id} sourceId={id} />)}</div></AIResponseBlock> : null }

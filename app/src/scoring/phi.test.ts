@@ -32,15 +32,27 @@ const university: University = {
   act: known('Optional', 'source'),
   gpa: unknown('Not published.', 'Ask admissions.'),
   intake: known('September 2027', 'source'),
+  internationalStudentPct: unknown('Not published.', 'Ask admissions.'),
+  livingAccommodation: unknown('Not published.', 'Ask admissions.'),
+  livingFood: unknown('Not published.', 'Ask admissions.'),
+  livingTransport: unknown('Not published.', 'Ask admissions.'),
+  livingUtilities: unknown('Not published.', 'Ask admissions.'),
+  employabilityRate: unknown('Not published.', 'Ask admissions.'),
+  employabilitySummary: unknown('Not published.', 'Ask admissions.'),
+  facultyCount: unknown('Not published.', 'Ask admissions.'),
   programs: [{
     id: 'cs',
     name: 'Computer Science',
     degree: 'BSc',
     field: 'Computer Science',
+    degreeLevel: 'bachelor',
+    subjectArea: 'Engineering and Technology',
     duration: known('3 years', 'source'),
     tuition: known('US$10,000 / year', 'source', { numericValue: 10000, currency: 'USD', period: 'year' }),
   }],
   scholarships: [],
+  rankings: [],
+  campuses: [],
   highlights: [],
 }
 
@@ -204,7 +216,7 @@ describe('computeFit Φ v0.3 contract', () => {
       ...university,
       programs: [
         university.programs[0],
-        { id: 'cs2', name: 'Computer Science and AI', degree: 'BSc', field: 'Computer Science', duration: known('4 years', 'source'), tuition: known('US$10,000 / year', 'source', { numericValue: 10000, currency: 'USD', period: 'year' }) },
+        { id: 'cs2', name: 'Computer Science and AI', degree: 'BSc', field: 'Computer Science', degreeLevel: 'bachelor', subjectArea: 'Engineering and Technology', duration: known('4 years', 'source'), tuition: known('US$10,000 / year', 'source', { numericValue: 10000, currency: 'USD', period: 'year' }) },
       ],
     }
     const deep = computeFit(profile, twoExact)

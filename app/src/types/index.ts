@@ -94,8 +94,26 @@ export type Program = {
   name: string
   degree: string
   field: string
+  degreeLevel: 'bachelor' | 'master' | 'mba' | 'phd'
+  subjectArea: 'Arts and Humanities' | 'Business and Management' | 'Engineering and Technology' | 'Life Sciences and Medicine' | 'Natural Sciences' | 'Social Sciences and Management'
   duration: DataPoint<string>
   tuition: DataPoint<string>
+}
+
+export type Ranking = {
+  id: string
+  label: string
+  rankDisplay: string
+  year: number | null
+  sourceId: string
+}
+
+export type Campus = {
+  id: string
+  name: string
+  city: string
+  country: string
+  sourceId: string
 }
 
 /**
@@ -149,8 +167,18 @@ export type University = {
   act: DataPoint<string>
   gpa: DataPoint<string>
   intake: DataPoint<string>
+  internationalStudentPct: DataPoint<string>
+  livingAccommodation: DataPoint<string>
+  livingFood: DataPoint<string>
+  livingTransport: DataPoint<string>
+  livingUtilities: DataPoint<string>
+  employabilityRate: DataPoint<string>
+  employabilitySummary: DataPoint<string>
+  facultyCount: DataPoint<string>
   programs: Program[]
   scholarships: Scholarship[]
+  rankings: Ranking[]
+  campuses: Campus[]
   highlights: string[]
 }
 

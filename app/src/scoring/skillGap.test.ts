@@ -38,8 +38,18 @@ function university(overrides: Partial<University> = {}): University {
     act: unknown('Not published.', 'Ask admissions.'),
     gpa: unknown('Not published.', 'Ask admissions.'),
     intake: unknown('Not published.', 'Ask admissions.'),
+    internationalStudentPct: unknown('Not published.', 'Ask admissions.'),
+    livingAccommodation: unknown('Not published.', 'Ask admissions.'),
+    livingFood: unknown('Not published.', 'Ask admissions.'),
+    livingTransport: unknown('Not published.', 'Ask admissions.'),
+    livingUtilities: unknown('Not published.', 'Ask admissions.'),
+    employabilityRate: unknown('Not published.', 'Ask admissions.'),
+    employabilitySummary: unknown('Not published.', 'Ask admissions.'),
+    facultyCount: unknown('Not published.', 'Ask admissions.'),
     programs: [],
     scholarships: [],
+    rankings: [],
+    campuses: [],
     highlights: [],
   }
   return { ...base, ...overrides }

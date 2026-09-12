@@ -1,0 +1,8 @@
+{
+  "userAgent": "4PrepAI-QS-Importer/1.0 (+https://your-domain.example/data-contact)",
+  "listingUrl": "https://www.topuniversities.com/world-university-rankings",
+  "profileUrls": ["https://www.topuniversities.com/universities/california-institute-technology-caltech"],
+  "catalogueSnapshot": "qs-catalogue-snapshot.json",
+  "crawlDelayMs": 10000,
+  "maxProfiles": 1
+}

@@ -1,0 +1,6 @@
+{
+  "name": "4prep-qs-ingest-extension",
+  "private": true,
+  "type": "module",
+  "scripts": { "build": "tsc -p tsconfig.json" }
+}

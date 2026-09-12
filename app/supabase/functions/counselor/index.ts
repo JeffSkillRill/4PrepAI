@@ -2,6 +2,7 @@ import 'jsr:@supabase/functions-js/edge-runtime.d.ts'
 import { createClient } from 'jsr:@supabase/supabase-js@2'
 import {
   buildCounselorCacheKey,
+  buildProfileFitRationale,
   buildVerifiedFactAnswer,
   hashCallerIp,
   knownContext,
@@ -168,8 +169,9 @@ async fetch(request: Request) {
 
   try {
     const body = await request.json()
+    const mode = body?.mode === 'profile_rationale' ? 'profile_rationale' : 'chat'
     const message = typeof body?.message === 'string' ? body.message.trim().slice(0, 1000) : ''
-    if (!message) return json({ error: 'A counselor message is required.' }, 400)
+    if (mode === 'chat' && !message) return json({ error: 'A counselor message is required.' }, 400)
 
     const url = Deno.env.get('SUPABASE_URL')
     const anonKey = Deno.env.get('SUPABASE_ANON_KEY')
@@ -183,6 +185,24 @@ async fetch(request: Request) {
       global: { headers: { Authorization: authHeader } },
       auth: { persistSession: false },
     })
+    if (mode === 'profile_rationale') {
+      const universityId = typeof body?.universityId === 'string' ? body.universityId : ''
+      const profileField = typeof body?.profile?.field === 'string' ? body.profile.field.trim().slice(0, 120) : ''
+      const fitLabel = typeof body?.fit?.label === 'string' ? body.fit.label.trim().slice(0, 80) : ''
+      if (!universityId || !profileField || !fitLabel) return json({ error: 'A university, profile field, and fit are required.' }, 400)
+      const { data: rationaleRows, error: rationaleError } = await database
+        .from('universities')
+        .select('id,name,university_facts(kind,value,source_id,unknown_reason,suggested_action),requirements(kind,value,source_id,unknown_reason,suggested_action),university_scholarships(scholarships(name,amount_value,amount_source_id,amount_unknown_reason,amount_suggested_action))')
+        .eq('id', universityId)
+        .maybeSingle()
+      if (rationaleError) throw rationaleError
+      const university = rationaleRows as unknown as CatalogUniversity | null
+      if (!university) return json({ error: 'University not found.' }, 404)
+      const rationale = buildProfileFitRationale(university.name, profileField, fitLabel, knownContext([university]))
+      const validation = validateFigures(rationale.answer, knownContext([university]), rationale.citations, 'verified_fact')
+      if (!validation.ok && rationale.citations.length > 0) return json(refusal(requestId, 'I cannot verify that profile explanation from the supplied university record.'))
+      return json({ answerType: 'verified_fact', answer: rationale.answer, recordCitations: rationale.citations, webCitations: [], requestId } satisfies CounselorAnswer)
+    }
     const admin = createClient(url, serviceKey, { auth: { persistSession: false } })
     let userId: string | null = null
     const accessToken = authHeader.replace(/^Bearer\s+/i, '')

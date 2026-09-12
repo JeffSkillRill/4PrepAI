@@ -1,0 +1,10 @@
+{
+  "manifest_version": 3,
+  "name": "4PrepAI QS profile review ingest",
+  "version": "1.0.0",
+  "description": "Review QS profile data before an authenticated admin saves it.",
+  "permissions": ["activeTab", "storage"],
+  "host_permissions": ["https://www.topuniversities.com/*", "https://YOUR_PROJECT.supabase.co/*"],
+  "action": { "default_popup": "popup.html" },
+  "content_scripts": [{ "matches": ["https://www.topuniversities.com/universities/*"], "js": ["dist/content.js"] }]
+}

@@ -10,6 +10,8 @@ import type {
   LearningSubmissionFile,
   LearningTrack,
   Program,
+  Campus,
+  Ranking,
   RequirementBenchmark,
   Scholarship,
   Source,
@@ -36,7 +38,25 @@ export type RawProgram = {
   name: string
   degree: string
   field: string
+  degree_level: Program['degreeLevel']
+  subject_area: Program['subjectArea']
   program_facts?: RawFact[] | null
+}
+
+export type RawRanking = {
+  id: number | string
+  label: string
+  rank_display: string
+  year: number | string | null
+  source_id: string
+}
+
+export type RawCampus = {
+  id: number | string
+  name: string
+  city: string
+  country: string
+  source_id: string
 }
 
 export type RawRequirement = RawFact
@@ -80,6 +100,8 @@ export type RawUniversity = {
   programs?: RawProgram[] | null
   requirements?: RawRequirement[] | null
   university_scholarships?: RawScholarshipLink[] | null
+  rankings?: RawRanking[] | null
+  campuses?: RawCampus[] | null
 }
 
 export type RawSource = {
@@ -226,9 +248,19 @@ export function mapProgram(row: RawProgram): Program {
     name: row.name,
     degree: row.degree,
     field: row.field,
+    degreeLevel: row.degree_level,
+    subjectArea: row.subject_area,
     duration: mapFact(facts.get('duration'), 'Program duration'),
     tuition: mapFact(facts.get('tuition'), 'Program tuition'),
   }
+}
+
+function mapRanking(row: RawRanking): Ranking {
+  return { id: String(row.id), label: row.label, rankDisplay: row.rank_display, year: row.year === null ? null : Number(row.year), sourceId: row.source_id }
+}
+
+function mapCampus(row: RawCampus): Campus {
+  return { id: String(row.id), name: row.name, city: row.city, country: row.country, sourceId: row.source_id }
 }
 
 function unwrapScholarship(value: RawScholarship | RawScholarship[] | null): RawScholarship | undefined {
@@ -277,8 +309,18 @@ export function mapUniversity(
     sat: mapFact(requirements.get('sat'), 'SAT expectation'),
     act: mapFact(requirements.get('act'), 'ACT expectation'),
     gpa: mapFact(requirements.get('gpa'), 'GPA expectation'),
+    internationalStudentPct: mapFact(facts.get('international_student_pct'), 'International-student percentage'),
+    livingAccommodation: mapFact(facts.get('living_accommodation'), 'Accommodation cost'),
+    livingFood: mapFact(facts.get('living_food'), 'Food cost'),
+    livingTransport: mapFact(facts.get('living_transport'), 'Transport cost'),
+    livingUtilities: mapFact(facts.get('living_utilities'), 'Utilities cost'),
+    employabilityRate: mapFact(facts.get('employability_rate'), 'Employability rate'),
+    employabilitySummary: mapFact(facts.get('employability_summary'), 'Employability summary'),
+    facultyCount: mapFact(facts.get('faculty_count'), 'Faculty count'),
     programs: (row.programs ?? []).map(mapProgram),
     scholarships,
+    rankings: (row.rankings ?? []).map(mapRanking),
+    campuses: (row.campuses ?? []).map(mapCampus),
   }
 }
 

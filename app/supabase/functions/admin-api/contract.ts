@@ -7,6 +7,116 @@ export type AdminGoal = {
 
 export const ADMIN_FILE_URL_TTL_SECONDS = 60
 export const SUPPORT_MESSAGE_MAX_LENGTH = 2000
+export const QS_INGEST_MAX_BYTES = 200_000
+export const QS_INGEST_MAX_ITEMS = 250
+
+export const PROGRAM_DEGREE_LEVELS = ['bachelor', 'master', 'mba', 'phd'] as const
+export const PROGRAM_SUBJECT_AREAS = [
+  'Arts and Humanities',
+  'Business and Management',
+  'Engineering and Technology',
+  'Life Sciences and Medicine',
+  'Natural Sciences',
+  'Social Sciences and Management',
+] as const
+
+export type QsProgramme = {
+  name: string
+  degree: string
+  degreeLevel: typeof PROGRAM_DEGREE_LEVELS[number]
+  subjectArea: typeof PROGRAM_SUBJECT_AREAS[number]
+  duration?: string
+  tuition?: string
+}
+
+export type QsIngestPayload = {
+  universityId: string
+  source: { url: string }
+  internationalStudentPct?: string
+  facultyCount?: string
+  employabilityRate?: string
+  employabilitySummary?: string
+  costOfLiving?: Partial<Record<'accommodation' | 'food' | 'transport' | 'utilities', string>>
+  rankings?: Array<{ label: string; rankDisplay: string; year?: number }>
+  campuses?: Array<{ name: string; city: string; country: string }>
+  programmes?: QsProgramme[]
+}
+
+function validText(value: unknown, maximum = 1000): value is string {
+  return typeof value === 'string'
+    && value.trim().length > 0
+    && value.length <= maximum
+    && !Array.from(value).some((character) => {
+      const code = character.charCodeAt(0)
+      return code <= 31 || code === 127
+    })
+}
+
+function validUrl(value: unknown): value is string {
+  if (!validText(value, 2048)) return false
+  try {
+    const url = new URL(value)
+    return url.protocol === 'https:' && url.hostname === 'www.topuniversities.com'
+  } catch {
+    return false
+  }
+}
+
+/** Strictly validates the reviewed extension payload; unsupported values never default. */
+export function parseQsIngestPayload(value: unknown): QsIngestPayload | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null
+  const input = value as Record<string, unknown>
+  if (!validText(input.universityId, 160) || !input.source || typeof input.source !== 'object') return null
+  const source = input.source as Record<string, unknown>
+  if (!validUrl(source.url)) return null
+  const textFields = ['internationalStudentPct', 'facultyCount', 'employabilityRate', 'employabilitySummary'] as const
+  const output: QsIngestPayload = { universityId: input.universityId.trim(), source: { url: source.url } }
+  for (const field of textFields) {
+    if (input[field] !== undefined) {
+      if (!validText(input[field])) return null
+      output[field] = input[field].trim()
+    }
+  }
+  if (input.costOfLiving !== undefined) {
+    if (!input.costOfLiving || typeof input.costOfLiving !== 'object' || Array.isArray(input.costOfLiving)) return null
+    const costs: QsIngestPayload['costOfLiving'] = {}
+    for (const key of ['accommodation', 'food', 'transport', 'utilities'] as const) {
+      const field = (input.costOfLiving as Record<string, unknown>)[key]
+      if (field !== undefined) {
+        if (!validText(field)) return null
+        costs[key] = field.trim()
+      }
+    }
+    output.costOfLiving = costs
+  }
+  const arrays: Array<keyof Pick<QsIngestPayload, 'rankings' | 'campuses' | 'programmes'>> = ['rankings', 'campuses', 'programmes']
+  for (const key of arrays) {
+    const rows = input[key]
+    if (rows === undefined) continue
+    if (!Array.isArray(rows) || rows.length > QS_INGEST_MAX_ITEMS) return null
+    if (key === 'rankings') {
+      if (!rows.every((row) => {
+        if (!row || typeof row !== 'object') return false
+        const ranking = row as Record<string, unknown>
+        const year = ranking.year
+        return validText(ranking.label) && validText(ranking.rankDisplay)
+          && (year === undefined || (typeof year === 'number' && Number.isInteger(year) && year >= 1900 && year <= 2200))
+      })) return null
+      output.rankings = rows.map((row) => ({ label: (row as Record<string, unknown>).label as string, rankDisplay: (row as Record<string, unknown>).rankDisplay as string, ...((row as Record<string, unknown>).year === undefined ? {} : { year: (row as Record<string, unknown>).year as number }) }))
+    } else if (key === 'campuses') {
+      if (!rows.every((row) => row && typeof row === 'object' && validText((row as Record<string, unknown>).name) && validText((row as Record<string, unknown>).city) && validText((row as Record<string, unknown>).country))) return null
+      output.campuses = rows.map((row) => ({ name: (row as Record<string, unknown>).name as string, city: (row as Record<string, unknown>).city as string, country: (row as Record<string, unknown>).country as string }))
+    } else {
+      if (!rows.every((row) => {
+        if (!row || typeof row !== 'object') return false
+        const programme = row as Record<string, unknown>
+        return validText(programme.name) && validText(programme.degree) && typeof programme.degreeLevel === 'string' && (PROGRAM_DEGREE_LEVELS as readonly string[]).includes(programme.degreeLevel) && typeof programme.subjectArea === 'string' && (PROGRAM_SUBJECT_AREAS as readonly string[]).includes(programme.subjectArea) && (programme.duration === undefined || validText(programme.duration)) && (programme.tuition === undefined || validText(programme.tuition))
+      })) return null
+      output.programmes = rows.map((row) => row as QsProgramme)
+    }
+  }
+  return output
+}
 
 export type ProfileGoalRow = {
   country: string | null

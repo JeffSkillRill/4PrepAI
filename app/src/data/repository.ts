@@ -43,8 +43,10 @@ const universitySelect = `
   id,name,city,country,flag,tagline,description,photo_seed,highlights,source_id,
   university_facts(kind,value,numeric_value,currency,amount_period,source_id,unknown_reason,suggested_action),
   requirements(kind,value,numeric_value,benchmark,source_id,unknown_reason,suggested_action),
-  programs(id,name,degree,field,program_facts(kind,value,numeric_value,currency,amount_period,source_id,unknown_reason,suggested_action)),
-  university_scholarships(scholarships(id,name,amount_value,amount_numeric,currency,amount_period,amount_source_id,amount_unknown_reason,amount_suggested_action,award_conditions(kind,minimum,published_text,source_id)))
+  programs(id,name,degree,field,degree_level,subject_area,program_facts(kind,value,numeric_value,currency,amount_period,source_id,unknown_reason,suggested_action)),
+  university_scholarships(scholarships(id,name,amount_value,amount_numeric,currency,amount_period,amount_source_id,amount_unknown_reason,amount_suggested_action,award_conditions(kind,minimum,published_text,source_id))),
+  rankings(id,label,rank_display,year,source_id),
+  campuses(id,name,city,country,source_id)
 `
 
 const learningTrackSelect = `
