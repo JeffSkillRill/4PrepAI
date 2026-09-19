@@ -18,3 +18,5 @@ qa-ux/screens/
 qa-ux/step*/
 qa-full/
 _to_delete/
+/qs-ingest-extension/
+/cds-extractor/
