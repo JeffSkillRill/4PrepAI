@@ -89,6 +89,7 @@ export type RawUniversity = {
   id: string
   name: string
   city: string
+  state: string | null
   country: string
   flag: string
   tagline: string
@@ -180,6 +181,26 @@ export type RawLearningSubmission = {
 
 const missingFact = (label: string): DataPoint<string> =>
   unknown(`${label} is not available in the data source.`, `Ask the university to confirm ${label.toLowerCase()}.`)
+
+const USPS_STATE_NAMES: Readonly<Record<string, string>> = {
+  AL: 'Alabama', AK: 'Alaska', AZ: 'Arizona', AR: 'Arkansas', CA: 'California',
+  CO: 'Colorado', CT: 'Connecticut', DE: 'Delaware', FL: 'Florida', GA: 'Georgia',
+  HI: 'Hawaii', ID: 'Idaho', IL: 'Illinois', IN: 'Indiana', IA: 'Iowa',
+  KS: 'Kansas', KY: 'Kentucky', LA: 'Louisiana', ME: 'Maine', MD: 'Maryland',
+  MA: 'Massachusetts', MI: 'Michigan', MN: 'Minnesota', MS: 'Mississippi', MO: 'Missouri',
+  MT: 'Montana', NE: 'Nebraska', NV: 'Nevada', NH: 'New Hampshire', NJ: 'New Jersey',
+  NM: 'New Mexico', NY: 'New York', NC: 'North Carolina', ND: 'North Dakota', OH: 'Ohio',
+  OK: 'Oklahoma', OR: 'Oregon', PA: 'Pennsylvania', RI: 'Rhode Island', SC: 'South Carolina',
+  SD: 'South Dakota', TN: 'Tennessee', TX: 'Texas', UT: 'Utah', VT: 'Vermont',
+  VA: 'Virginia', WA: 'Washington', WV: 'West Virginia', WI: 'Wisconsin', WY: 'Wyoming',
+  DC: 'District of Columbia',
+}
+
+function mappedState(code: string | null): { state: string | null; stateName: string | null } {
+  const normalized = code?.trim().toUpperCase() ?? null
+  if (!normalized || !USPS_STATE_NAMES[normalized]) return { state: null, stateName: null }
+  return { state: normalized, stateName: USPS_STATE_NAMES[normalized] }
+}
 
 export function mapFact(fact: RawFact | undefined, label: string): DataPoint<string> {
   if (!fact) return missingFact(label)
@@ -278,16 +299,19 @@ export function mapUniversity(
     .map((link) => unwrapScholarship(link.scholarships))
     .filter((item): item is RawScholarship => Boolean(item))
     .map(mapScholarship)
+  const state = mappedState(row.state)
 
   return {
     id: row.id,
     name: row.name,
     city: row.city,
+    ...state,
     country: row.country,
     flag: row.country === 'United States' ? '🇺🇸' : row.flag,
     tagline: row.tagline,
     description: row.description,
     photoSeed: row.photo_seed,
+    sourceId: row.source_id,
     highlights: row.highlights,
     verification: verificationBySource.get(row.source_id) ?? 'unverified_sample',
     tuition: mapFact(facts.get('tuition'), 'Tuition'),

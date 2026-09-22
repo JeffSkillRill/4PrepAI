@@ -2,8 +2,24 @@
 
 import { cleanup, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import type { StudentProfile } from '../types'
+import type { DataPoint, FitDimension, StudentProfile } from '../types'
 import { ProfileScreen } from './ProfileScreen'
+
+// The profile now reads these values to decide whether a chart has enough
+// published data to draw, so the fixture has to carry real data points rather
+// than relying on every reader being mocked.
+const unknownPoint: DataPoint<string> = { status: 'unknown', reason: 'Not published.', suggestedAction: 'Ask the university.' }
+const pointFields = [
+  'tuition', 'fees', 'roomBoard', 'totalCostOfAttendance', 'aidInternational', 'testPolicy',
+  'financialCertification', 'livingCost', 'applicationFee', 'deadline', 'scholarship', 'language',
+  'ielts', 'toefl', 'duolingo', 'sat', 'act', 'gpa', 'intake', 'internationalStudentPct',
+  'livingAccommodation', 'livingFood', 'livingTransport', 'livingUtilities', 'employabilityRate',
+  'employabilitySummary', 'facultyCount',
+] as const
+const points = Object.fromEntries(pointFields.map((field) => [field, unknownPoint]))
+
+const fitComponent = (label: string, score: number, resolved: boolean) =>
+  ({ label, score, grade: 'B', tone: 'medium' as const, reason: `${label} reason`, resolved })
 
 vi.mock('../data/useRepositoryData', () => ({
   useRepositoryData: () => ({
@@ -21,6 +37,7 @@ vi.mock('../data/useRepositoryData', () => ({
       campuses: [],
       scholarships: [],
       verification: 'verified',
+      ...points,
     },
     status: 'ready',
     reload: vi.fn(),
@@ -28,7 +45,21 @@ vi.mock('../data/useRepositoryData', () => ({
 }))
 
 vi.mock('../scoring/phi', () => ({
-  computeFit: () => ({ label: 'Strong fit', summary: 'A single fit summary', components: {}, version: 'test' }),
+  computeFit: () => ({
+    label: 'Strong fit',
+    summary: 'A single fit summary',
+    overall: 74,
+    grade: 'B',
+    version: 'test',
+    computedAt: '2026-01-01',
+    components: {
+      academic: fitComponent('Academic fit', 80, true),
+      financial: fitComponent('Financial fit', 50, false),
+      language: fitComponent('Language fit', 70, true),
+      career: fitComponent('Career fit', 85, true),
+      geographic: fitComponent('Geographic fit', 60, true),
+    } satisfies Record<FitDimension, ReturnType<typeof fitComponent>>,
+  }),
 }))
 
 vi.mock('../components/Trust', () => ({

@@ -3,7 +3,7 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { University } from '../types'
-import { SearchScreen } from './SearchScreen'
+import { budgetLimits, filterCatalogueUniversities, SearchScreen } from './SearchScreen'
 
 const repositoryMocks = vi.hoisted(() => ({ data: [] as University[] }))
 
@@ -96,8 +96,8 @@ describe('SearchScreen result announcements', () => {
       />,
     )
 
-    const fieldSelect = screen.getByRole('combobox', { name: 'Field of study' })
-    expect(screen.queryByRole('button', { name: /Clear field of study filter/i })).toBeNull()
+    const fieldSelect = screen.getByRole('combobox', { name: 'Major' })
+    expect(screen.queryByRole('button', { name: /Remove filter: Engineering/i })).toBeNull()
     expect(screen.queryByText('All countries')).toBeNull()
     expect(screen.getByRole('option', { name: 'Business & Management' })).toBeTruthy()
     expect(screen.getByRole('option', { name: 'Engineering' })).toBeTruthy()
@@ -105,7 +105,7 @@ describe('SearchScreen result announcements', () => {
 
     fireEvent.change(fieldSelect, { target: { value: 'Engineering' } })
 
-    expect(screen.getByRole('button', { name: 'Clear field of study filter: Engineering' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Remove filter: Engineering' })).toBeTruthy()
   })
 
   it('filters typed search text against university names', () => {
@@ -191,5 +191,84 @@ describe('SearchScreen result announcements', () => {
     fireEvent.click(unknownSummary!)
     expect(unknownDetails?.open).toBe(false)
     expect(document.activeElement).toBe(unknownSummary)
+  })
+
+  it('builds the state options only from known states in loaded data', () => {
+    repositoryMocks.data = [
+      { id: 'ny', name: 'New York University', state: 'NY', stateName: 'New York', programs: [], aidInternational: { status: 'unknown', reason: 'Not published', suggestedAction: 'Ask admissions' }, totalCostOfAttendance: { status: 'unknown', reason: 'Not published', suggestedAction: 'Ask admissions' } },
+      { id: 'ca', name: 'California University', state: 'CA', stateName: 'California', programs: [], aidInternational: { status: 'unknown', reason: 'Not published', suggestedAction: 'Ask admissions' }, totalCostOfAttendance: { status: 'unknown', reason: 'Not published', suggestedAction: 'Ask admissions' } },
+      { id: 'unknown', name: 'Unknown State University', state: null, stateName: null, programs: [], aidInternational: { status: 'unknown', reason: 'Not published', suggestedAction: 'Ask admissions' }, totalCostOfAttendance: { status: 'unknown', reason: 'Not published', suggestedAction: 'Ask admissions' } },
+    ] as unknown as University[]
+
+    render(
+      <SearchScreen
+        query=""
+        setQuery={vi.fn()}
+        saved={new Set()}
+        onToggleSave={vi.fn()}
+        onOpen={vi.fn()}
+      />,
+    )
+
+    expect(screen.getByRole('checkbox', { name: 'California (CA)' })).toBeTruthy()
+    expect(screen.getByRole('checkbox', { name: 'New York (NY)' })).toBeTruthy()
+    expect(screen.queryByRole('checkbox', { name: 'Texas (TX)' })).toBeNull()
+  })
+})
+
+function filterUniversity({
+  id,
+  state,
+  stateName,
+  field,
+  annualCost,
+}: {
+  id: string
+  state: string | null
+  stateName: string | null
+  field: string
+  annualCost: number
+}): University {
+  return {
+    id,
+    name: `${id} University`,
+    state,
+    stateName,
+    programs: [{ field }],
+    scholarships: [],
+    aidInternational: { status: 'unknown', reason: 'Not published', suggestedAction: 'Ask admissions' },
+    totalCostOfAttendance: { status: 'known', value: `$${annualCost}`, sourceId: 'source', numericValue: annualCost, currency: 'USD', period: 'year' },
+  } as unknown as University
+}
+
+describe('catalogue three-filter logic', () => {
+  const universities = [
+    filterUniversity({ id: 'ca-cs', state: 'CA', stateName: 'California', field: 'Computer Science', annualCost: 20_000 }),
+    filterUniversity({ id: 'ny-cs', state: 'NY', stateName: 'New York', field: 'Computer Science', annualCost: 20_000 }),
+    filterUniversity({ id: 'ca-engineering', state: 'CA', stateName: 'California', field: 'Engineering', annualCost: 20_000 }),
+    filterUniversity({ id: 'ca-expensive-cs', state: 'CA', stateName: 'California', field: 'Computer Science', annualCost: 60_000 }),
+    filterUniversity({ id: 'unknown-cs', state: null, stateName: null, field: 'Computer Science', annualCost: 20_000 }),
+  ]
+
+  it('keeps unknown-state universities when no state is selected', () => {
+    const results = filterCatalogueUniversities(universities, {
+      query: '',
+      budget: budgetLimits.max,
+      field: '',
+      states: [],
+    })
+
+    expect(results.map((item) => item.university.id)).toContain('unknown-cs')
+  })
+
+  it('combines budget, state, and major with AND logic and excludes unknown states', () => {
+    const results = filterCatalogueUniversities(universities, {
+      query: '',
+      budget: 30_000,
+      field: 'Computer Science',
+      states: ['CA'],
+    })
+
+    expect(results.map((item) => item.university.id)).toEqual(['ca-cs'])
   })
 })

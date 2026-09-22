@@ -168,16 +168,30 @@ details:not([open]) > .motion-disclosure { grid-template-rows: 0fr; }
 .university-search-hero {
   position: relative;
   overflow: hidden;
-  background-color: var(--color-forest-950);
+  border-bottom-left-radius: var(--radius-xl);
+  border-bottom-right-radius: var(--radius-xl);
+  background-color: var(--color-canvas);
   background-image: url('/images/university-search-campus.png');
   background-position: center;
   background-size: cover;
 }
+/* Legibility only: the left edge is lifted just enough for dark text, and the
+   right two thirds of the daytime campus photo stay uncovered. */
 .university-search-hero::before {
   content: '';
   position: absolute;
   inset: 0;
-  background: rgba(1, 40, 35, .62);
+  background: linear-gradient(
+    100deg,
+    rgba(255, 255, 255, .92) 0%,
+    rgba(255, 255, 255, .78) 26%,
+    rgba(255, 255, 255, .34) 46%,
+    rgba(255, 255, 255, 0) 64%
+  );
+}
+.hero-script {
+  font-family: 'Segoe Script', 'Bradley Hand', 'Snell Roundhand', cursive;
+  font-weight: 600;
 }
 .catalogue-search-shell {
   animation: search-arrive var(--motion-duration-large) var(--motion-ease-enter) both;
@@ -297,6 +311,38 @@ details:not([open]) > .motion-disclosure { grid-template-rows: 0fr; }
   0%, 100% { box-shadow: var(--shadow-raised); }
   50% { box-shadow: 0 0 0 8px rgba(60, 219, 191, .28), var(--shadow-raised); }
 }
+
+/* Chart and section motion. Every one of these is a transition from a state
+   the component only renders when motion is allowed, so the reduced-motion
+   block below has nothing to undo: the final state is the first paint. */
+.chart-arc {
+  transition:
+    stroke-dashoffset 900ms var(--motion-ease-enter),
+    stroke-dasharray 900ms var(--motion-ease-enter);
+}
+.chart-grow { transition: width 900ms var(--motion-ease-enter); }
+.chart-unitemised {
+  background-image: repeating-linear-gradient(
+    45deg,
+    var(--color-canvas) 0 6px,
+    var(--color-line) 6px 12px
+  );
+}
+.reveal-section {
+  opacity: 0;
+  transform: translateY(16px);
+  transition:
+    opacity var(--motion-duration-large) var(--motion-ease-enter),
+    transform var(--motion-duration-large) var(--motion-ease-enter);
+}
+.reveal-section.is-revealed { opacity: 1; transform: none; }
+.motion-collapse {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows var(--motion-duration-element) var(--motion-ease-enter);
+}
+.motion-collapse.is-open { grid-template-rows: 1fr; }
+.motion-collapse > * { overflow: hidden; }
 
 .chart-hatch { stroke: var(--color-muted); stroke-width: 1.5; }
 .chart-focusable:focus-visible { outline: 3px solid var(--color-forest-500); outline-offset: 4px; }

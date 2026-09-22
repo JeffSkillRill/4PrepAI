@@ -1,4 +1,4 @@
-import { ChevronDown, CircleDollarSign, Landmark, Maximize2, X } from 'lucide-react'
+import { ArrowRight, BarChart3, ChevronDown, CircleDollarSign, Landmark, X } from 'lucide-react'
 import { useEffect, useId, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import type { University } from '../types'
@@ -123,14 +123,14 @@ export function CostSummary({
   }, [componentsOpen])
 
   return (
-    <section className={`rounded-2xl border border-forest-100 bg-forest-50/60 ${compact ? 'p-2.5' : 'p-5 sm:p-6'}`}>
-      <div className={`flex items-start ${compact ? 'gap-2' : 'gap-3'}`}>
-        <span className={`grid shrink-0 place-items-center bg-forest-700 text-white ${compact ? 'size-8 rounded-lg' : 'size-11 rounded-xl'}`}>
+    <section className={`rounded-2xl border border-forest-100 bg-forest-50/60 ${compact ? 'flex flex-col gap-2 p-3 sm:flex-row sm:items-center sm:gap-4' : 'p-5 sm:p-6'}`}>
+      <div className={`flex items-start ${compact ? 'min-w-0 flex-1 items-center gap-3' : 'gap-3'}`}>
+        <span className={`grid shrink-0 place-items-center bg-forest-700 text-white ${compact ? 'size-9 rounded-full' : 'size-11 rounded-xl'}`}>
           <CircleDollarSign size={compact ? 18 : 21} />
         </span>
         <div className="min-w-0 flex-1">
           <p className={`${compact ? 'sr-only' : 'text-[11px]'} font-extrabold uppercase tracking-[.13em] text-forest-700`}>Start with the aid-adjusted view</p>
-          <div className={`${compact ? 'text-xs leading-5' : 'mt-1 text-xl'} font-extrabold text-forest-950`}>
+          <div className={`${compact ? 'text-sm leading-5' : 'mt-1 text-xl'} font-extrabold text-forest-950`}>
             <PublishedNetCost university={university} compact={compact} showSources={!compact} />
           </div>
           {!compact && <p id="published-aid-caution" className="mt-2 text-xs leading-5 text-muted">Published aid is not your personal offer. Confirm eligibility and ask for an offer.</p>}
@@ -147,10 +147,10 @@ export function CostSummary({
       </div>}
 
       {compact ? (
-        <button ref={triggerRef} type="button" onClick={() => setComponentsOpen(true)} aria-label="Cost components and visa funds" aria-haspopup="dialog" aria-expanded={componentsOpen} className="mt-2 flex min-h-9 w-full items-center gap-2 rounded-lg border border-line bg-white px-3 py-2 text-left text-xs font-bold text-forest-800 transition hover:border-forest-300 hover:bg-canvas">
-          <Landmark size={15} />
+        <button ref={triggerRef} type="button" onClick={() => setComponentsOpen(true)} aria-label="Cost components and visa funds" aria-haspopup="dialog" aria-expanded={componentsOpen} className="flex min-h-9 shrink-0 items-center gap-2 rounded-lg px-1 text-xs font-bold text-forest-800 transition hover:text-forest-900 sm:border-l sm:border-forest-100 sm:pl-4">
+          <BarChart3 size={15} aria-hidden="true" />
           Cost details
-          <Maximize2 size={14} className="ml-auto shrink-0" />
+          <ArrowRight size={14} className="shrink-0" aria-hidden="true" />
         </button>
       ) : (
         <details className="group mt-4 rounded-xl border border-line bg-white">

@@ -56,6 +56,7 @@ describe('data mappers', () => {
       id: 'sample',
       name: 'Sample University',
       city: 'City',
+      state: null,
       country: 'Country',
       flag: '🏳️',
       tagline: 'Tagline',
@@ -67,6 +68,46 @@ describe('data mappers', () => {
     const university = mapUniversity(row)
     expect(university.tuition.status).toBe('unknown')
     expect(university.ielts.status).toBe('unknown')
+  })
+
+  it('maps a source-record USPS code to its display name without reading the city', () => {
+    const row: RawUniversity = {
+      id: 'new-york-sample',
+      name: 'New York Sample University',
+      city: 'A city label with no state text',
+      state: 'NY',
+      country: 'United States',
+      flag: 'US',
+      tagline: 'Tagline',
+      description: 'Description',
+      photo_seed: 'sample',
+      highlights: [],
+      source_id: 'scorecard-source',
+    }
+
+    expect(mapUniversity(row)).toMatchObject({
+      state: 'NY',
+      stateName: 'New York',
+      sourceId: 'scorecard-source',
+    })
+  })
+
+  it('keeps an unrecognized source-record state explicit as unknown', () => {
+    const row: RawUniversity = {
+      id: 'unknown-state',
+      name: 'Unknown State University',
+      city: 'Example City',
+      state: 'XX',
+      country: 'United States',
+      flag: 'US',
+      tagline: 'Tagline',
+      description: 'Description',
+      photo_seed: 'sample',
+      highlights: [],
+      source_id: 'source-1',
+    }
+
+    expect(mapUniversity(row)).toMatchObject({ state: null, stateName: null })
   })
 
   it('maps and orders a learning track without filling empty draft content', () => {

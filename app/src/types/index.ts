@@ -141,11 +141,16 @@ export type University = {
   id: string
   name: string
   city: string
+  /** Two-letter USPS code from the source record. Null means the source did not provide one. */
+  state: string | null
+  /** Display label derived from a recognized USPS code; never inferred from the city. */
+  stateName: string | null
   country: string
   flag: string
   tagline: string
   description: string
   photoSeed: string
+  sourceId: string
   verification: Verification
   fit?: FitScore
   tuition: DataPoint<string>
@@ -230,6 +235,7 @@ export type Pathway = {
 export type UniversityFilters = {
   query?: string
   country?: string
+  states?: string[]
   field?: string
   budgetMax?: number | null
 }

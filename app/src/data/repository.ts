@@ -40,7 +40,7 @@ import {
 } from '../learning/logic'
 
 const universitySelect = `
-  id,name,city,country,flag,tagline,description,photo_seed,highlights,source_id,
+  id,name,city,state,country,flag,tagline,description,photo_seed,highlights,source_id,
   university_facts(kind,value,numeric_value,currency,amount_period,source_id,unknown_reason,suggested_action),
   requirements(kind,value,numeric_value,benchmark,source_id,unknown_reason,suggested_action),
   programs(id,name,degree,field,degree_level,subject_area,program_facts(kind,value,numeric_value,currency,amount_period,source_id,unknown_reason,suggested_action)),
@@ -83,12 +83,15 @@ async function verificationLookup(): Promise<Map<string, Verification>> {
 
 function matchesFilters(university: University, filters: UniversityFilters): boolean {
   if (filters.country && university.country !== filters.country) return false
+  if (filters.states?.length && (!university.state || !filters.states.includes(university.state))) return false
   if (filters.field && !university.programs.some((program) => program.field === filters.field)) return false
   if (filters.query) {
     const query = filters.query.toLowerCase()
     const haystack = [
       university.name,
       university.city,
+      university.state ?? '',
+      university.stateName ?? '',
       university.country,
       ...university.programs.flatMap((program) => [program.name, program.field]),
     ].join(' ').toLowerCase()
