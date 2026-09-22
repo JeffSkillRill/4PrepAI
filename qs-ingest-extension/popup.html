@@ -1,3 +1,29 @@
 <!doctype html>
-<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>QS ingest review</title><style>body{font:14px system-ui;margin:12px;min-width:360px;color:#172033}input,textarea,select,button{box-sizing:border-box;width:100%;margin:4px 0 10px;padding:8px}textarea{min-height:120px}fieldset{border:1px solid #ccd3df;margin:8px 0}small,.muted{color:#52606d}.error{color:#a12622}.ok{color:#17633a}</style></head>
-<body><h1>QS profile review</h1><p class="muted">Nothing is saved until you review and click Save.</p><div id="config"></div><div id="auth"></div><button id="read" type="button">Read this page</button><div id="review"></div><div id="save"></div><p id="status" aria-live="polite"></p><script type="module" src="dist/popup.js"></script></body></html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>QS local collection</title>
+  <style>
+    body{font:14px system-ui;margin:12px;min-width:360px;color:#172033}
+    input,textarea,select,button{box-sizing:border-box;width:100%;margin:4px 0 10px;padding:8px}
+    textarea{min-height:180px}fieldset,details{border:1px solid #ccd3df;margin:10px 0;padding:10px}summary{cursor:pointer;font-weight:600}.primary{background:#17633a;border:1px solid #17633a;color:#fff;font-weight:700}.muted{color:#52606d}.error{color:#a12622}.ok{color:#17633a}
+  </style>
+</head>
+<body>
+  <h1>QS profile collection</h1>
+  <p class="muted">Read one QS page, review it, then save a local JSON file. Nothing is sent to a database unless you explicitly open the optional section below.</p>
+  <button id="read" type="button">Read this page</button>
+  <div id="review"></div>
+  <div id="localSave"></div>
+  <details id="database">
+    <summary>Optional: save reviewed data to database</summary>
+    <div id="config"></div>
+    <div id="auth"></div>
+    <div id="databaseReview"></div>
+    <div id="databaseSave"></div>
+  </details>
+  <p id="status" aria-live="polite"></p>
+  <script type="module" src="dist/popup.js"></script>
+</body>
+</html>

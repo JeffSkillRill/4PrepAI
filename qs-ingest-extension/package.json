@@ -2,5 +2,16 @@
   "name": "4prep-qs-ingest-extension",
   "private": true,
   "type": "module",
-  "scripts": { "build": "tsc -p tsconfig.json" }
+  "scripts": {
+    "build": "tsc -p tsconfig.json --noEmit && esbuild src/content.ts --bundle --platform=browser --format=iife --outfile=dist/content.js && esbuild src/popup.ts --bundle --platform=browser --format=esm --outfile=dist/popup.js",
+    "test": "tsx --test src/**/*.test.ts",
+    "aggregate": "tsx scripts/aggregate-qs.ts"
+  },
+  "devDependencies": {
+    "@types/jsdom": "^27.0.0",
+    "esbuild": "^0.25.10",
+    "jsdom": "^27.0.0",
+    "tsx": "^4.20.6",
+    "typescript": "^5.9.3"
+  }
 }
