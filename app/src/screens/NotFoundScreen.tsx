@@ -5,7 +5,7 @@ import { viewPaths } from '../routes'
 export function NotFoundScreen({ onReturn }: { onReturn: () => void }) {
   return (
     <div className="page-container py-12 sm:py-20">
-      <section className="soft-grid mx-auto max-w-2xl rounded-[24px] border border-line bg-white px-6 py-12 text-center shadow-soft sm:px-10">
+      <section className="soft-grid mx-auto max-w-2xl rounded-[24px] border border-line bg-paper px-6 py-12 text-center shadow-soft sm:px-10">
         <div className="mx-auto grid size-20 place-items-center rounded-full bg-forest-50 text-forest-700">
           <FileQuestion size={40} strokeWidth={1.5} />
         </div>
@@ -16,7 +16,7 @@ export function NotFoundScreen({ onReturn }: { onReturn: () => void }) {
         <AppLink
           href={viewPaths.search as string}
           onNavigate={onReturn}
-          className="mt-7 inline-flex min-h-11 items-center gap-2 rounded-xl bg-forest-800 px-5 py-3 font-bold text-white"
+          className="mt-7 inline-flex min-h-11 items-center gap-2 rounded-xl bg-action px-5 py-3 font-bold text-on-action"
         >
           <ArrowLeft size={18} /> Return to universities
         </AppLink>

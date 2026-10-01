@@ -4,6 +4,19 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#04362f" />
+    <meta name="color-scheme" content="light dark" />
+    <!-- Applies a saved light/dark choice before first paint, so the page never
+         flashes the wrong theme. No saved choice means "follow the OS", which
+         index.css handles with prefers-color-scheme. Keep the key in step with
+         THEME_STORAGE_KEY in src/theme/theme.ts. -->
+    <script>
+      (function () {
+        try {
+          var theme = window.localStorage.getItem('4prep-theme');
+          if (theme === 'light' || theme === 'dark') document.documentElement.setAttribute('data-theme', theme);
+        } catch (error) {}
+      })();
+    </script>
     <meta name="description" content="4Prep — clear, source-backed university pathways for international students." />
     <meta property="og:type" content="website" />
     <meta property="og:title" content="4Prep — Find your path abroad" />

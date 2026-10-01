@@ -69,7 +69,7 @@ export function PlanScreen({
           const isEditing = editing === step.id
           const answered = isStepAnswered(saved, step.id)
           return (
-            <li key={step.id} className="rounded-2xl border border-line bg-white">
+            <li key={step.id} className="rounded-2xl border border-line bg-paper">
               <div className="flex flex-wrap items-center gap-3 p-4 sm:p-5">
                 <div className="min-w-0 flex-1">
                   <p className="text-xs font-bold uppercase tracking-[.12em] text-muted">{step.summaryLabel}</p>
@@ -110,7 +110,7 @@ export function PlanScreen({
                       type="button"
                       onClick={commit}
                       disabled={!valid}
-                      className="inline-flex min-h-12 items-center gap-2 rounded-xl bg-forest-800 px-5 py-3 font-bold text-white transition hover:bg-forest-700 disabled:cursor-not-allowed disabled:opacity-40"
+                      className="inline-flex min-h-12 items-center gap-2 rounded-xl bg-action px-5 py-3 font-bold text-on-action transition hover:bg-action disabled:cursor-not-allowed disabled:opacity-40"
                     >
                       <Check size={17} /> Save this answer
                     </button>
@@ -133,7 +133,7 @@ export function PlanScreen({
         <AppLink
           href={viewPaths.results as string}
           onNavigate={() => onNavigate('results')}
-          className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-forest-800 px-5 py-3 font-bold text-white"
+          className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-action px-5 py-3 font-bold text-on-action"
         >
           See my pathway <ArrowRight size={18} />
         </AppLink>
@@ -157,7 +157,7 @@ export function PlanScreen({
         <button
           type="button"
           onClick={onRebuild}
-          className="inline-flex min-h-12 items-center gap-2 rounded-xl border border-line bg-white px-4 py-3 text-sm font-bold text-forest-800"
+          className="inline-flex min-h-12 items-center gap-2 rounded-xl border border-line bg-paper px-4 py-3 text-sm font-bold text-forest-800"
         >
           <RotateCcw size={16} /> Rebuild my plan
         </button>

@@ -1,9 +1,9 @@
 import type { University } from '../types'
 
 const palettes = [
-  'from-forest-950 via-forest-800 to-emerald-500',
-  'from-slate-950 via-forest-900 to-teal-500',
-  'from-forest-900 via-emerald-800 to-amber-400',
+  'from-band via-band-mid to-emerald-500',
+  'from-slate-950 via-band-raised to-teal-500',
+  'from-band-raised via-band-mid to-amber-400',
 ]
 
 export function UniversityVisual({

@@ -153,7 +153,7 @@ export function CounselorScreen({ profile, saved }: { profile: StudentProfile | 
 
   return (
     <div>
-      <section className="border-b border-line bg-forest-950 text-white">
+      <section className="border-b border-line bg-band text-white">
         <div className="page-container py-12 sm:py-16">
           <span className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1.5 text-sm font-bold"><ShieldCheck size={16} /> Grounded by verified 4Prep records</span>
           <h1 className="display mt-5 text-4xl font-extrabold sm:text-5xl">Ask the 4Prep counselor</h1>
@@ -165,16 +165,16 @@ export function CounselorScreen({ profile, saved }: { profile: StudentProfile | 
           <div>
             <form onSubmit={(event) => void ask(event)} className="card p-5 sm:p-7">
               <label htmlFor="counselor-message" className="display text-xl font-extrabold">What would you like to know?</label>
-              <textarea id="counselor-message" value={message} onChange={(event) => setMessage(event.target.value)} maxLength={1000} rows={5} aria-describedby="counselor-budget" placeholder="For example: What is Princeton’s 2026–27 cost of attendance?" className="mt-4 w-full resize-y rounded-xl border border-line bg-white p-4 leading-7 outline-none focus:border-forest-500 focus-visible:ring-2 focus-visible:ring-forest-200" />
+              <textarea id="counselor-message" value={message} onChange={(event) => setMessage(event.target.value)} maxLength={1000} rows={5} aria-describedby="counselor-budget" placeholder="For example: What is Princeton’s 2026–27 cost of attendance?" className="mt-4 w-full resize-y rounded-xl border border-line bg-paper p-4 leading-7 outline-none focus:border-forest-500 focus-visible:ring-2 focus-visible:ring-forest-200" />
               <div className="mt-2 flex items-center justify-between gap-3 text-xs">
                 <span className="text-muted">University facts are checked against sourced records first.</span>
                 <span id="counselor-budget" className={`shrink-0 font-bold ${budgetTone}`} aria-live="polite">{remainingCharacters} left</span>
               </div>
-              <button disabled={loading || !message.trim()} aria-busy={loading} className="mt-4 inline-flex items-center gap-2 rounded-xl bg-forest-800 px-5 py-3 font-bold text-white disabled:bg-button-disabled disabled:text-muted">{loading ? 'Request received · checking' : 'Ask counselor'} <Send size={17} /></button>
+              <button disabled={loading || !message.trim()} aria-busy={loading} className="mt-4 inline-flex items-center gap-2 rounded-xl bg-action px-5 py-3 font-bold text-on-action disabled:bg-button-disabled disabled:text-muted">{loading ? 'Request received · checking' : 'Ask counselor'} <Send size={17} /></button>
             </form>
 
             {loading && (
-              <div className="mt-5 flex items-start gap-3 rounded-2xl border border-forest-200 bg-white p-5 shadow-soft" role="status" aria-live="polite" aria-atomic="true">
+              <div className="mt-5 flex items-start gap-3 rounded-2xl border border-forest-200 bg-paper p-5 shadow-soft" role="status" aria-live="polite" aria-atomic="true">
                 <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-forest-50 text-forest-700"><Database size={20} /></span>
                 <div>
                   <p className="font-extrabold">Checking sourced records first</p>
@@ -188,7 +188,7 @@ export function CounselorScreen({ profile, saved }: { profile: StudentProfile | 
             {turns.length > 0 && <section className="mt-6" aria-label="Counselor conversation">
               <div className="mb-3 flex flex-wrap items-center justify-between gap-3"><div><h2 className="font-extrabold">Conversation</h2><p className="mt-1 text-xs text-muted">The last 20 turns stay visible in this browser tab.</p></div><button type="button" onClick={clearTurns} className="min-h-0 rounded-lg px-2 py-1 text-sm font-bold text-muted underline hover:text-forest-800">Clear chat</button></div>
               <div className="space-y-5">{turns.map((turn) => turn.type === 'comparison' ? <CounselorComparison key={turn.id} universityIds={turn.universityIds} profile={profile} saved={saved} onRemoveUniversity={(universityId) => updateComparison(turn.id, turn.universityIds.filter((id) => id !== universityId))} /> : <article key={turn.id}>
-                <div className="ml-auto max-w-[90%] rounded-2xl rounded-br-md bg-forest-800 px-4 py-3 text-sm leading-6 text-white"><p className="text-xs font-extrabold uppercase tracking-[.12em] text-white/65">You</p><p className="mt-1 whitespace-pre-wrap">{turn.question}</p></div>
+                <div className="ml-auto max-w-[90%] rounded-2xl rounded-br-md bg-action px-4 py-3 text-sm leading-6 text-on-action"><p className="text-xs font-extrabold uppercase tracking-[.12em] text-on-action/75">You</p><p className="mt-1 whitespace-pre-wrap">{turn.question}</p></div>
                 {turn.answer ? <CounselorResponse answer={turn.answer} onSuggestion={setMessage} /> : turn.error ? <p role="alert" className="trust-static mt-3 rounded-xl border border-rose-200 bg-rose-50 p-4 text-rose-900">{turn.error}</p> : null}
               </article>)}</div>
             </section>}
@@ -221,8 +221,8 @@ export function CounselorScreen({ profile, saved }: { profile: StudentProfile | 
 function CounselorResponse({ answer, onSuggestion }: { answer: CounselorAnswer; onSuggestion: (suggestion: string) => void }) {
   if (answer.answerType === 'verified_fact') {
     return (
-      <div className="motion-resolve mt-3 overflow-hidden rounded-2xl border border-forest-200 bg-white">
-        <div className="flex items-center gap-2 bg-forest-800 px-5 py-3 text-sm font-extrabold text-white"><BadgeCheck size={18} /> Verified 4Prep fact</div>
+      <div className="motion-resolve mt-3 overflow-hidden rounded-2xl border border-forest-200 bg-paper">
+        <div className="flex items-center gap-2 bg-band-mid px-5 py-3 text-sm font-extrabold text-white"><BadgeCheck size={18} /> Verified 4Prep fact</div>
         <div className="p-5"><SafeMarkdown text={answer.answer} className="text-sm leading-7 text-ink" /><div className="mt-4 flex flex-wrap gap-2">{answer.recordCitations.map((id) => <SourceChip key={id} sourceId={id} />)}</div></div>
       </div>
     )
@@ -230,7 +230,7 @@ function CounselorResponse({ answer, onSuggestion }: { answer: CounselorAnswer; 
 
   if (answer.answerType === 'general_guidance') {
     return (
-      <div className="motion-resolve mt-3 overflow-hidden rounded-2xl border border-sky-200 bg-white">
+      <div className="motion-resolve mt-3 overflow-hidden rounded-2xl border border-sky-200 bg-paper">
         <div className="flex items-center gap-2 bg-sky-100 px-5 py-3 text-sm font-extrabold text-sky-950"><Globe2 size={18} /> General web guidance · not verified 4Prep data</div>
         <div className="p-5">
           <SafeMarkdown text={answer.answer} className="text-sm leading-7 text-sky-950" />
@@ -245,7 +245,7 @@ function CounselorResponse({ answer, onSuggestion }: { answer: CounselorAnswer; 
 
   if (answer.answerType === 'out_of_scope') {
     return (
-      <div className="trust-static soft-grid mt-3 rounded-2xl border border-forest-200 bg-white p-6">
+      <div className="trust-static soft-grid mt-3 rounded-2xl border border-forest-200 bg-paper p-6">
         <Compass size={36} className="text-forest-700" />
         <h3 className="display mt-4 text-2xl font-extrabold">That is outside what I advise on</h3>
         <SafeMarkdown text={answer.answer} className="mt-3 leading-7 text-muted" />
@@ -255,7 +255,7 @@ function CounselorResponse({ answer, onSuggestion }: { answer: CounselorAnswer; 
   }
 
   return (
-    <div className="trust-static soft-grid mt-3 rounded-2xl border border-forest-100 bg-white p-6">
+    <div className="trust-static soft-grid mt-3 rounded-2xl border border-forest-100 bg-paper p-6">
       <FileQuestion size={36} className="text-forest-700" />
       <p className="mt-4 text-xs font-extrabold uppercase tracking-[.13em] text-forest-700">Honest refusal · no guess</p>
       <h3 className="display mt-1 text-2xl font-extrabold">Verified answer unavailable</h3>

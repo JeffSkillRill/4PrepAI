@@ -9,15 +9,6 @@ export type AdminGoal = {
   intakeTerm: string | null
 }
 
-export type AdminMetrics = {
-  signedUpTotal: number
-  signedIn30d: number
-  acted30d: number
-  waitingReview: number
-}
-
-export type AdminMetricDefinitions = Record<keyof AdminMetrics, string>
-
 export type AdminAccessResponse = {
   admin: {
     id: string
@@ -25,10 +16,7 @@ export type AdminAccessResponse = {
   }
 }
 
-export type AdminSessionResponse = AdminAccessResponse & {
-  metrics: AdminMetrics
-  definitions: AdminMetricDefinitions
-}
+export type AdminSessionResponse = AdminAccessResponse
 
 export type AdminStudentSummary = {
   id: string
@@ -43,39 +31,6 @@ export type AdminStudentSummary = {
 
 export type AdminCohortResponse = {
   students: AdminStudentSummary[]
-}
-
-export type AdminLeadStatus = 'new' | 'claimed' | 'answered' | 'closed'
-
-export type AdminLeadSource = 'results' | 'gap' | 'counselor_refusal'
-
-export type AdminLead = {
-  id: string
-  /** Null for a student who asked before creating an account. Still a real lead. */
-  studentUserId: string | null
-  name: string
-  contact: string
-  source: AdminLeadSource | string
-  contextRef: string | null
-  note: string | null
-  status: AdminLeadStatus
-  claimedBy: string | null
-  claimedAt: string | null
-  answeredAt: string | null
-  createdAt: string
-  waitingHours: number
-}
-
-export type AdminLeadInboxResponse = {
-  status: AdminLeadStatus
-  leads: AdminLead[]
-  /** How long the student who has waited longest has been waiting. */
-  oldestWaitingHours: number
-}
-
-export type AdminLeadMutationResponse = {
-  leadId: string
-  status: AdminLeadStatus
 }
 
 export type AdminSubmissionFile = {
@@ -111,39 +66,4 @@ export type AdminStudentResponse = {
 export type AdminFileUrlResponse = {
   signedUrl: string
   expiresIn: number
-}
-
-export type AdminSupportInboxItem = {
-  threadId: string
-  studentId: string
-  email: string | null
-  stage: AdminStage
-  waiting: boolean
-  lastMessageAt: string
-  preview: string
-}
-
-export type AdminSupportInboxResponse = {
-  threads: AdminSupportInboxItem[]
-}
-
-export type AdminSupportMessage = {
-  id: string
-  senderRole: 'student' | 'admin'
-  body: string
-  createdAt: string
-}
-
-export type AdminSupportThreadResponse = {
-  thread: {
-    id: string
-    studentId: string
-    email: string | null
-    stage: AdminStage
-  }
-  messages: AdminSupportMessage[]
-}
-
-export type AdminSupportReplyResponse = {
-  message: AdminSupportMessage
 }

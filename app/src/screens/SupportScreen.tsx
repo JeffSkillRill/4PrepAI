@@ -33,12 +33,12 @@ function StoredMessage({ message }: { message: SupportMessage }) {
   const fromStudent = message.senderRole === 'student'
   return (
     <li className={`flex ${fromStudent ? 'justify-end' : 'justify-start'}`}>
-      <article className={`max-w-[88%] rounded-2xl px-4 py-3 sm:max-w-[75%] ${fromStudent ? 'bg-forest-800 text-white' : 'border border-line bg-white text-ink'}`}>
-        <p className={`text-xs font-extrabold ${fromStudent ? 'text-forest-100' : 'text-forest-700'}`}>
+      <article className={`max-w-[88%] rounded-2xl px-4 py-3 sm:max-w-[75%] ${fromStudent ? 'bg-action text-on-action' : 'border border-line bg-paper text-ink'}`}>
+        <p className={`text-xs font-extrabold ${fromStudent ? 'text-on-action/80' : 'text-forest-700'}`}>
           {fromStudent ? 'You' : '4Prep support'}
         </p>
         <p className="mt-1 whitespace-pre-wrap break-words text-sm leading-6">{message.body}</p>
-        <p className={`mt-2 text-xs ${fromStudent ? 'text-forest-100' : 'text-muted'}`}>
+        <p className={`mt-2 text-xs ${fromStudent ? 'text-on-action/80' : 'text-muted'}`}>
           {messageTime(message.createdAt)} · Sent
         </p>
       </article>
@@ -189,7 +189,7 @@ export function SupportScreen({
           <LifeBuoy className="mx-auto text-forest-700" size={42} />
           <h1 className="display mt-5 text-3xl font-extrabold">Platform support</h1>
           <p className="mt-3 leading-7 text-muted">Sign in to report something broken or confusing and keep the conversation private.</p>
-          <button type="button" onClick={onSignIn} className="mt-6 min-h-12 rounded-xl bg-forest-800 px-5 py-3 font-bold text-white">Sign in to contact support</button>
+          <button type="button" onClick={onSignIn} className="mt-6 min-h-12 rounded-xl bg-action px-5 py-3 font-bold text-on-action">Sign in to contact support</button>
         </section>
       </div>
     )
@@ -236,7 +236,7 @@ export function SupportScreen({
         ) : null}
 
         <section className="mt-5 overflow-hidden rounded-2xl border border-line bg-canvas shadow-soft" aria-label="Support conversation">
-          <div className="border-b border-line bg-white px-4 py-3 text-xs leading-5 text-muted sm:px-6">
+          <div className="border-b border-line bg-paper px-4 py-3 text-xs leading-5 text-muted sm:px-6">
             We check for replies every 15 seconds while this page is open. If a check fails, your existing messages remain available.
           </div>
 
@@ -260,7 +260,7 @@ export function SupportScreen({
             ))}
           </ol>
 
-          <form onSubmit={submit} className="sticky bottom-0 border-t border-line bg-white p-4 sm:p-5">
+          <form onSubmit={submit} className="sticky bottom-0 border-t border-line bg-paper p-4 sm:p-5">
             <label htmlFor="support-message" className="text-sm font-extrabold">Message 4Prep support</label>
             <textarea
               id="support-message"
@@ -273,7 +273,7 @@ export function SupportScreen({
             />
             <div className="mt-2 flex flex-wrap items-center justify-between gap-3">
               <p className="text-xs text-muted">{remaining.toLocaleString()} characters left · No attachments</p>
-              <button type="submit" disabled={!draft.trim()} className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-forest-800 px-5 py-2.5 font-extrabold text-white disabled:cursor-not-allowed disabled:opacity-50">
+              <button type="submit" disabled={!draft.trim()} className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-action px-5 py-2.5 font-extrabold text-on-action disabled:cursor-not-allowed disabled:opacity-50">
                 <Send size={17} /> {online ? 'Send message' : 'Queue message'}
               </button>
             </div>

@@ -28,11 +28,11 @@ export function UniversityCard({ university, saved, onSave, onOpen, fitsAfterSch
   if (isList) {
     return (
       <article className="card interactive-card group overflow-hidden md:grid md:grid-cols-[220px_minmax(0,1fr)] xl:grid-cols-[260px_minmax(0,1fr)]">
-        <div className="relative min-h-52 overflow-hidden bg-forest-900 md:min-h-full">
+        <div className="relative min-h-52 overflow-hidden bg-band-raised md:min-h-full">
           <img src="/images/university-search-campus.png" alt="" className="motion-media absolute inset-0 size-full object-cover group-hover:scale-[1.025]" />
           <div className="image-scrim absolute inset-0" />
-          <span className="absolute bottom-4 left-4 rounded-full border border-white/30 bg-forest-950/80 px-3 py-1.5 text-xs font-bold text-white backdrop-blur">{institutionLabel(university)}</span>
-          <button onClick={onSave} className="absolute right-3 top-3 grid size-11 place-items-center rounded-full bg-white/95 text-forest-800 shadow transition hover:scale-105" aria-label={saved ? `Remove ${university.name} from saved` : `Save ${university.name}`}>
+          <span className="absolute bottom-4 left-4 rounded-full border border-white/30 bg-band/80 px-3 py-1.5 text-xs font-bold text-white backdrop-blur">{institutionLabel(university)}</span>
+          <button onClick={onSave} className="absolute right-3 top-3 grid size-11 place-items-center rounded-full bg-elevated/95 text-forest-800 shadow transition hover:scale-105" aria-label={saved ? `Remove ${university.name} from saved` : `Save ${university.name}`}>
             {saved ? <BookmarkCheck size={19} /> : <Bookmark size={19} />}
           </button>
         </div>
@@ -51,7 +51,7 @@ export function UniversityCard({ university, saved, onSave, onOpen, fitsAfterSch
           <p className="mt-4 line-clamp-1 text-sm leading-6 text-muted">{university.tagline}</p>
 
           <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <AppLink href={`/universities/${encodeURIComponent(university.id)}`} onNavigate={onOpen} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full border border-line bg-white px-5 text-sm font-bold text-forest-900 transition hover:border-forest-300 hover:bg-forest-50">
+            <AppLink href={`/universities/${encodeURIComponent(university.id)}`} onNavigate={onOpen} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full border border-line bg-paper px-5 text-sm font-bold text-forest-900 transition hover:border-forest-300 hover:bg-forest-50">
               Explore university <ArrowRight size={17} />
             </AppLink>
             {source?.url ? <a href={source.url} target="_blank" rel="noreferrer" className="inline-flex min-h-11 items-center justify-center gap-1.5 px-2 text-sm font-bold text-forest-700 underline underline-offset-4">
@@ -65,10 +65,10 @@ export function UniversityCard({ university, saved, onSave, onOpen, fitsAfterSch
 
   return (
     <article className="card interactive-card group overflow-hidden">
-      <div className="relative aspect-video overflow-hidden bg-forest-800">
+      <div className="relative aspect-video overflow-hidden bg-band-mid">
         <UniversityVisual university={university} className="motion-media absolute inset-0 group-hover:scale-[1.025]" />
         <div className="image-scrim absolute inset-0" />
-        <button onClick={onSave} className="absolute right-3 top-3 grid size-11 place-items-center rounded-full bg-white/95 text-forest-800 shadow transition hover:scale-105" aria-label={saved ? `Remove ${university.name} from saved` : `Save ${university.name}`}>
+        <button onClick={onSave} className="absolute right-3 top-3 grid size-11 place-items-center rounded-full bg-elevated/95 text-forest-800 shadow transition hover:scale-105" aria-label={saved ? `Remove ${university.name} from saved` : `Save ${university.name}`}>
           {saved ? <BookmarkCheck size={19} /> : <Bookmark size={19} />}
         </button>
         <div className="absolute inset-x-4 bottom-4">

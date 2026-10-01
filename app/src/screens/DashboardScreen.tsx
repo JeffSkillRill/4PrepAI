@@ -134,14 +134,14 @@ export function DashboardScreen(props: DashboardProps) {
 function SignedOutDashboard({ onNavigate }: { onNavigate: (view: View) => void }) {
   return (
     <div className="page-container py-8 sm:py-12">
-      <section className="soft-grid overflow-hidden rounded-[28px] border border-line bg-white p-6 shadow-soft sm:p-10">
+      <section className="soft-grid overflow-hidden rounded-[28px] border border-line bg-paper p-6 shadow-soft sm:p-10">
         <span className="grid size-14 place-items-center rounded-2xl bg-forest-50 text-forest-700"><LayoutDashboard size={27} /></span>
         <p className="mt-6 text-sm font-extrabold uppercase tracking-[.14em] text-forest-700">Student dashboard</p>
         <h1 className="display mt-2 max-w-2xl text-3xl font-extrabold sm:text-5xl">Return to the work you actually saved</h1>
         <p className="mt-4 max-w-2xl leading-7 text-muted">Sign in to bring your intake profile, saved universities, lesson progress, and homework submissions together. Signed-out visitors can still browse the sourced catalogue and learning curriculum.</p>
         <div className="mt-7 flex flex-col gap-3 sm:flex-row">
-          <AppLink href={viewPaths.auth as string} onNavigate={() => onNavigate('auth')} className="inline-flex items-center justify-center gap-2 rounded-xl bg-forest-800 px-5 py-3 font-bold text-white">Sign in <ArrowRight size={18} /></AppLink>
-          <AppLink href={viewPaths.search as string} onNavigate={() => onNavigate('search')} className="inline-flex items-center justify-center gap-2 rounded-xl border border-line bg-white px-5 py-3 font-bold text-forest-800">Browse without signing in</AppLink>
+          <AppLink href={viewPaths.auth as string} onNavigate={() => onNavigate('auth')} className="inline-flex items-center justify-center gap-2 rounded-xl bg-action px-5 py-3 font-bold text-on-action">Sign in <ArrowRight size={18} /></AppLink>
+          <AppLink href={viewPaths.search as string} onNavigate={() => onNavigate('search')} className="inline-flex items-center justify-center gap-2 rounded-xl border border-line bg-paper px-5 py-3 font-bold text-forest-800">Browse without signing in</AppLink>
         </div>
       </section>
     </div>
@@ -198,8 +198,8 @@ function SignedInDashboard({
 
   return (
     <div className="page-container motion-resolve py-8 sm:py-12">
-      <section className="rounded-[24px] bg-forest-900 p-6 text-white shadow-card sm:p-9">
-        <p className="text-sm font-extrabold uppercase tracking-[.14em] text-forest-200">Student dashboard</p>
+      <section className="rounded-[24px] bg-band-raised p-6 text-white shadow-card sm:p-9">
+        <p className="text-sm font-extrabold uppercase tracking-[.14em] text-on-hero-muted">Student dashboard</p>
         <div className="mt-3 grid gap-6 lg:grid-cols-[1fr_360px] lg:items-end">
           <div>
             <h1 className="display text-3xl font-extrabold sm:text-5xl">Pick up the next real step</h1>
@@ -264,7 +264,7 @@ function SignedInDashboard({
                 ))}
               </ul>
               <div className="mt-4 flex items-start gap-3 rounded-2xl bg-forest-50/60 p-4">
-                <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-white text-forest-700 ring-1 ring-forest-100"><Sparkles size={16} aria-hidden="true" /></span>
+                <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-paper text-forest-700 ring-1 ring-forest-100"><Sparkles size={16} aria-hidden="true" /></span>
                 <p className="text-sm leading-6 text-muted">
                   {saved.size > 1
                     ? 'Ask the counselor to line these up side by side on cost, fit, and entry requirements.'
@@ -326,11 +326,11 @@ function DashboardEmpty({
 }) {
   return (
     <div className="page-container motion-resolve py-8 sm:py-12">
-      <section className="soft-grid rounded-[28px] border border-line bg-white p-6 shadow-soft sm:p-10">
+      <section className="soft-grid rounded-[28px] border border-line bg-paper p-6 shadow-soft sm:p-10">
         <p className="text-sm font-extrabold uppercase tracking-[.14em] text-forest-700">Your stage · {stage.label}</p>
         <h1 className="display mt-2 max-w-2xl text-3xl font-extrabold sm:text-5xl">Start with facts, not empty metrics</h1>
         <p className="mt-4 max-w-2xl leading-7 text-muted">Start with your intake so 4Prep can organize the facts around your plan. We will not fill this page with guessed chances, invented deadlines, or a readiness score.</p>
-        <AppLink href={viewPaths.intake as string} onNavigate={() => onNavigate('intake')} className="mt-6 inline-flex min-h-12 items-center gap-2 rounded-xl bg-forest-800 px-5 py-3 font-bold text-white">Start intake <ArrowRight size={18} /></AppLink>
+        <AppLink href={viewPaths.intake as string} onNavigate={() => onNavigate('intake')} className="mt-6 inline-flex min-h-12 items-center gap-2 rounded-xl bg-action px-5 py-3 font-bold text-on-action">Start intake <ArrowRight size={18} /></AppLink>
       </section>
       <details className="card mt-6">
         <summary className="flex min-h-14 cursor-pointer list-none items-center justify-between gap-4 px-5 py-3 font-bold text-forest-800 sm:px-7">
@@ -383,7 +383,7 @@ function NextAction({
           : viewPaths.saved as string
 
   return (
-    <AppLink href={href} onNavigate={activate} className="flex w-full items-center justify-between gap-4 rounded-2xl bg-white p-5 text-left text-forest-950">
+    <AppLink href={href} onNavigate={activate} className="flex w-full items-center justify-between gap-4 rounded-2xl bg-paper p-5 text-left text-forest-950">
       <span><span className="block text-xs font-extrabold uppercase tracking-[.12em] text-forest-700">Next recorded action</span><span className="mt-1 block font-extrabold">{content[action][0]}</span><span className="mt-1 block text-sm leading-6 text-muted">{content[action][1]}</span></span>
       <ArrowRight size={20} className="shrink-0" />
     </AppLink>
@@ -436,7 +436,7 @@ function SavedUniversityRow({ university, onOpen }: { university: University; on
     <AppLink
       href={`/universities/${encodeURIComponent(university.id)}`}
       onNavigate={onOpen}
-      className="group flex items-center gap-3.5 rounded-2xl border border-line bg-white px-4 py-4 text-left transition hover:border-forest-300 hover:bg-forest-50/40 hover:shadow-sm"
+      className="group flex items-center gap-3.5 rounded-2xl border border-line bg-paper px-4 py-4 text-left transition hover:border-forest-300 hover:bg-forest-50/40 hover:shadow-sm"
     >
       <span className="grid size-12 shrink-0 place-items-center rounded-xl bg-forest-800 text-xl ring-1 ring-forest-900/10" aria-hidden="true">{university.flag}</span>
       <span className="min-w-0 flex-1">

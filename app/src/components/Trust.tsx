@@ -102,7 +102,7 @@ export function HonestGapCluster({ items, contextRef = null }: { items: HonestGa
   if (gaps.length === 0) return null
 
   return (
-    <details className="trust-static rounded-2xl border border-forest-100 bg-white">
+    <details className="trust-static rounded-2xl border border-forest-100 bg-paper">
       <summary className="flex min-h-12 cursor-pointer list-none items-center gap-3 px-4 py-3 text-left">
         <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-forest-50 text-forest-700">
           <FileSearch size={18} />
@@ -162,7 +162,7 @@ export function FitBreakdown({ fit }: { fit: FitScore }) {
           {components.map((item) => (
             <div key={item.label} className="grid grid-cols-[78px_1fr_38px] items-center gap-2 text-[11px] font-bold">
               <span className="truncate text-muted">{item.label}</span>
-              <span className="h-2.5 overflow-hidden rounded-full border border-line bg-white">
+              <span className="h-2.5 overflow-hidden rounded-full border border-line bg-paper">
                 <span className="block h-full origin-left rounded-full bg-forest-700" style={{ width: `${item.score}%` }} />
               </span>
               <span className="text-right text-forest-800">{item.score}</span>
@@ -183,7 +183,7 @@ export function FitBreakdown({ fit }: { fit: FitScore }) {
 
 export function ExpandableFit({ fit, compact = false }: { fit: FitScore; compact?: boolean }) {
   return (
-    <details className="group w-full rounded-2xl bg-white text-forest-900 shadow-sm ring-1 ring-line transition-shadow open:shadow-md">
+    <details className="group w-full rounded-2xl bg-paper text-forest-900 shadow-sm ring-1 ring-line transition-shadow open:shadow-md">
       <summary className={`flex cursor-pointer list-none items-center gap-3 rounded-2xl transition hover:bg-forest-50/60 ${compact ? 'min-h-14 p-2.5' : 'min-h-16 p-3'}`}>
         <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-forest-50 text-forest-700 ring-1 ring-forest-100">
           <Sparkles size={18} aria-hidden="true" />

@@ -27,7 +27,7 @@ export function EnvironmentBanner() {
   }
   return (
     <div
-      className={`fixed top-3 left-3 z-[60] flex max-w-[calc(100vw-1.5rem)] items-center gap-2 rounded-full py-1.5 pr-1.5 pl-3 shadow-lg ${target.production ? 'bg-rose-700 text-white' : 'bg-amber-200 text-amber-950'}`}
+      className={`fixed top-3 left-3 z-[60] flex max-w-[calc(100vw-1.5rem)] items-center gap-2 rounded-full py-1.5 pr-1.5 pl-3 shadow-lg ${target.production ? 'bg-rose-700 text-rose-50' : 'bg-amber-200 text-amber-950'}`}
       role="status"
     >
       {target.production ? <ShieldAlert size={16} className="shrink-0" /> : <Database size={15} className="shrink-0" />}

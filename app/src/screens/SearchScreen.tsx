@@ -147,7 +147,7 @@ function FilterContent({
       <section>
         <div className="flex items-end justify-between gap-2">
           <label id={budgetHeadingId} htmlFor={budgetId} className="text-sm font-bold">Annual budget ceiling <span className="block text-xs font-normal text-muted">after numeric published aid</span></label>
-          <span className="rounded-lg border border-line bg-white px-2 py-1 text-xs font-bold">USD only</span>
+          <span className="rounded-lg border border-line bg-paper px-2 py-1 text-xs font-bold">USD only</span>
         </div>
         <p className="mt-2 text-right text-sm font-bold text-forest-700">USD {budget.toLocaleString()}</p>
         <input id={budgetId} type="range" min={budgetLimits.min} max={budgetLimits.max} step={budgetLimits.step} value={budget} onChange={(event) => setBudget(Number(event.target.value))} className="mt-3 w-full accent-forest-700" />
@@ -160,9 +160,9 @@ function FilterContent({
           <label className="relative mt-2 block">
             <Search size={15} className="pointer-events-none absolute left-3 top-3 text-muted" aria-hidden="true" />
             <span className="sr-only">Search available states</span>
-            <input type="search" value={stateSearch} onChange={(event) => setStateSearch(event.target.value)} placeholder="Search states" className="w-full rounded-xl border border-line bg-white py-2.5 pl-9 pr-3 text-sm outline-none focus:border-forest-500" aria-label="Search available states" />
+            <input type="search" value={stateSearch} onChange={(event) => setStateSearch(event.target.value)} placeholder="Search states" className="w-full rounded-xl border border-line bg-paper py-2.5 pl-9 pr-3 text-sm outline-none focus:border-forest-500" aria-label="Search available states" />
           </label>
-          <fieldset className="mt-2 max-h-44 space-y-1 overflow-y-auto rounded-xl border border-line bg-white p-2">
+          <fieldset className="mt-2 max-h-44 space-y-1 overflow-y-auto rounded-xl border border-line bg-paper p-2">
             <legend className="sr-only">States in the loaded university data</legend>
             {shownStates.length > 0 ? shownStates.map((option) => (
               <label key={option.code} className="flex min-h-10 cursor-pointer items-center gap-2 rounded-lg px-2 text-sm hover:bg-canvas">
@@ -176,7 +176,7 @@ function FilterContent({
       </section>
 
       <label className="block text-sm font-bold">Major
-        <span className="relative mt-2 block"><select value={field} onChange={(event) => setField(event.target.value)} className="w-full appearance-none rounded-xl border border-line bg-white px-3 py-2.5 pr-9 text-sm font-normal text-ink"><option value="">All majors</option>{fields.map((item) => <option key={item}>{item}</option>)}</select><ChevronDown size={16} className="pointer-events-none absolute right-3 top-3 text-muted" /></span>
+        <span className="relative mt-2 block"><select value={field} onChange={(event) => setField(event.target.value)} className="w-full appearance-none rounded-xl border border-line bg-paper px-3 py-2.5 pr-9 text-sm font-normal text-ink"><option value="">All majors</option>{fields.map((item) => <option key={item}>{item}</option>)}</select><ChevronDown size={16} className="pointer-events-none absolute right-3 top-3 text-muted" /></span>
       </label>
 
       <details className="group rounded-xl border border-forest-100 bg-forest-50">
@@ -239,29 +239,29 @@ export function SearchScreen({ query, setQuery, saved, onToggleSave, onOpen }: P
             <p className="mt-4 max-w-2xl text-base leading-7 text-ink sm:text-lg">Explore top universities, compare costs, and find the best fit for your future.</p>
           </div>
           <form className="mt-8 max-w-4xl" role="search" onSubmit={(event) => event.preventDefault()}>
-            <label className="flex min-w-0 items-center gap-3 rounded-full border border-line bg-white p-2 pl-5 shadow-soft focus-within:border-forest-500 focus-within:ring-2 focus-within:ring-forest-200">
+            <label className="flex min-w-0 items-center gap-3 rounded-full border border-line bg-paper p-2 pl-5 shadow-soft focus-within:border-forest-500 focus-within:ring-2 focus-within:ring-forest-200">
               <Search size={21} className="shrink-0 text-muted" aria-hidden="true" />
               <span className="sr-only">Search universities by name</span>
               <input value={query} onChange={(event) => setQuery(event.target.value)} className="min-w-0 flex-1 border-0 bg-transparent py-2 outline-none placeholder:text-muted" placeholder="Type a university name (e.g. Harvard, NYU, USC)" aria-label="Search universities by name" autoComplete="off" />
               {query ? <button type="button" onClick={() => setQuery('')} className="grid size-10 shrink-0 place-items-center rounded-full text-muted transition hover:bg-canvas hover:text-forest-800" aria-label="Clear university search"><X size={18} /></button> : null}
-              <button type="submit" className="inline-flex min-h-12 shrink-0 items-center gap-2 rounded-full bg-forest-800 px-5 font-bold text-white transition hover:bg-forest-900 sm:px-7" aria-label="Search universities"><span className="hidden sm:inline">Search</span><ArrowRight size={17} /></button>
+              <button type="submit" className="inline-flex min-h-12 shrink-0 items-center gap-2 rounded-full bg-action px-5 font-bold text-on-action transition hover:bg-action-hover sm:px-7" aria-label="Search universities"><span className="hidden sm:inline">Search</span><ArrowRight size={17} /></button>
             </label>
             <div className="mt-4 flex flex-wrap items-center gap-2 text-xs text-forest-900">
               <span className="font-bold">Popular:</span>
-              {regionChips.map((chip) => <span key={chip.label} className="rounded-full border border-white/70 bg-white/55 px-3.5 py-1.5 font-semibold text-forest-900 backdrop-blur" title={chip.note}>{chip.label}</span>)}
-              {shownFieldChips.map((chip) => <button key={chip.label} type="button" onClick={() => setField(chip.value)} className={`min-h-0 rounded-full border px-3.5 py-1.5 font-semibold backdrop-blur transition ${field === chip.value ? 'border-forest-800 bg-forest-800 text-white' : 'border-white/70 bg-white/55 text-forest-900 hover:bg-white/80'}`} aria-pressed={field === chip.value}>{chip.label}</button>)}
-              {moreFieldChips.length > 0 && <button type="button" onClick={() => setShowMoreChips(!showMoreChips)} className="inline-flex min-h-0 items-center gap-1 rounded-full border border-white/70 bg-white/55 px-3.5 py-1.5 font-semibold text-forest-900 backdrop-blur transition hover:bg-white/80" aria-expanded={showMoreChips}>More <ChevronDown size={14} className={showMoreChips ? 'rotate-180 transition' : 'transition'} aria-hidden="true" /></button>}
+              {regionChips.map((chip) => <span key={chip.label} className="rounded-full border border-glass-line bg-glass px-3.5 py-1.5 font-semibold text-forest-900 backdrop-blur" title={chip.note}>{chip.label}</span>)}
+              {shownFieldChips.map((chip) => <button key={chip.label} type="button" onClick={() => setField(chip.value)} className={`min-h-0 rounded-full border px-3.5 py-1.5 font-semibold backdrop-blur transition ${field === chip.value ? 'border-action bg-action text-on-action' : 'border-glass-line bg-glass text-forest-900 hover:bg-glass-strong'}`} aria-pressed={field === chip.value}>{chip.label}</button>)}
+              {moreFieldChips.length > 0 && <button type="button" onClick={() => setShowMoreChips(!showMoreChips)} className="inline-flex min-h-0 items-center gap-1 rounded-full border border-glass-line bg-glass px-3.5 py-1.5 font-semibold text-forest-900 backdrop-blur transition hover:bg-glass-strong" aria-expanded={showMoreChips}>More <ChevronDown size={14} className={showMoreChips ? 'rotate-180 transition' : 'transition'} aria-hidden="true" /></button>}
             </div>
           </form>
-          <p className="mt-8 inline-flex items-center gap-1.5 self-end rounded-full border border-white/70 bg-white/60 px-3.5 py-1.5 text-xs font-semibold text-forest-900 backdrop-blur">
+          <p className="mt-8 inline-flex items-center gap-1.5 self-end rounded-full border border-glass-line bg-glass px-3.5 py-1.5 text-xs font-semibold text-forest-900 backdrop-blur">
             <MapPin size={14} aria-hidden="true" /> Dream · Learn · Grow
           </p>
         </div>
       </section>
 
-      <section className="border-b border-line bg-white" aria-label="Catalogue features">
+      <section className="border-b border-line bg-paper" aria-label="Catalogue features">
         <div className="page-container grid gap-px bg-line sm:grid-cols-2 lg:grid-cols-4">
-          {featureItems.map(({ icon: Icon, title, detail }) => <div key={title} className="flex items-center gap-3 bg-white px-4 py-5 sm:px-5">
+          {featureItems.map(({ icon: Icon, title, detail }) => <div key={title} className="flex items-center gap-3 bg-paper px-4 py-5 sm:px-5">
             <span className="grid size-10 shrink-0 place-items-center rounded-full bg-forest-50 text-forest-700"><Icon size={19} aria-hidden="true" /></span>
             <span><strong className="block text-sm text-forest-950">{title}</strong><span className="mt-0.5 block text-xs text-muted">{detail}</span></span>
           </div>)}
@@ -305,7 +305,7 @@ export function SearchScreen({ query, setQuery, saved, onToggleSave, onOpen }: P
                 <p className="text-xs font-extrabold uppercase tracking-[.14em] text-forest-700">US university catalogue</p>
                 <h2 id="catalogue-results-heading" className="display mt-1 text-2xl font-extrabold sm:text-3xl">{status === 'loading' ? 'Loading universities' : `${filtered.length} ${filtered.length === 1 ? 'result' : 'results'}`}</h2>
               </div>
-              <button type="button" onClick={() => setFiltersOpen(true)} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-line bg-white px-4 py-2.5 text-sm font-bold lg:hidden"><Filter size={17} /> Filters{hasActiveFilters ? ` (${selectedStates.length + Number(Boolean(field)) + Number(budget !== budgetLimits.max)})` : ''}</button>
+              <button type="button" onClick={() => setFiltersOpen(true)} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-line bg-paper px-4 py-2.5 text-sm font-bold lg:hidden"><Filter size={17} /> Filters{hasActiveFilters ? ` (${selectedStates.length + Number(Boolean(field)) + Number(budget !== budgetLimits.max)})` : ''}</button>
             </div>
 
             {hasActiveFilters && <div className="mb-5 flex min-w-0 flex-wrap gap-2" aria-label="Active filters">
@@ -327,17 +327,17 @@ export function SearchScreen({ query, setQuery, saved, onToggleSave, onOpen }: P
         </div>
       </div>
 
-      {filtersOpen && <div className="fixed inset-0 z-50 bg-ink/40 lg:hidden" role="dialog" aria-modal="true" aria-label="Search filters" onMouseDown={() => setFiltersOpen(false)}><aside className="absolute inset-x-0 bottom-0 max-h-[88vh] overflow-y-auto rounded-t-[28px] bg-white p-6" onMouseDown={(event) => event.stopPropagation()}><div className="mb-6 flex items-center justify-between gap-3"><h2 className="display text-2xl font-extrabold">Refine results</h2><div className="flex items-center gap-2">{(hasActiveFilters || query) && <button type="button" onClick={resetAll} className="min-h-10 px-2 text-sm font-bold text-forest-700 underline underline-offset-4">Reset</button>}<button type="button" onClick={() => setFiltersOpen(false)} className="grid size-10 place-items-center rounded-full bg-canvas" aria-label="Close filters"><X size={20} /></button></div></div><FilterContent {...filterProps} /><button type="button" onClick={() => setFiltersOpen(false)} className="sticky bottom-4 mt-7 w-full rounded-xl bg-forest-800 py-3.5 font-bold text-white shadow-lg">Show {filtered.length} {filtered.length === 1 ? 'result' : 'results'}</button></aside></div>}
+      {filtersOpen && <div className="fixed inset-0 z-50 bg-scrim/40 lg:hidden" role="dialog" aria-modal="true" aria-label="Search filters" onMouseDown={() => setFiltersOpen(false)}><aside className="absolute inset-x-0 bottom-0 max-h-[88vh] overflow-y-auto rounded-t-[28px] bg-elevated p-6" onMouseDown={(event) => event.stopPropagation()}><div className="mb-6 flex items-center justify-between gap-3"><h2 className="display text-2xl font-extrabold">Refine results</h2><div className="flex items-center gap-2">{(hasActiveFilters || query) && <button type="button" onClick={resetAll} className="min-h-10 px-2 text-sm font-bold text-forest-700 underline underline-offset-4">Reset</button>}<button type="button" onClick={() => setFiltersOpen(false)} className="grid size-10 place-items-center rounded-full bg-canvas" aria-label="Close filters"><X size={20} /></button></div></div><FilterContent {...filterProps} /><button type="button" onClick={() => setFiltersOpen(false)} className="sticky bottom-4 mt-7 w-full rounded-xl bg-action py-3.5 font-bold text-on-action shadow-lg">Show {filtered.length} {filtered.length === 1 ? 'result' : 'results'}</button></aside></div>}
     </div>
   )
 }
 
 function ActiveFilterChip({ label, icon, onClear }: { label: string; icon: React.ReactNode; onClear: () => void }) {
-  return <button type="button" onClick={onClear} className="inline-flex min-h-10 min-w-0 max-w-full items-center gap-1.5 rounded-full border border-forest-700 bg-forest-800 px-3 py-2 text-sm font-semibold text-white transition hover:bg-forest-900" aria-label={`Remove filter: ${label}`}>{icon}<span className="truncate">{label}</span><X size={14} className="shrink-0" aria-hidden="true" /></button>
+  return <button type="button" onClick={onClear} className="inline-flex min-h-10 min-w-0 max-w-full items-center gap-1.5 rounded-full border border-action bg-action px-3 py-2 text-sm font-semibold text-on-action transition hover:bg-action-hover" aria-label={`Remove filter: ${label}`}>{icon}<span className="truncate">{label}</span><X size={14} className="shrink-0" aria-hidden="true" /></button>
 }
 
 function CatalogueEmptyState({ onReset }: { onReset: () => void }) {
-  return <section className="soft-grid rounded-[28px] border border-line bg-white px-6 py-14 text-center shadow-soft sm:px-12"><div className="mx-auto grid size-20 place-items-center rounded-full bg-forest-50 text-forest-700"><Search size={42} strokeWidth={1.5} /></div><h2 className="display mt-6 text-3xl font-extrabold">No exact matches yet</h2><p className="mx-auto mt-3 max-w-xl leading-7 text-muted">Try removing one or more active search or filter selections. We will never invent a match just to fill the page.</p><button type="button" onClick={onReset} className="mt-7 inline-flex min-h-11 items-center gap-2 rounded-xl bg-forest-800 px-5 py-3 font-bold text-white transition hover:bg-forest-700">Reset search and filters <ArrowRight size={18} /></button></section>
+  return <section className="soft-grid rounded-[28px] border border-line bg-paper px-6 py-14 text-center shadow-soft sm:px-12"><div className="mx-auto grid size-20 place-items-center rounded-full bg-forest-50 text-forest-700"><Search size={42} strokeWidth={1.5} /></div><h2 className="display mt-6 text-3xl font-extrabold">No exact matches yet</h2><p className="mx-auto mt-3 max-w-xl leading-7 text-muted">Try removing one or more active search or filter selections. We will never invent a match just to fill the page.</p><button type="button" onClick={onReset} className="mt-7 inline-flex min-h-11 items-center gap-2 rounded-xl bg-action px-5 py-3 font-bold text-on-action transition hover:bg-action">Reset search and filters <ArrowRight size={18} /></button></section>
 }
 
 function CatalogueListSkeleton() {

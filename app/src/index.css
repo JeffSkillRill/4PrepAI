@@ -17,39 +17,11 @@
   --text-2xl--line-height: 2rem;
   --text-3xl: clamp(1.875rem, 5vw, 3rem);
   --text-3xl--line-height: 1.08;
-  --color-canvas: #f6f8f7;
-  --color-paper: #ffffff;
-  --color-ink: #102a2a;
-  --color-muted: #52635f;
-  --color-line: #d7dfdc;
-  --color-brand: #3cdbbf;
-  --color-brand-soft: #d7f8f0;
-  --color-forest-50: #eafbf7;
-  --color-forest-100: #cff5ec;
-  --color-forest-200: #9ce9d8;
-  --color-forest-300: #67d8c0;
-  --color-forest-400: #2fb69b;
-  --color-forest-500: #0f8f78;
-  --color-forest-600: #08725f;
-  --color-forest-700: #075c4e;
-  --color-forest-800: #06473d;
-  --color-forest-900: #04362f;
-  --color-forest-950: #02241f;
-  --color-chart-awaiting: #835600;
-  --color-chart-feedback: #5a4393;
-  --color-button-disabled: #d7dfdc;
-  --color-google-border: #dadce0;
-  --color-google-ink: #3c4043;
-  --color-google-hover: #f8fafd;
+  /* Google's mark colours are fixed by their brand rules in both themes. */
   --color-google-blue: #4285f4;
   --color-google-green: #34a853;
   --color-google-yellow: #fbbc05;
   --color-google-red: #ea4335;
-  --color-skeleton: #e3e9e7;
-  --color-skeleton-shine: #ffffff;
-  --shadow-soft: 0 8px 28px rgba(4, 54, 47, .08);
-  --shadow-card: 0 18px 48px rgba(4, 54, 47, .12);
-  --shadow-raised: 0 24px 70px rgba(4, 54, 47, .16);
   --radius-sm: .5rem;
   --radius-md: .75rem;
   --radius-lg: 1rem;
@@ -60,6 +32,316 @@
   --motion-duration-large: 300ms;
   --motion-ease-enter: cubic-bezier(.2, .8, .2, 1);
   --motion-ease-celebrate: cubic-bezier(.16, 1.18, .3, 1);
+}
+
+/* Semantic colour tokens. Utilities keep their names (bg-canvas,
+   text-forest-700, shadow-card, ...) but resolve to the --ui-* value of the
+   active theme, so components never need a dark: variant. */
+@theme inline {
+  --color-canvas: var(--ui-canvas);
+  --color-paper: var(--ui-paper);
+  --color-elevated: var(--ui-elevated);
+  --color-ink: var(--ui-ink);
+  --color-muted: var(--ui-muted);
+  --color-line: var(--ui-line);
+  --color-brand: var(--ui-brand);
+  --color-brand-soft: var(--ui-brand-soft);
+  --color-forest-50: var(--ui-forest-50);
+  --color-forest-100: var(--ui-forest-100);
+  --color-forest-200: var(--ui-forest-200);
+  --color-forest-300: var(--ui-forest-300);
+  --color-forest-400: var(--ui-forest-400);
+  --color-forest-500: var(--ui-forest-500);
+  --color-forest-600: var(--ui-forest-600);
+  --color-forest-700: var(--ui-forest-700);
+  --color-forest-800: var(--ui-forest-800);
+  --color-forest-900: var(--ui-forest-900);
+  --color-forest-950: var(--ui-forest-950);
+  --color-action: var(--ui-action);
+  --color-action-hover: var(--ui-action-hover);
+  --color-on-action: var(--ui-on-action);
+  --color-band: var(--ui-band);
+  --color-band-raised: var(--ui-band-raised);
+  --color-band-mid: var(--ui-band-mid);
+  --color-band-line: var(--ui-band-line);
+  --color-on-hero: var(--ui-on-hero);
+  --color-on-hero-muted: var(--ui-on-hero-muted);
+  --color-glass: var(--ui-glass);
+  --color-glass-strong: var(--ui-glass-strong);
+  --color-glass-line: var(--ui-glass-line);
+  --color-scrim: var(--ui-scrim);
+  --color-chart-awaiting: var(--ui-chart-awaiting);
+  --color-chart-feedback: var(--ui-chart-feedback);
+  --color-button-disabled: var(--ui-button-disabled);
+  --color-google-border: var(--ui-google-border);
+  --color-google-ink: var(--ui-google-ink);
+  --color-google-hover: var(--ui-google-hover);
+  --color-skeleton: var(--ui-skeleton);
+  --color-skeleton-shine: var(--ui-skeleton-shine);
+  --shadow-soft: var(--ui-shadow-soft);
+  --shadow-card: var(--ui-shadow-card);
+  --shadow-raised: var(--ui-shadow-raised);
+}
+
+/* Theme scopes. With no data-theme the page follows the OS; an explicit
+   data-theme on <html> (set before first paint by index.html) wins. The two
+   dark blocks must stay identical; src/theme/theme.test.ts enforces that. */
+:root,
+:root[data-theme="light"] {
+  color-scheme: light;
+  --ui-canvas: #f6f8f7;
+  --ui-paper: #ffffff;
+  --ui-elevated: #ffffff;
+  --ui-ink: #102a2a;
+  --ui-muted: #52635f;
+  --ui-line: #d7dfdc;
+  --ui-brand: #3cdbbf;
+  --ui-brand-soft: #d7f8f0;
+  --ui-forest-50: #eafbf7;
+  --ui-forest-100: #cff5ec;
+  --ui-forest-200: #9ce9d8;
+  --ui-forest-300: #67d8c0;
+  --ui-forest-400: #2fb69b;
+  --ui-forest-500: #0f8f78;
+  --ui-forest-600: #08725f;
+  --ui-forest-700: #075c4e;
+  --ui-forest-800: #06473d;
+  --ui-forest-900: #04362f;
+  --ui-forest-950: #02241f;
+  --ui-action: #06473d;
+  --ui-action-hover: #075c4e;
+  --ui-on-action: #ffffff;
+  --ui-band: #02241f;
+  --ui-band-raised: #04362f;
+  --ui-band-mid: #06473d;
+  --ui-band-line: #06473d;
+  --ui-on-hero: #ffffff;
+  --ui-on-hero-muted: #cff5ec;
+  --ui-glass: rgb(255 255 255 / .55);
+  --ui-glass-strong: rgb(255 255 255 / .8);
+  --ui-glass-line: rgb(255 255 255 / .7);
+  --ui-scrim: #102a2a;
+  --ui-chart-awaiting: #835600;
+  --ui-chart-feedback: #5a4393;
+  --ui-button-disabled: #d7dfdc;
+  --ui-google-border: #dadce0;
+  --ui-google-ink: #3c4043;
+  --ui-google-hover: #f8fafd;
+  --ui-skeleton: #e3e9e7;
+  --ui-skeleton-shine: #ffffff;
+  --ui-shadow-tint: rgb(4 54 47 / .12);
+  --ui-shadow-soft: 0 8px 28px rgb(4 54 47 / .08);
+  --ui-shadow-card: 0 18px 48px rgb(4 54 47 / .12);
+  --ui-shadow-raised: 0 24px 70px rgb(4 54 47 / .16);
+  /* Left edge lifted just enough for dark text; the right two thirds of the
+     daytime campus photo stay uncovered. */
+  --ui-hero-overlay: linear-gradient(
+    100deg,
+    rgb(255 255 255 / .92) 0%,
+    rgb(255 255 255 / .78) 26%,
+    rgb(255 255 255 / .34) 46%,
+    rgb(255 255 255 / 0) 64%
+  );
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --ui-canvas: #08110f;
+    --ui-paper: #0f1b18;
+    --ui-elevated: #152420;
+    --ui-ink: #e6f0ed;
+    --ui-muted: #9fb4ae;
+    --ui-line: #22332e;
+    --ui-brand: #3cdbbf;
+    --ui-brand-soft: #10302a;
+    /* The forest ramp is inverted: a step keeps its role (50 = quietest tint,
+       950 = strongest text), not its lightness. */
+    --ui-forest-50: #0d2420;
+    --ui-forest-100: #113029;
+    --ui-forest-200: #1a4237;
+    --ui-forest-300: #23594a;
+    --ui-forest-400: #2e8a74;
+    --ui-forest-500: #3cc2a6;
+    --ui-forest-600: #5ad4ba;
+    --ui-forest-700: #7fe1cb;
+    --ui-forest-800: #a3ecdb;
+    --ui-forest-900: #c6f4e9;
+    --ui-forest-950: #e4fbf5;
+    --ui-action: #3cdbbf;
+    --ui-action-hover: #6ee5cf;
+    --ui-on-action: #02241f;
+    --ui-band: #0b1714;
+    --ui-band-raised: #0f2620;
+    --ui-band-mid: #143a32;
+    --ui-band-line: #1d322c;
+    --ui-on-hero: #ffffff;
+    --ui-on-hero-muted: #b8e9dc;
+    --ui-glass: rgb(255 255 255 / .06);
+    --ui-glass-strong: rgb(255 255 255 / .11);
+    --ui-glass-line: rgb(255 255 255 / .12);
+    --ui-scrim: #000000;
+    --ui-chart-awaiting: #f2b65a;
+    --ui-chart-feedback: #b7a3f3;
+    --ui-button-disabled: #22332e;
+    --ui-google-border: #8e918f;
+    --ui-google-ink: #e3e3e3;
+    --ui-google-hover: #1b2723;
+    --ui-skeleton: #172622;
+    --ui-skeleton-shine: #2a3f39;
+    --ui-shadow-tint: rgb(0 0 0 / .45);
+    --ui-shadow-soft: 0 8px 28px rgb(0 0 0 / .35);
+    --ui-shadow-card: 0 18px 48px rgb(0 0 0 / .45);
+    --ui-shadow-raised: 0 24px 70px rgb(0 0 0 / .55);
+    /* Dusk over the same campus photo: a deep left edge for light text, a warm
+       glow on the right, and a dim across the whole image. */
+    --ui-hero-overlay:
+      radial-gradient(ellipse 60% 70% at 82% 18%, rgb(255 158 72 / .26), transparent 70%),
+      linear-gradient(
+        100deg,
+        rgb(8 17 15 / .96) 0%,
+        rgb(10 19 16 / .88) 30%,
+        rgb(26 20 12 / .62) 52%,
+        rgb(40 24 10 / .44) 72%,
+        rgb(8 17 15 / .55) 100%
+      );
+    /* Tailwind status palettes, inverted the same way as the forest ramp so
+       notices, badges and errors keep their meaning on dark surfaces. */
+    --color-amber-50: #2b2b16;
+    --color-amber-100: #3d3515;
+    --color-amber-200: #664d13;
+    --color-amber-300: #8e6311;
+    --color-amber-800: #fde68a;
+    --color-amber-900: #fef3c7;
+    --color-amber-950: #fffbeb;
+    --color-sky-50: #0f2c31;
+    --color-sky-100: #0f3742;
+    --color-sky-200: #0f4f67;
+    --color-sky-800: #bae6fd;
+    --color-sky-900: #e0f2fe;
+    --color-sky-950: #f0f9ff;
+    --color-rose-50: #2a1f20;
+    --color-rose-100: #3d2226;
+    --color-rose-200: #662933;
+    --color-rose-300: #8d2f3f;
+    --color-rose-700: #fda4af;
+    --color-rose-800: #fecdd3;
+    --color-rose-900: #ffe4e6;
+    --color-rose-950: #fff1f2;
+    --color-emerald-50: #0f2e25;
+    --color-emerald-100: #0f3b2d;
+    --color-emerald-200: #0f5740;
+    --color-emerald-800: #a7f3d0;
+    --color-emerald-900: #d1fae5;
+    --color-emerald-950: #ecfdf5;
+    --color-red-50: #2a201d;
+    --color-red-200: #642b29;
+    --color-red-800: #fecaca;
+    --color-red-900: #fee2e2;
+    --color-violet-100: #282844;
+    --color-violet-900: #ede9fe;
+    --color-stone-100: #242c29;
+    --color-stone-600: #d6d3d1;
+  }
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --ui-canvas: #08110f;
+  --ui-paper: #0f1b18;
+  --ui-elevated: #152420;
+  --ui-ink: #e6f0ed;
+  --ui-muted: #9fb4ae;
+  --ui-line: #22332e;
+  --ui-brand: #3cdbbf;
+  --ui-brand-soft: #10302a;
+  /* The forest ramp is inverted: a step keeps its role (50 = quietest tint,
+     950 = strongest text), not its lightness. */
+  --ui-forest-50: #0d2420;
+  --ui-forest-100: #113029;
+  --ui-forest-200: #1a4237;
+  --ui-forest-300: #23594a;
+  --ui-forest-400: #2e8a74;
+  --ui-forest-500: #3cc2a6;
+  --ui-forest-600: #5ad4ba;
+  --ui-forest-700: #7fe1cb;
+  --ui-forest-800: #a3ecdb;
+  --ui-forest-900: #c6f4e9;
+  --ui-forest-950: #e4fbf5;
+  --ui-action: #3cdbbf;
+  --ui-action-hover: #6ee5cf;
+  --ui-on-action: #02241f;
+  --ui-band: #0b1714;
+  --ui-band-raised: #0f2620;
+  --ui-band-mid: #143a32;
+  --ui-band-line: #1d322c;
+  --ui-on-hero: #ffffff;
+  --ui-on-hero-muted: #b8e9dc;
+  --ui-glass: rgb(255 255 255 / .06);
+  --ui-glass-strong: rgb(255 255 255 / .11);
+  --ui-glass-line: rgb(255 255 255 / .12);
+  --ui-scrim: #000000;
+  --ui-chart-awaiting: #f2b65a;
+  --ui-chart-feedback: #b7a3f3;
+  --ui-button-disabled: #22332e;
+  --ui-google-border: #8e918f;
+  --ui-google-ink: #e3e3e3;
+  --ui-google-hover: #1b2723;
+  --ui-skeleton: #172622;
+  --ui-skeleton-shine: #2a3f39;
+  --ui-shadow-tint: rgb(0 0 0 / .45);
+  --ui-shadow-soft: 0 8px 28px rgb(0 0 0 / .35);
+  --ui-shadow-card: 0 18px 48px rgb(0 0 0 / .45);
+  --ui-shadow-raised: 0 24px 70px rgb(0 0 0 / .55);
+  /* Dusk over the same campus photo: a deep left edge for light text, a warm
+     glow on the right, and a dim across the whole image. */
+  --ui-hero-overlay:
+    radial-gradient(ellipse 60% 70% at 82% 18%, rgb(255 158 72 / .26), transparent 70%),
+    linear-gradient(
+      100deg,
+      rgb(8 17 15 / .96) 0%,
+      rgb(10 19 16 / .88) 30%,
+      rgb(26 20 12 / .62) 52%,
+      rgb(40 24 10 / .44) 72%,
+      rgb(8 17 15 / .55) 100%
+    );
+  /* Tailwind status palettes, inverted the same way as the forest ramp so
+     notices, badges and errors keep their meaning on dark surfaces. */
+  --color-amber-50: #2b2b16;
+  --color-amber-100: #3d3515;
+  --color-amber-200: #664d13;
+  --color-amber-300: #8e6311;
+  --color-amber-800: #fde68a;
+  --color-amber-900: #fef3c7;
+  --color-amber-950: #fffbeb;
+  --color-sky-50: #0f2c31;
+  --color-sky-100: #0f3742;
+  --color-sky-200: #0f4f67;
+  --color-sky-800: #bae6fd;
+  --color-sky-900: #e0f2fe;
+  --color-sky-950: #f0f9ff;
+  --color-rose-50: #2a1f20;
+  --color-rose-100: #3d2226;
+  --color-rose-200: #662933;
+  --color-rose-300: #8d2f3f;
+  --color-rose-700: #fda4af;
+  --color-rose-800: #fecdd3;
+  --color-rose-900: #ffe4e6;
+  --color-rose-950: #fff1f2;
+  --color-emerald-50: #0f2e25;
+  --color-emerald-100: #0f3b2d;
+  --color-emerald-200: #0f5740;
+  --color-emerald-800: #a7f3d0;
+  --color-emerald-900: #d1fae5;
+  --color-emerald-950: #ecfdf5;
+  --color-red-50: #2a201d;
+  --color-red-200: #642b29;
+  --color-red-800: #fecaca;
+  --color-red-900: #fee2e2;
+  --color-violet-100: #282844;
+  --color-violet-900: #ede9fe;
+  --color-stone-100: #242c29;
+  --color-stone-600: #d6d3d1;
 }
 
 * { box-sizing: border-box; }
@@ -105,8 +387,8 @@ a[href]::after {
   display: inline-flex;
   align-items: center;
   border-radius: .75rem;
-  background: var(--color-forest-950);
-  color: white;
+  background: var(--color-band);
+  color: var(--color-on-hero);
   padding: .65rem 1rem;
   font-weight: 700;
   transform: translateY(calc(-100% - 1rem));
@@ -175,19 +457,12 @@ details:not([open]) > .motion-disclosure { grid-template-rows: 0fr; }
   background-position: center;
   background-size: cover;
 }
-/* Legibility only: the left edge is lifted just enough for dark text, and the
-   right two thirds of the daytime campus photo stay uncovered. */
+/* Legibility only; the overlay is theme-defined (--ui-hero-overlay). */
 .university-search-hero::before {
   content: '';
   position: absolute;
   inset: 0;
-  background: linear-gradient(
-    100deg,
-    rgba(255, 255, 255, .92) 0%,
-    rgba(255, 255, 255, .78) 26%,
-    rgba(255, 255, 255, .34) 46%,
-    rgba(255, 255, 255, 0) 64%
-  );
+  background: var(--ui-hero-overlay);
 }
 .hero-script {
   font-family: 'Segoe Script', 'Bradley Hand', 'Snell Roundhand', cursive;
@@ -204,7 +479,7 @@ details:not([open]) > .motion-disclosure { grid-template-rows: 0fr; }
 .catalogue-search-shell.is-pinned {
   border-color: color-mix(in srgb, var(--color-forest-200) 70%, var(--color-line));
   background: color-mix(in srgb, var(--color-paper) 94%, transparent);
-  box-shadow: 0 18px 42px rgba(4, 54, 47, .12);
+  box-shadow: 0 18px 42px var(--ui-shadow-tint);
 }
 .catalogue-search-input {
   transition:
@@ -214,19 +489,19 @@ details:not([open]) > .motion-disclosure { grid-template-rows: 0fr; }
 }
 .catalogue-search-shell.is-pinned .catalogue-search-input {
   transform: translateY(-1px);
-  box-shadow: 0 12px 30px rgba(4, 54, 47, .12);
+  box-shadow: 0 12px 30px var(--ui-shadow-tint);
 }
 .trust-static,
 .trust-static * {
   animation: none !important;
   transition: none !important;
 }
-.image-scrim { background: linear-gradient(180deg, transparent 18%, color-mix(in srgb, var(--color-forest-950) 88%, transparent) 100%); }
+.image-scrim { background: linear-gradient(180deg, transparent 18%, color-mix(in srgb, var(--color-band) 88%, transparent) 100%); }
 .hero-grid {
-  background-color: var(--color-forest-800);
+  background-color: var(--color-band-mid);
   background-image:
     radial-gradient(circle at 82% 18%, color-mix(in srgb, var(--color-brand) 28%, transparent), transparent 28%),
-    linear-gradient(120deg, var(--color-forest-950) 0%, var(--color-forest-900) 48%, var(--color-forest-700) 100%);
+    linear-gradient(120deg, var(--color-band) 0%, var(--color-band-raised) 48%, var(--color-band-mid) 100%);
   background-size: cover;
   background-position: center;
 }
@@ -236,7 +511,7 @@ details:not([open]) > .motion-disclosure { grid-template-rows: 0fr; }
   inset: 0;
   opacity: .12;
   pointer-events: none;
-  background-image: radial-gradient(circle at 1px 1px, var(--color-paper) 1px, transparent 0);
+  background-image: radial-gradient(circle at 1px 1px, var(--color-on-hero) 1px, transparent 0);
   background-size: 28px 28px;
 }
 .soft-grid {
@@ -309,7 +584,7 @@ details:not([open]) > .motion-disclosure { grid-template-rows: 0fr; }
 }
 @keyframes counselor-widget-pulse {
   0%, 100% { box-shadow: var(--shadow-raised); }
-  50% { box-shadow: 0 0 0 8px rgba(60, 219, 191, .28), var(--shadow-raised); }
+  50% { box-shadow: 0 0 0 8px color-mix(in srgb, var(--color-brand) 28%, transparent), var(--shadow-raised); }
 }
 
 /* Chart and section motion. Every one of these is a transition from a state
@@ -347,6 +622,33 @@ details:not([open]) > .motion-disclosure { grid-template-rows: 0fr; }
 .chart-hatch { stroke: var(--color-muted); stroke-width: 1.5; }
 .chart-focusable:focus-visible { outline: 3px solid var(--color-forest-500); outline-offset: 4px; }
 
+/* Theme switch: the new theme is revealed as a circle growing from the
+   toggle. theme.ts adds .theme-reveal only when motion is allowed. */
+.theme-reveal::view-transition-old(root),
+.theme-reveal::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+.theme-reveal::view-transition-new(root) {
+  animation: theme-reveal 560ms var(--motion-ease-enter) both;
+}
+@keyframes theme-reveal {
+  from { clip-path: circle(0 at var(--theme-reveal-x, 50%) var(--theme-reveal-y, 0)); }
+  to { clip-path: circle(var(--theme-reveal-r, 150vmax) at var(--theme-reveal-x, 50%) var(--theme-reveal-y, 0)); }
+}
+
+/* Theme menu: pops from its trigger; the trigger's icon turns on change. */
+.theme-menu { animation: theme-menu-pop var(--motion-duration-element) var(--motion-ease-enter) both; transform-origin: top right; }
+@keyframes theme-menu-pop {
+  from { opacity: 0; transform: translateY(-6px) scale(.96); }
+  to { opacity: 1; transform: none; }
+}
+.theme-icon-swap { animation: theme-icon-swap var(--motion-duration-large) var(--motion-ease-celebrate) both; }
+@keyframes theme-icon-swap {
+  from { opacity: 0; transform: rotate(-90deg) scale(.5); }
+  to { opacity: 1; transform: none; }
+}
+
 @media (max-width: 767px) {
   .page-container { width: min(100% - 32px, 1200px); }
   .interactive-card:hover { transform: none; }
@@ -355,7 +657,8 @@ details:not([open]) > .motion-disclosure { grid-template-rows: 0fr; }
 
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto !important; }
-  *, *::before, *::after {
+  *, *::before, *::after,
+  ::view-transition-old(root), ::view-transition-new(root) {
     animation: none !important;
     transition: none !important;
   }

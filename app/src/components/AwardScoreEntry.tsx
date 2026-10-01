@@ -37,7 +37,7 @@ export function AwardScoreEntry({
   }
 
   return (
-    <section className="rounded-2xl border border-line bg-white p-5 shadow-soft" aria-label="Your scores">
+    <section className="rounded-2xl border border-line bg-paper p-5 shadow-soft" aria-label="Your scores">
       <h2 className="display text-xl font-extrabold">Your scores</h2>
       <p className="mt-1 text-sm leading-6 text-muted">
         No account needed. Enter what you have and every award below updates.

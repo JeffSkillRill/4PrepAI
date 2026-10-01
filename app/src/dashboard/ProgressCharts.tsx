@@ -57,7 +57,7 @@ function moduleStatusLabel(status: LearningModuleState['status']) {
 }
 
 function moduleStatusClasses(status: LearningModuleState['status']) {
-  if (status === 'homework_submitted') return 'border-forest-700 bg-forest-700 text-white'
+  if (status === 'homework_submitted') return 'border-action bg-action text-on-action'
   if (status === 'lessons_in_progress') return 'border-forest-400 bg-brand-soft text-forest-900'
   if (status === 'available') return 'border-forest-200 bg-forest-50 text-forest-800'
   return 'border-line bg-canvas text-muted'
@@ -109,7 +109,7 @@ export function LearningProgressChart({
             <span className="text-sm font-bold">of {lessonTotal} complete</span>
           </p>
         </div>
-        <span className="inline-flex w-fit items-center gap-2 rounded-full border border-line bg-white px-3 py-2 text-xs font-extrabold text-forest-800">
+        <span className="inline-flex w-fit items-center gap-2 rounded-full border border-line bg-paper px-3 py-2 text-xs font-extrabold text-forest-800">
           {activeModule ? <CirclePlay size={16} aria-hidden="true" /> : <CheckCircle2 size={16} aria-hidden="true" />}
           {activeModule ? `Module ${activeModule.number} ${activeModule.status === 'lessons_in_progress' ? 'in progress' : 'ready'}` : 'All modules submitted'}
         </span>
@@ -117,7 +117,7 @@ export function LearningProgressChart({
 
       {lessonTotal > 0 ? (
         <div
-          className="mt-4 h-2 overflow-hidden rounded-full bg-white ring-1 ring-line"
+          className="mt-4 h-2 overflow-hidden rounded-full bg-paper ring-1 ring-line"
           role="progressbar"
           aria-label={label}
           aria-valuemin={0}
@@ -149,7 +149,7 @@ export function LearningProgressChart({
               className={`min-w-0 rounded-xl border px-2 py-3 text-center ${moduleStatusClasses(item.status)}`}
               title={`Module ${item.number}: ${item.title}. ${item.completedLessons} of ${item.totalLessons} lessons complete. ${statusLabel}.`}
             >
-              <span className="mx-auto grid size-7 place-items-center rounded-full bg-white text-forest-700" aria-hidden="true">
+              <span className="mx-auto grid size-7 place-items-center rounded-full bg-paper text-forest-700" aria-hidden="true">
                 <ModuleStatusIcon status={item.status} />
               </span>
               <strong className="mt-2 block text-sm">{item.number}</strong>
@@ -184,7 +184,7 @@ export function HomeworkStatusChart({ submissions }: { submissions: LearningSubm
 
   if (data.submitted === 0) {
     return (
-      <section className="chart-focusable mt-4 rounded-2xl border border-line bg-white p-4" aria-label={label} tabIndex={0}>
+      <section className="chart-focusable mt-4 rounded-2xl border border-line bg-paper p-4" aria-label={label} tabIndex={0}>
         <div className="flex items-start gap-3">
           <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-canvas text-forest-700" aria-hidden="true"><ClipboardCheck size={20} /></span>
           <div>
@@ -197,7 +197,7 @@ export function HomeworkStatusChart({ submissions }: { submissions: LearningSubm
   }
 
   return (
-    <section className="chart-focusable mt-4 rounded-2xl border border-line bg-white p-4" aria-label={label} tabIndex={0}>
+    <section className="chart-focusable mt-4 rounded-2xl border border-line bg-paper p-4" aria-label={label} tabIndex={0}>
       <div className="flex items-center gap-3">
         <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-canvas text-forest-700" aria-hidden="true"><ClipboardCheck size={20} /></span>
         <div>
@@ -228,7 +228,7 @@ export function JourneyPositionChart({ stageId }: { stageId: DashboardStageId })
       <ol className="grid grid-cols-5 gap-1" aria-hidden="true">
         {stages.map((stage, index) => (
           <li key={stage.id} className="min-w-0 text-center">
-            <span className={`mx-auto grid size-8 place-items-center rounded-full border-2 text-xs font-extrabold ${index === currentIndex ? 'border-forest-700 bg-forest-50 text-forest-800' : index < currentIndex ? 'border-forest-700 bg-forest-700 text-white' : 'border-muted bg-white text-muted'}`}>{index + 1}</span>
+            <span className={`mx-auto grid size-8 place-items-center rounded-full border-2 text-xs font-extrabold ${index === currentIndex ? 'border-action bg-forest-50 text-forest-800' : index < currentIndex ? 'border-action bg-action text-on-action' : 'border-muted bg-paper text-muted'}`}>{index + 1}</span>
             {index !== currentIndex ? <span className="mt-2 hidden text-[10px] font-bold leading-3 text-muted sm:block">{stage.label}</span> : null}
           </li>
         ))}

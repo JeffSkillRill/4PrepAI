@@ -125,7 +125,7 @@ export function CostSummary({
   return (
     <section className={`rounded-2xl border border-forest-100 bg-forest-50/60 ${compact ? 'flex flex-col gap-2 p-3 sm:flex-row sm:items-center sm:gap-4' : 'p-5 sm:p-6'}`}>
       <div className={`flex items-start ${compact ? 'min-w-0 flex-1 items-center gap-3' : 'gap-3'}`}>
-        <span className={`grid shrink-0 place-items-center bg-forest-700 text-white ${compact ? 'size-9 rounded-full' : 'size-11 rounded-xl'}`}>
+        <span className={`grid shrink-0 place-items-center bg-action text-on-action ${compact ? 'size-9 rounded-full' : 'size-11 rounded-xl'}`}>
           <CircleDollarSign size={compact ? 18 : 21} />
         </span>
         <div className="min-w-0 flex-1">
@@ -153,7 +153,7 @@ export function CostSummary({
           <ArrowRight size={14} className="shrink-0" aria-hidden="true" />
         </button>
       ) : (
-        <details className="group mt-4 rounded-xl border border-line bg-white">
+        <details className="group mt-4 rounded-xl border border-line bg-paper">
           <summary className="flex min-h-12 cursor-pointer list-none items-center gap-2 px-4 py-3 text-sm font-bold text-forest-800">
             <Landmark size={17} />
             Cost components and visa funds
@@ -167,15 +167,15 @@ export function CostSummary({
         </details>
       )}
       {componentsOpen && typeof document !== 'undefined' && createPortal(
-        <div className="cost-modal-backdrop fixed inset-0 z-[80] grid place-items-center bg-ink/65 p-3 sm:p-6" onMouseDown={(event) => { if (event.target === event.currentTarget) setComponentsOpen(false) }}>
-          <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby={titleId} className="cost-modal-dialog flex max-h-[88vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl border border-line bg-white shadow-2xl">
+        <div className="cost-modal-backdrop fixed inset-0 z-[80] grid place-items-center bg-scrim/65 p-3 sm:p-6" onMouseDown={(event) => { if (event.target === event.currentTarget) setComponentsOpen(false) }}>
+          <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby={titleId} className="cost-modal-dialog flex max-h-[88vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl border border-line bg-paper shadow-2xl">
             <div className="flex items-start gap-4 border-b border-line bg-canvas px-5 py-4 sm:px-6">
-              <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-forest-700 text-white"><Landmark size={20} /></span>
+              <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-action text-on-action"><Landmark size={20} /></span>
               <div className="min-w-0 flex-1">
                 <p className="text-xs font-bold uppercase tracking-[.12em] text-forest-700">Published evidence</p>
                 <h2 id={titleId} className="display mt-1 text-xl font-extrabold text-forest-950 sm:text-2xl">{university.name} cost components and visa funds</h2>
               </div>
-              <button ref={closeRef} type="button" onClick={() => setComponentsOpen(false)} className="grid size-11 shrink-0 place-items-center rounded-full border border-line bg-white text-forest-800 transition hover:bg-forest-50" aria-label="Close cost components"><X size={19} /></button>
+              <button ref={closeRef} type="button" onClick={() => setComponentsOpen(false)} className="grid size-11 shrink-0 place-items-center rounded-full border border-line bg-paper text-forest-800 transition hover:bg-forest-50" aria-label="Close cost components"><X size={19} /></button>
             </div>
             <div className="overflow-y-auto px-5 sm:px-6">
               <div className="border-b border-line py-4">
@@ -217,10 +217,10 @@ function CostCompositionChart({ university }: { university: University }) {
   const known = rows.filter((row) => row.annual !== null)
   const currencies = new Set(known.map((row) => row.annual?.currency))
   if (known.length === 0) {
-    return <p className="mt-4 rounded-xl border border-line bg-white p-3 text-xs leading-5 text-muted">Cost-component chart not shown: no component has a sourced numeric annual value. The labelled gaps remain available below.</p>
+    return <p className="mt-4 rounded-xl border border-line bg-paper p-3 text-xs leading-5 text-muted">Cost-component chart not shown: no component has a sourced numeric annual value. The labelled gaps remain available below.</p>
   }
   if (currencies.size !== 1) {
-    return <p className="mt-4 rounded-xl border border-line bg-white p-3 text-xs leading-5 text-muted">Cost-component chart not shown: published components use different currencies, so placing them on one scale would mislead.</p>
+    return <p className="mt-4 rounded-xl border border-line bg-paper p-3 text-xs leading-5 text-muted">Cost-component chart not shown: published components use different currencies, so placing them on one scale would mislead.</p>
   }
   const max = Math.max(...known.map((row) => row.annual?.amount ?? Number.NEGATIVE_INFINITY))
   const currency = known[0].annual?.currency ?? ''
@@ -229,7 +229,7 @@ function CostCompositionChart({ university }: { university: University }) {
     : `${row.label}: not charted because no sourced numeric annual value exists.`).join(' ')
 
   return (
-    <div className="chart-focusable mt-5 rounded-xl border border-line bg-white p-4" role="img" aria-label={`Published annual cost components on the same scale. ${label}`} tabIndex={0}>
+    <div className="chart-focusable mt-5 rounded-xl border border-line bg-paper p-4" role="img" aria-label={`Published annual cost components on the same scale. ${label}`} tabIndex={0}>
       <p className="text-xs font-extrabold uppercase tracking-[.12em] text-muted">Published annual components · same {currency} scale</p>
       <div className="mt-3 grid gap-3" aria-hidden="true">
         {rows.map((row) => row.annual ? (

@@ -73,7 +73,7 @@ function AwardCard({ award }: { award: AwardReport }) {
               {award.amountSourceId && <span className="mt-2 flex flex-wrap gap-1"><SourceChip sourceId={award.amountSourceId} /></span>}
             </>
           ) : (
-            <div className="rounded-xl border border-line bg-white p-3">
+            <div className="rounded-xl border border-line bg-paper p-3">
               <p className="text-[10px] font-extrabold uppercase tracking-[.13em] text-muted opacity-70">Official data gap</p>
               <p className="mt-1 text-sm leading-6 text-muted">{award.amountUnknownReason}</p>
               {award.amountSuggestedAction && <p className="mt-1 text-xs font-bold text-forest-700">{award.amountSuggestedAction}</p>}
@@ -180,7 +180,7 @@ export function ScholarshipScreen({
           <button
             type="button"
             onClick={() => onNavigate('intake')}
-            className="inline-flex min-h-12 shrink-0 items-center gap-2 rounded-xl bg-forest-800 px-5 py-3 font-bold text-white"
+            className="inline-flex min-h-12 shrink-0 items-center gap-2 rounded-xl bg-action px-5 py-3 font-bold text-on-action"
           >
             Build my plan <ArrowRight size={18} />
           </button>
@@ -193,14 +193,14 @@ export function ScholarshipScreen({
           <AppLink
             href={viewPaths.plan as string}
             onNavigate={() => onNavigate('plan')}
-            className="inline-flex min-h-12 shrink-0 items-center gap-2 rounded-xl border border-line bg-white px-4 py-3 text-sm font-bold text-forest-800"
+            className="inline-flex min-h-12 shrink-0 items-center gap-2 rounded-xl border border-line bg-paper px-4 py-3 text-sm font-bold text-forest-800"
           >
             Update my plan
           </AppLink>
         </section>
       ) : null}
 
-      <p className="mt-6 flex items-start gap-2 rounded-xl border border-line bg-white p-4 text-sm leading-6 text-muted">
+      <p className="mt-6 flex items-start gap-2 rounded-xl border border-line bg-paper p-4 text-sm leading-6 text-muted">
         <CircleAlert size={17} className="mt-0.5 shrink-0 text-forest-600" aria-hidden="true" />
         Meeting what an award publishes is not an offer of that award, and no award here is promised
         to you. Where a university publishes no criteria, this page says so rather than guessing on

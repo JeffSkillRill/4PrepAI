@@ -1,15 +1,8 @@
 import { getSupabaseClient } from './client'
 import type {
-  AdminAccessResponse,
   AdminCohortResponse,
   AdminFileUrlResponse,
-  AdminLeadInboxResponse,
-  AdminLeadMutationResponse,
-  AdminLeadStatus,
   AdminSessionResponse,
-  AdminSupportInboxResponse,
-  AdminSupportReplyResponse,
-  AdminSupportThreadResponse,
   AdminStudentResponse,
 } from '../types'
 
@@ -25,17 +18,10 @@ export function isNotAvailableStatus(status: number | undefined): boolean {
 }
 
 type AdminActionBody =
-  | { action: 'access' }
   | { action: 'session' }
   | { action: 'cohort' }
   | { action: 'student'; studentId: string }
   | { action: 'file_url'; fileId: string }
-  | { action: 'chat_inbox' }
-  | { action: 'chat_thread'; threadId: string }
-  | { action: 'chat_reply'; threadId: string; body: string }
-  | { action: 'lead_inbox'; status: AdminLeadStatus }
-  | { action: 'lead_claim'; leadId: string }
-  | { action: 'lead_resolve'; leadId: string; status: 'answered' | 'closed' }
 
 async function invokeAdminApi<T>(body: AdminActionBody): Promise<T> {
   const result = await getSupabaseClient().functions.invoke<T>('admin-api', { body })
@@ -48,7 +34,6 @@ async function invokeAdminApi<T>(body: AdminActionBody): Promise<T> {
 }
 
 export const adminApi = {
-  access: () => invokeAdminApi<AdminAccessResponse>({ action: 'access' }),
   session: () => invokeAdminApi<AdminSessionResponse>({ action: 'session' }),
   cohort: () => invokeAdminApi<AdminCohortResponse>({ action: 'cohort' }),
   student: (studentId: string) => invokeAdminApi<AdminStudentResponse>({
@@ -59,25 +44,4 @@ export const adminApi = {
     action: 'file_url',
     fileId,
   }),
-  chatInbox: () => invokeAdminApi<AdminSupportInboxResponse>({ action: 'chat_inbox' }),
-  chatThread: (threadId: string) => invokeAdminApi<AdminSupportThreadResponse>({
-    action: 'chat_thread',
-    threadId,
-  }),
-  chatReply: (threadId: string, body: string) => invokeAdminApi<AdminSupportReplyResponse>({
-    action: 'chat_reply',
-    threadId,
-    body,
-  }),
-  leadInbox: (status: AdminLeadStatus = 'new') => invokeAdminApi<AdminLeadInboxResponse>({
-    action: 'lead_inbox',
-    status,
-  }),
-  leadClaim: (leadId: string) => invokeAdminApi<AdminLeadMutationResponse>({
-    action: 'lead_claim',
-    leadId,
-  }),
-  leadResolve: (leadId: string, status: 'answered' | 'closed') => (
-    invokeAdminApi<AdminLeadMutationResponse>({ action: 'lead_resolve', leadId, status })
-  ),
 }

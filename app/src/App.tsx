@@ -45,6 +45,7 @@ import {
   saveStudentProfile,
 } from './data/repository'
 import { runViewTransition } from './motion/viewTransition'
+import { ThemeToggle } from './theme/ThemeToggle'
 
 const DashboardScreen = lazy(async () => {
   const module = await import('./screens/DashboardScreen')
@@ -97,7 +98,7 @@ export function Navbar({ view, onNavigate, hasPlan }: { view: View; onNavigate: 
   const planView: View = hasPlan ? 'dashboard' : 'intake'
   const planLabel = hasPlan ? 'View my plan' : 'Build my plan'
   return (
-    <header className="sticky top-0 z-40 border-b border-line bg-white">
+    <header className="sticky top-0 z-40 border-b border-line bg-paper">
       <div className="page-container flex h-[72px] items-center gap-4">
         <Logo href={viewPaths.search as string} onNavigate={() => onNavigate('search')} />
         <nav className="hidden items-center gap-1 xl:flex" aria-label="Primary navigation">
@@ -109,10 +110,11 @@ export function Navbar({ view, onNavigate, hasPlan }: { view: View; onNavigate: 
             <span className="max-w-28 truncate" aria-hidden={avatarUrl ? undefined : true}>{displayName}</span>
           </AppLink>
         ) : <AppLink href={viewPaths.auth as string} onNavigate={() => onNavigate('auth')} className="ml-auto hidden shrink-0 items-center gap-2 rounded-xl border border-line px-3 py-2.5 text-sm font-bold text-forest-800 sm:flex"><LogIn size={16} /> Sign in</AppLink>}
-        <button onClick={() => onNavigate(planView)} className="hidden shrink-0 items-center gap-2 rounded-xl bg-forest-800 px-4 py-2.5 text-sm font-bold text-white sm:flex">{hasPlan ? <CheckCircle2 size={17} /> : <UserRound size={17} />} {planLabel}</button>
+        <button onClick={() => onNavigate(planView)} className="hidden shrink-0 items-center gap-2 rounded-xl bg-action px-4 py-2.5 text-sm font-bold text-on-action sm:flex">{hasPlan ? <CheckCircle2 size={17} /> : <UserRound size={17} />} {planLabel}</button>
+        <ThemeToggle className="hidden xl:flex" />
         <button onClick={() => setMenuOpen(!menuOpen)} className="grid size-11 place-items-center rounded-xl border border-line xl:hidden" aria-label="Toggle menu" aria-expanded={menuOpen}>{menuOpen ? <X size={20} /> : <Menu size={20} />}</button>
       </div>
-      {menuOpen && <div className="border-t border-line bg-white xl:hidden"><nav className="page-container grid gap-1 py-3" aria-label="Mobile navigation">{navItems.map((item) => <AppLink key={item.view} href={viewPaths[item.view] as string} onNavigate={() => { onNavigate(item.view); setMenuOpen(false) }} aria-current={view === item.view ? 'page' : undefined} className={`rounded-xl px-4 py-3 text-left font-bold ${view === item.view ? 'bg-forest-50 text-forest-800' : 'text-muted'}`}>{item.label}</AppLink>)}{user ? <AppLink href={viewPaths[accountView] as string} onNavigate={() => { onNavigate(accountView); setMenuOpen(false) }} className="flex min-w-0 items-center gap-2 rounded-xl px-4 py-3 text-left font-bold text-muted"><AccountAvatar avatarUrl={avatarUrl} displayName={displayName} /><span className="truncate" aria-hidden={avatarUrl ? undefined : true}>{displayName}</span></AppLink> : <AppLink href={viewPaths.auth as string} onNavigate={() => { onNavigate('auth'); setMenuOpen(false) }} className="rounded-xl px-4 py-3 text-left font-bold text-muted">Sign in</AppLink>}<button onClick={() => { onNavigate(planView); setMenuOpen(false) }} className="mt-2 flex items-center gap-2 rounded-xl bg-forest-800 px-4 py-3 text-left font-bold text-white">{hasPlan ? <CheckCircle2 size={17} /> : <UserRound size={17} />} {planLabel}</button></nav></div>}
+      {menuOpen && <div className="border-t border-line bg-paper xl:hidden"><nav className="page-container grid gap-1 py-3" aria-label="Mobile navigation">{navItems.map((item) => <AppLink key={item.view} href={viewPaths[item.view] as string} onNavigate={() => { onNavigate(item.view); setMenuOpen(false) }} aria-current={view === item.view ? 'page' : undefined} className={`rounded-xl px-4 py-3 text-left font-bold ${view === item.view ? 'bg-forest-50 text-forest-800' : 'text-muted'}`}>{item.label}</AppLink>)}{user ? <AppLink href={viewPaths[accountView] as string} onNavigate={() => { onNavigate(accountView); setMenuOpen(false) }} className="flex min-w-0 items-center gap-2 rounded-xl px-4 py-3 text-left font-bold text-muted"><AccountAvatar avatarUrl={avatarUrl} displayName={displayName} /><span className="truncate" aria-hidden={avatarUrl ? undefined : true}>{displayName}</span></AppLink> : <AppLink href={viewPaths.auth as string} onNavigate={() => { onNavigate('auth'); setMenuOpen(false) }} className="rounded-xl px-4 py-3 text-left font-bold text-muted">Sign in</AppLink>}<div className="flex items-center justify-between gap-3 rounded-xl px-4 py-1"><span className="font-bold text-muted">Theme</span><ThemeToggle /></div><button onClick={() => { onNavigate(planView); setMenuOpen(false) }} className="mt-2 flex items-center gap-2 rounded-xl bg-action px-4 py-3 text-left font-bold text-on-action">{hasPlan ? <CheckCircle2 size={17} /> : <UserRound size={17} />} {planLabel}</button></nav></div>}
     </header>
   )
 }
@@ -120,7 +122,7 @@ export function Navbar({ view, onNavigate, hasPlan }: { view: View; onNavigate: 
 function Footer({ onNavigate }: { onNavigate: (view: View) => void }) {
   const { user } = useAuth()
   const accountView: View = user ? 'dashboard' : 'auth'
-  return <footer className="mt-8 border-t border-forest-800 bg-forest-950 text-white"><div className="page-container grid gap-8 py-10 sm:grid-cols-[1fr_auto] sm:items-end"><div><Logo inverse href={viewPaths.search as string} onNavigate={() => onNavigate('search')} /></div><div className="flex flex-wrap gap-5 text-sm font-bold text-white/75"><AppLink href={viewPaths.tools as string} onNavigate={() => onNavigate('tools')}>Tools</AppLink><AppLink href={viewPaths.counselor as string} onNavigate={() => onNavigate('counselor')}>Counselor</AppLink><AppLink href={viewPaths.support as string} onNavigate={() => onNavigate('support')}>Platform support</AppLink><AppLink href={viewPaths.privacy as string} onNavigate={() => onNavigate('privacy')}>Privacy</AppLink><AppLink href={viewPaths[accountView] as string} onNavigate={() => onNavigate(accountView)}>Account</AppLink></div></div><div className="border-t border-forest-800"><div className="page-container flex flex-wrap items-center justify-between gap-2 py-4 text-xs text-white/65"><span>© 2026 4Prep</span><span>Verify university details before applying</span></div></div></footer>
+  return <footer className="mt-8 border-t border-band-line bg-band text-white"><div className="page-container grid gap-8 py-10 sm:grid-cols-[1fr_auto] sm:items-end"><div><Logo inverse href={viewPaths.search as string} onNavigate={() => onNavigate('search')} /></div><div className="flex flex-wrap gap-5 text-sm font-bold text-white/75"><AppLink href={viewPaths.tools as string} onNavigate={() => onNavigate('tools')}>Tools</AppLink><AppLink href={viewPaths.counselor as string} onNavigate={() => onNavigate('counselor')}>Counselor</AppLink><AppLink href={viewPaths.support as string} onNavigate={() => onNavigate('support')}>Platform support</AppLink><AppLink href={viewPaths.privacy as string} onNavigate={() => onNavigate('privacy')}>Privacy</AppLink><AppLink href={viewPaths[accountView] as string} onNavigate={() => onNavigate(accountView)}>Account</AppLink></div></div><div className="border-t border-band-line"><div className="page-container flex flex-wrap items-center justify-between gap-2 py-4 text-xs text-white/65"><span>© 2026 4Prep</span><span>Verify university details before applying</span></div></div></footer>
 }
 
 export default function App() {

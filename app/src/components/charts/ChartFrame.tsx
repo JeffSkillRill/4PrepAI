@@ -24,7 +24,7 @@ export function ChartFrame({
   className?: string
 }) {
   return (
-    <figure className={`m-0 rounded-2xl border border-line bg-white p-4 sm:p-5 ${className}`}>
+    <figure className={`m-0 rounded-2xl border border-line bg-paper p-4 sm:p-5 ${className}`}>
       <div className="chart-focusable rounded-xl" role="img" aria-label={summary} tabIndex={0}>
         {children}
       </div>

@@ -30,7 +30,7 @@ type AuthScreenProps = {
 
 type AuthStatus = 'ready' | 'loading' | 'loading_google' | 'confirmation'
 
-const fieldClass = 'mt-2 w-full rounded-xl border border-line bg-white px-4 py-3 font-normal outline-none transition focus:border-forest-500 focus-visible:ring-2 focus-visible:ring-forest-300'
+const fieldClass = 'mt-2 w-full rounded-xl border border-line bg-paper px-4 py-3 font-normal outline-none transition focus:border-forest-500 focus-visible:ring-2 focus-visible:ring-forest-300'
 const focusButtonClass = 'outline-none focus-visible:ring-2 focus-visible:ring-forest-400 focus-visible:ring-offset-2'
 const maxAvatarFileSize = 2 * 1024 * 1024
 
@@ -82,7 +82,7 @@ function AvatarPicker({
         )}
         {!preview && <span className="sr-only">No profile photo selected; showing initials for {name}.</span>}
         <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
-          <label htmlFor={inputId} className={`inline-flex min-h-11 items-center rounded-xl border border-forest-200 bg-white px-3 py-2 text-sm font-bold text-forest-700 ${disabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer hover:bg-forest-50'} ${focusButtonClass}`}>
+          <label htmlFor={inputId} className={`inline-flex min-h-11 items-center rounded-xl border border-forest-200 bg-paper px-3 py-2 text-sm font-bold text-forest-700 ${disabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer hover:bg-forest-50'} ${focusButtonClass}`}>
             {preview ? 'Replace photo' : 'Choose photo'}
           </label>
           <input
@@ -263,7 +263,7 @@ export function AuthScreen({
           <CheckCircle2 size={46} className="mx-auto text-forest-600" />
           <h1 className="display mt-5 text-3xl font-extrabold">Account deleted</h1>
           <p className="mt-3 leading-6 text-muted">Your account, student profile, saved plans, learning records, uploaded homework, and support-chat history were permanently deleted.</p>
-          <AppLink href={viewPaths.search as string} onNavigate={() => onNavigate('search')} className={`mt-7 flex w-full items-center justify-center rounded-xl bg-forest-800 px-4 py-3 font-bold text-white ${focusButtonClass}`}>Return to universities</AppLink>
+          <AppLink href={viewPaths.search as string} onNavigate={() => onNavigate('search')} className={`mt-7 flex w-full items-center justify-center rounded-xl bg-action px-4 py-3 font-bold text-on-action ${focusButtonClass}`}>Return to universities</AppLink>
         </section>
       </div>
     )
@@ -357,8 +357,8 @@ export function AuthScreen({
           </div>
 
           <div className="mt-7 grid gap-3 sm:grid-cols-2">
-            <AppLink href={viewPaths.dashboard as string} onNavigate={() => onNavigate('dashboard')} className={`flex items-center justify-center rounded-xl bg-forest-800 px-5 py-3 font-bold text-white ${focusButtonClass}`}>Open dashboard</AppLink>
-            <AppLink href={viewPaths.saved as string} onNavigate={() => onNavigate('saved')} className={`flex items-center justify-center rounded-xl bg-forest-800 px-5 py-3 font-bold text-white ${focusButtonClass}`}>Open saved plans</AppLink>
+            <AppLink href={viewPaths.dashboard as string} onNavigate={() => onNavigate('dashboard')} className={`flex items-center justify-center rounded-xl bg-action px-5 py-3 font-bold text-on-action ${focusButtonClass}`}>Open dashboard</AppLink>
+            <AppLink href={viewPaths.saved as string} onNavigate={() => onNavigate('saved')} className={`flex items-center justify-center rounded-xl bg-action px-5 py-3 font-bold text-on-action ${focusButtonClass}`}>Open saved plans</AppLink>
             <AppLink href={viewPaths.support as string} onNavigate={() => onNavigate('support')} className={`flex items-center justify-center rounded-xl border border-forest-200 px-5 py-3 font-bold text-forest-800 sm:col-span-2 ${focusButtonClass}`}>Platform support</AppLink>
             <button
               onClick={() => void completeSignOut()}
@@ -455,7 +455,7 @@ export function AuthScreen({
                     type="button"
                     onClick={() => { setDeleteStep('closed'); setDeleteEmail('') }}
                     disabled={accountAction !== 'ready'}
-                    className={`rounded-xl border border-line bg-white px-4 py-3 font-bold text-muted disabled:opacity-50 ${focusButtonClass}`}
+                    className={`rounded-xl border border-line bg-paper px-4 py-3 font-bold text-muted disabled:opacity-50 ${focusButtonClass}`}
                   >
                     Cancel
                   </button>
@@ -464,7 +464,7 @@ export function AuthScreen({
                     onClick={() => void completeDeletion()}
                     disabled={!canDelete || accountAction !== 'ready'}
                     aria-busy={accountAction === 'delete'}
-                    className={`rounded-xl bg-rose-800 px-4 py-3 font-bold text-white disabled:opacity-50 ${focusButtonClass}`}
+                    className={`rounded-xl bg-rose-800 px-4 py-3 font-bold text-rose-50 disabled:opacity-50 ${focusButtonClass}`}
                   >
                     {accountAction === 'delete' ? 'Deleting…' : 'Delete permanently'}
                   </button>
@@ -575,7 +575,7 @@ export function AuthScreen({
               onClick={() => void continueWithGoogle()}
               disabled={status !== 'ready'}
               aria-busy={status === 'loading_google'}
-              className={`mt-4 inline-flex w-full items-center justify-center gap-3 rounded-xl border border-google-border bg-white px-4 py-3 font-semibold text-google-ink shadow-sm transition hover:bg-google-hover disabled:bg-button-disabled disabled:text-muted ${focusButtonClass}`}
+              className={`mt-4 inline-flex w-full items-center justify-center gap-3 rounded-xl border border-google-border bg-paper px-4 py-3 font-semibold text-google-ink shadow-sm transition hover:bg-google-hover disabled:bg-button-disabled disabled:text-muted ${focusButtonClass}`}
             >
               {status === 'loading_google' ? <LoaderCircle size={20} /> : <GoogleMark />}
               {status === 'loading_google' ? 'Opening Google…' : 'Continue with Google'}
@@ -648,7 +648,7 @@ export function AuthScreen({
               <button
                 disabled={status !== 'ready' || (mode === 'sign_up' && !consented)}
                 aria-busy={status === 'loading'}
-                className={`inline-flex w-full items-center justify-center gap-2 rounded-xl bg-forest-800 py-3.5 font-bold text-white disabled:opacity-50 ${focusButtonClass}`}
+                className={`inline-flex w-full items-center justify-center gap-2 rounded-xl bg-action py-3.5 font-bold text-on-action disabled:opacity-50 ${focusButtonClass}`}
               >
                 {status === 'loading' ? 'Please wait…' : mode === 'sign_in' ? 'Sign in' : 'Create account'} <ArrowRight size={17} />
               </button>
@@ -734,7 +734,7 @@ export function ResetPasswordScreen({ onNavigate }: { onNavigate: (view: View) =
             <CheckCircle2 size={38} className="mt-6 text-forest-600" />
             <h1 className="display mt-4 text-3xl font-extrabold">Password updated</h1>
             <p className="mt-3 leading-6 text-muted">Your new password is ready. Sign in again to continue.</p>
-            <AppLink href={viewPaths.auth as string} onNavigate={() => onNavigate('auth')} className={`mt-7 flex w-full items-center justify-center rounded-xl bg-forest-800 px-4 py-3.5 font-bold text-white ${focusButtonClass}`}>Go to sign in</AppLink>
+            <AppLink href={viewPaths.auth as string} onNavigate={() => onNavigate('auth')} className={`mt-7 flex w-full items-center justify-center rounded-xl bg-action px-4 py-3.5 font-bold text-on-action ${focusButtonClass}`}>Go to sign in</AppLink>
           </>
         ) : status === 'requested' ? (
           <>
@@ -753,7 +753,7 @@ export function ResetPasswordScreen({ onNavigate }: { onNavigate: (view: View) =
               <button
                 disabled={status === 'loading'}
                 aria-busy={status === 'loading'}
-                className={`w-full rounded-xl bg-forest-800 px-4 py-3.5 font-bold text-white disabled:opacity-50 ${focusButtonClass}`}
+                className={`w-full rounded-xl bg-action px-4 py-3.5 font-bold text-on-action disabled:opacity-50 ${focusButtonClass}`}
               >
                 {status === 'loading' ? 'Updating…' : 'Update password'}
               </button>
@@ -773,7 +773,7 @@ export function ResetPasswordScreen({ onNavigate }: { onNavigate: (view: View) =
               <button
                 disabled={status === 'loading'}
                 aria-busy={status === 'loading'}
-                className={`w-full rounded-xl bg-forest-800 px-4 py-3.5 font-bold text-white disabled:opacity-50 ${focusButtonClass}`}
+                className={`w-full rounded-xl bg-action px-4 py-3.5 font-bold text-on-action disabled:opacity-50 ${focusButtonClass}`}
               >
                 {status === 'loading' ? 'Sending…' : 'Send reset link'}
               </button>
@@ -821,7 +821,7 @@ export function AuthCallbackScreen({
           <LockKeyhole size={38} className="mx-auto text-forest-700" />
           <h1 className="display mt-5 text-2xl font-extrabold">{kind === 'google' ? 'Google sign-in did not finish' : 'This confirmation did not finish'}</h1>
           <p role="alert" className="mt-3 leading-6 text-muted">{kind === 'google' ? 'The sign-in was cancelled or could not finish. Nothing was changed.' : 'The link may be invalid or expired. Request a new confirmation email, then try again.'}</p>
-          <AppLink href={viewPaths.auth as string} onNavigate={() => onNavigate('auth')} className={`mt-7 flex w-full items-center justify-center rounded-xl bg-forest-800 px-4 py-3 font-bold text-white ${focusButtonClass}`}>Return to sign in</AppLink>
+          <AppLink href={viewPaths.auth as string} onNavigate={() => onNavigate('auth')} className={`mt-7 flex w-full items-center justify-center rounded-xl bg-action px-4 py-3 font-bold text-on-action ${focusButtonClass}`}>Return to sign in</AppLink>
         </section>
       </div>
     )
@@ -833,7 +833,7 @@ export function AuthCallbackScreen({
         <CheckCircle2 size={46} className="mx-auto text-forest-600" />
         <h1 className="display mt-5 text-3xl font-extrabold">Your email is confirmed</h1>
         <p className="mt-3 leading-6 text-muted">You are signed in. Your saved work is ready.</p>
-        <button onClick={onContinue} className={`mt-7 w-full rounded-xl bg-forest-800 px-4 py-3 font-bold text-white ${focusButtonClass}`}>
+        <button onClick={onContinue} className={`mt-7 w-full rounded-xl bg-action px-4 py-3 font-bold text-on-action ${focusButtonClass}`}>
           Continue to 4Prep
         </button>
       </section>

@@ -36,7 +36,7 @@ export class AppErrorBoundary extends Component<Props, State> {
     return (
       <main className="soft-grid grid min-h-screen place-items-center bg-canvas px-4 py-16">
         <section
-          className="w-full max-w-3xl overflow-hidden rounded-[28px] border border-line bg-white px-6 py-14 text-center shadow-soft sm:px-12"
+          className="w-full max-w-3xl overflow-hidden rounded-[28px] border border-line bg-paper px-6 py-14 text-center shadow-soft sm:px-12"
           role="alert"
         >
           <div className="mx-auto grid size-24 place-items-center rounded-full bg-forest-50 text-forest-700">
@@ -47,7 +47,7 @@ export class AppErrorBoundary extends Component<Props, State> {
           <button
             type="button"
             onClick={() => window.location.reload()}
-            className="mt-7 inline-flex items-center gap-2 rounded-xl bg-forest-800 px-5 py-3 font-bold text-white transition hover:bg-forest-700"
+            className="mt-7 inline-flex items-center gap-2 rounded-xl bg-action px-5 py-3 font-bold text-on-action transition hover:bg-action"
           >
             <RefreshCw size={18} aria-hidden="true" />
             Reload page

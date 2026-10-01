@@ -95,11 +95,11 @@ export function DesignedState({ state, headingLevel = 1, onReset }: { state: Exc
   const Heading = headingLevel === 1 ? 'h1' : 'h2'
   return (
     <section className="page-container py-16 lg:py-24">
-      <div className="trust-static soft-grid mx-auto max-w-3xl overflow-hidden rounded-[28px] border border-line bg-white px-6 py-14 text-center shadow-soft sm:px-12">
+      <div className="trust-static soft-grid mx-auto max-w-3xl overflow-hidden rounded-[28px] border border-line bg-paper px-6 py-14 text-center shadow-soft sm:px-12">
         <div className="mx-auto grid size-24 place-items-center rounded-full bg-forest-50 text-forest-700"><Illustration type={state} /></div>
         <Heading className="display mt-7 text-3xl font-extrabold sm:text-4xl">{copy.title}</Heading>
         <p className="mx-auto mt-4 max-w-xl leading-7 text-muted">{copy.body}</p>
-        <button onClick={onReset} className="mt-7 inline-flex items-center gap-2 rounded-xl bg-forest-800 px-5 py-3 font-bold text-white transition hover:bg-forest-700">
+        <button onClick={onReset} className="mt-7 inline-flex items-center gap-2 rounded-xl bg-action px-5 py-3 font-bold text-on-action transition hover:bg-action">
           {state === 'error' || state === 'offline' ? <RefreshCw size={18} /> : null}{copy.action}<ArrowRight size={18} />
         </button>
       </div>
@@ -207,7 +207,7 @@ export function LearningDesignedState({
 }) {
   return (
     <section className="page-container py-12 sm:py-20">
-      <div className="mx-auto max-w-2xl rounded-[24px] border border-line bg-white px-5 py-10 text-center shadow-soft sm:px-10">
+      <div className="mx-auto max-w-2xl rounded-[24px] border border-line bg-paper px-5 py-10 text-center shadow-soft sm:px-10">
         <div className="mx-auto grid size-20 place-items-center rounded-full bg-forest-50 text-forest-700">
           <Illustration type={state} />
         </div>
@@ -215,7 +215,7 @@ export function LearningDesignedState({
         <p className="mx-auto mt-3 max-w-lg leading-7 text-muted">{body}</p>
         <button
           onClick={onAction}
-          className="mt-6 inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-forest-800 px-5 py-3 font-bold text-white"
+          className="mt-6 inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-action px-5 py-3 font-bold text-on-action"
         >
           {state === 'error' || state === 'offline' ? <RefreshCw size={18} /> : null}
           {action}

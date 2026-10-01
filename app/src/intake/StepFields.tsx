@@ -44,7 +44,7 @@ function OptionList({
             aria-checked={active}
             onClick={() => onSelect(option)}
             className={`min-h-12 rounded-xl border px-4 py-3 text-left font-bold transition ${
-              active ? 'border-forest-600 bg-forest-50 text-forest-900' : 'border-line bg-white hover:border-forest-400'
+              active ? 'border-forest-600 bg-forest-50 text-forest-900' : 'border-line bg-paper hover:border-forest-400'
             }`}
           >
             {option}
@@ -80,7 +80,7 @@ function TestPicker<T extends string>({
           aria-checked={value === test}
           onClick={() => onChange(test)}
           className={`min-h-12 rounded-xl border px-4 py-3 font-bold transition ${
-            value === test ? 'border-forest-600 bg-forest-50 text-forest-900' : 'border-line bg-white hover:border-forest-400'
+            value === test ? 'border-forest-600 bg-forest-50 text-forest-900' : 'border-line bg-paper hover:border-forest-400'
           }`}
         >
           {labels[test]}
@@ -92,7 +92,7 @@ function TestPicker<T extends string>({
         aria-checked={value === null}
         onClick={() => onChange(null)}
         className={`min-h-12 rounded-xl border px-4 py-3 font-bold transition ${
-          value === null ? 'border-forest-600 bg-forest-50 text-forest-900' : 'border-line bg-white hover:border-forest-400'
+          value === null ? 'border-forest-600 bg-forest-50 text-forest-900' : 'border-line bg-paper hover:border-forest-400'
         }`}
       >
         {noneLabel}
@@ -195,7 +195,7 @@ export function StepFields({
           }}
         />
         {draft.languageTest === null ? (
-          <label className="mt-4 flex min-h-12 items-center gap-3 rounded-xl border border-line bg-white px-4 py-3">
+          <label className="mt-4 flex min-h-12 items-center gap-3 rounded-xl border border-line bg-paper px-4 py-3">
             <input
               type="checkbox"
               checked={draft.needsLanguagePathway}

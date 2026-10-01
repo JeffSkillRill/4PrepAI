@@ -219,7 +219,7 @@ export function LearningTrackScreen(props: LearningScreenProps) {
         const laterStates = primaryState ? states.filter(({ module }) => module.id !== primaryState.module.id) : []
         return (
           <div className="page-container py-6 sm:py-10">
-            <section className="rounded-[24px] border border-forest-100 bg-white p-5 shadow-soft sm:p-8">
+            <section className="rounded-[24px] border border-forest-100 bg-paper p-5 shadow-soft sm:p-8">
               <p className="text-sm font-extrabold uppercase tracking-[0.16em] text-forest-700">Learning portal</p>
               <div className="mt-3 grid gap-6 lg:grid-cols-[1fr_300px] lg:items-end">
                 <div>
@@ -247,13 +247,13 @@ export function LearningTrackScreen(props: LearningScreenProps) {
                 <AppLink
                   href={learningPath('learn_module', primaryState.module.slug)}
                   onNavigate={() => props.onOpenModule(primaryState.module.slug)}
-                  className="mt-5 inline-flex min-h-12 items-center gap-2 rounded-xl bg-forest-800 px-5 py-3 font-bold text-white"
+                  className="mt-5 inline-flex min-h-12 items-center gap-2 rounded-xl bg-action px-5 py-3 font-bold text-on-action"
                 >
                   {primaryState.status === 'available' ? 'Start module' : 'Continue module'}
                   <ArrowRight size={18} />
                 </AppLink>
               </article> : null}
-              {laterStates.length > 0 ? <details className="group mt-4 rounded-2xl border border-line bg-white">
+              {laterStates.length > 0 ? <details className="group mt-4 rounded-2xl border border-line bg-paper">
                 <summary className="flex min-h-14 cursor-pointer list-none items-center gap-3 px-5 py-3 font-bold text-forest-800">
                   <span className="min-w-0 flex-1">{laterStates.length} later module{laterStates.length === 1 ? '' : 's'}</span>
                   <ChevronDown size={18} className="shrink-0 transition group-open:rotate-180" aria-hidden="true" />
@@ -298,7 +298,7 @@ function SequenceGate({ onContinue }: { onContinue: () => void }) {
           <p className="mt-2 text-sm leading-6 text-amber-950">It normally opens after you submit the previous module’s homework. If time is short, you can jump ahead now, but you may miss useful preparation.</p>
           <button
             onClick={onContinue}
-            className="mt-4 min-h-11 rounded-xl bg-amber-900 px-4 py-2.5 font-bold text-white"
+            className="mt-4 min-h-11 rounded-xl bg-amber-900 px-4 py-2.5 font-bold text-amber-50"
           >
             Continue anyway
           </button>
@@ -413,7 +413,7 @@ function LearningModuleContent({
             <div className="motion-disclosure">
               <div className="overflow-hidden">
                 {module.lessons.length === 0 ? (
-                  <div className="border-t border-line bg-white p-5">
+                  <div className="border-t border-line bg-paper p-5">
                     <p className="font-bold">No lesson authoring slots were found.</p>
                     <p className="mt-2 text-sm text-muted">The assignment remains available below.</p>
                   </div>
@@ -441,12 +441,12 @@ function LearningModuleContent({
                           key={lesson.id}
                           href={learningPath('learn_lesson', module.slug, lesson.slug)}
                           onNavigate={() => onOpenLesson(module.slug, lesson.slug)}
-                          className="flex min-h-20 w-full items-center gap-4 rounded-2xl border border-line bg-white p-4 text-left"
+                          className="flex min-h-20 w-full items-center gap-4 rounded-2xl border border-line bg-paper p-4 text-left"
                         >
                           {content}
                         </AppLink>
                       ) : (
-                        <button key={lesson.id} disabled className="flex min-h-20 w-full items-center gap-4 rounded-2xl border border-line bg-white p-4 text-left disabled:cursor-not-allowed disabled:opacity-60">
+                        <button key={lesson.id} disabled className="flex min-h-20 w-full items-center gap-4 rounded-2xl border border-line bg-paper p-4 text-left disabled:cursor-not-allowed disabled:opacity-60">
                           {content}
                         </button>
                       )
@@ -459,7 +459,7 @@ function LearningModuleContent({
         </div>
 
         <aside className="lg:pt-16">
-          <div className="rounded-2xl border border-line bg-white p-5 shadow-soft">
+          <div className="rounded-2xl border border-line bg-paper p-5 shadow-soft">
             <p className="text-sm font-extrabold text-forest-700">Module assignment</p>
             <h2 className="display mt-2 text-xl font-extrabold">{module.assignment.title}</h2>
             <p className="mt-3 text-sm leading-6 text-muted">{module.assignment.brief}</p>
@@ -491,12 +491,12 @@ function LearningModuleContent({
               <AppLink
                 href={learningPath('learn_assignment', module.slug)}
                 onNavigate={() => onOpenAssignment(module.slug)}
-                className="mt-3 flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-forest-800 px-4 py-3 font-bold text-white"
+                className="mt-3 flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-action px-4 py-3 font-bold text-on-action"
               >
                 Open assignment <ArrowRight size={17} />
               </AppLink>
             ) : (
-              <button disabled className="mt-3 flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-forest-800 px-4 py-3 font-bold text-white disabled:cursor-not-allowed disabled:opacity-50">
+              <button disabled className="mt-3 flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-action px-4 py-3 font-bold text-on-action disabled:cursor-not-allowed disabled:opacity-50">
                 Open assignment <ArrowRight size={17} />
               </button>
             )}
@@ -511,13 +511,13 @@ function LessonMedia({ lesson }: { lesson: LearningLesson }) {
   return (
     <section aria-label="Lesson media">
       {lesson.mediaUrl ? (
-        <div className="overflow-hidden rounded-2xl border border-line bg-ink">
+        <div className="overflow-hidden rounded-2xl border border-line bg-scrim">
           <video className="aspect-video w-full" controls preload="metadata" src={lesson.mediaUrl}>
             Your browser cannot play this media. Use the transcript or audio option below.
           </video>
         </div>
       ) : (
-        <div className="grid min-h-52 place-items-center rounded-2xl border border-dashed border-line bg-white p-6 text-center">
+        <div className="grid min-h-52 place-items-center rounded-2xl border border-dashed border-line bg-paper p-6 text-center">
           <div>
             <BookOpen className="mx-auto text-forest-700" size={36} />
             <p className="mt-3 font-extrabold">Media has not been published.</p>
@@ -526,7 +526,7 @@ function LessonMedia({ lesson }: { lesson: LearningLesson }) {
       )}
 
       <div className="mt-5 grid gap-4 lg:grid-cols-[1fr_300px]">
-        <article className="rounded-2xl border border-line bg-white p-5 sm:p-6">
+        <article className="rounded-2xl border border-line bg-paper p-5 sm:p-6">
           <div className="flex items-center gap-2">
             <FileText size={19} className="text-forest-700" />
             <h2 className="display text-xl font-extrabold">Readable transcript</h2>
@@ -538,7 +538,7 @@ function LessonMedia({ lesson }: { lesson: LearningLesson }) {
           )}
         </article>
 
-        <aside className="rounded-2xl border border-line bg-white p-5">
+        <aside className="rounded-2xl border border-line bg-paper p-5">
           <div className="flex items-center gap-2">
             <Headphones size={19} className="text-forest-700" />
             <h2 className="font-extrabold">Audio-only</h2>
@@ -641,7 +641,7 @@ function LearningLessonContent({
               <AppLink
                 href={learningPath('learn_assignment', module.slug)}
                 onNavigate={() => onOpenAssignment(module.slug)}
-                className="mt-4 inline-flex min-h-11 items-center rounded-xl bg-sky-900 px-4 py-2.5 font-bold text-white"
+                className="mt-4 inline-flex min-h-11 items-center rounded-xl bg-sky-900 px-4 py-2.5 font-bold text-sky-50"
               >
                 Open assignment
               </AppLink>
@@ -650,7 +650,7 @@ function LearningLessonContent({
             <div className="mt-6">
               <LessonMedia lesson={lesson} />
               {lesson.body ? (
-                <article className="mt-5 rounded-2xl border border-line bg-white p-5 leading-7 sm:p-7">
+                <article className="mt-5 rounded-2xl border border-line bg-paper p-5 leading-7 sm:p-7">
                   <h2 className="display text-xl font-extrabold">Lesson text</h2>
                   <div className="mt-4 whitespace-pre-wrap">{lesson.body}</div>
                 </article>
@@ -659,7 +659,7 @@ function LearningLessonContent({
               <button
                 onClick={() => void completeLesson()}
                 disabled={saving || completed}
-                className="mt-5 flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-forest-800 px-5 py-3 font-bold text-white disabled:opacity-60 sm:w-auto"
+                className="mt-5 flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-action px-5 py-3 font-bold text-on-action disabled:opacity-60 sm:w-auto"
               >
                 {completed ? <><CheckCircle2 size={18} /> Completed</> : saving ? 'Saving…' : userId ? 'Mark as complete' : 'Sign in to save progress'}
               </button>
@@ -703,7 +703,7 @@ function SubmissionView({
 
   return (
     <section className="mt-7" aria-labelledby="submission-title">
-      <div className={`rounded-2xl border border-forest-200 bg-white p-5 shadow-soft sm:p-7 ${celebrate ? 'motion-celebrate' : ''}`} role="status" aria-live="polite">
+      <div className={`rounded-2xl border border-forest-200 bg-paper p-5 shadow-soft sm:p-7 ${celebrate ? 'motion-celebrate' : ''}`} role="status" aria-live="polite">
         <div className="flex items-start gap-3">
           <span className="grid size-12 shrink-0 place-items-center rounded-full bg-forest-100 text-forest-800"><ShieldCheck size={24} /></span>
           <div>
@@ -852,7 +852,7 @@ function LearningAssignmentContent({
       <ModuleBreadcrumb module={module} onOpenTrack={() => onOpenModule(module.slug)} />
       <p className="mt-3 text-sm font-extrabold uppercase tracking-[0.14em] text-forest-700">Assignment</p>
       <h1 className="display mt-2 text-3xl font-extrabold sm:text-5xl">{module.assignment.title}</h1>
-      <div className="mt-6 rounded-2xl border border-line bg-white p-5 sm:p-7">
+      <div className="mt-6 rounded-2xl border border-line bg-paper p-5 sm:p-7">
         <p className="text-sm font-extrabold text-forest-700">What to submit</p>
         <p className="mt-2 text-lg leading-8 text-ink">{module.assignment.brief}</p>
         <p className="mt-4 text-sm leading-6 text-muted">After upload, your work is stored as pending. Review, grading, and feedback are not available in this release.</p>
@@ -872,7 +872,7 @@ function LearningAssignmentContent({
               }}
             />
           ) : (
-            <section className="mt-6 rounded-2xl border border-line bg-white p-5 shadow-soft sm:p-7" aria-labelledby="upload-title">
+            <section className="mt-6 rounded-2xl border border-line bg-paper p-5 shadow-soft sm:p-7" aria-labelledby="upload-title">
               <h2 id="upload-title" className="display text-2xl font-extrabold">Upload homework</h2>
               <div className="mt-4 rounded-xl bg-forest-50 p-4 text-sm leading-6 text-forest-950">
                 <p><strong>Accepted:</strong> {SUBMISSION_ACCEPTED_LABEL}</p>
@@ -901,7 +901,7 @@ function LearningAssignmentContent({
                   </label>
                 </>
               ) : (
-                <AppLink href={viewPaths.auth as string} onNavigate={onSignIn} className="mt-5 flex min-h-12 w-full items-center justify-center rounded-xl bg-forest-800 px-5 py-3 font-bold text-white">
+                <AppLink href={viewPaths.auth as string} onNavigate={onSignIn} className="mt-5 flex min-h-12 w-full items-center justify-center rounded-xl bg-action px-5 py-3 font-bold text-on-action">
                   Sign in to download and submit
                 </AppLink>
               )}
@@ -926,7 +926,7 @@ function LearningAssignmentContent({
                 <button
                   onClick={() => void upload()}
                   disabled={!file || Boolean(fileError) || uploadProgress !== null}
-                  className="mt-5 flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-forest-800 px-5 py-3 font-bold text-white disabled:cursor-not-allowed disabled:opacity-50"
+                  className="mt-5 flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-action px-5 py-3 font-bold text-on-action disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   <UploadCloud size={18} /> {uploadError ? 'Retry upload' : 'Upload homework'}
                 </button>

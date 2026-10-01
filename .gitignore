@@ -20,3 +20,6 @@ qa-full/
 _to_delete/
 /qs-ingest-extension/
 /cds-extractor/
+
+# candidate hiring tests (never commit test data / answers)
+candidate-tests/

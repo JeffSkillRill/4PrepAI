@@ -74,7 +74,7 @@ export function ProfileScreen({ universityId, profile, saved, onToggleSave }: { 
     <ProfileHero university={university} />
 
     <div className="page-container grid items-start gap-8 py-8 lg:grid-cols-[230px_minmax(0,1fr)]">
-      <aside className="sticky top-24 hidden max-h-[calc(100vh-7rem)] overflow-y-auto rounded-2xl border border-line bg-white p-4 lg:block">
+      <aside className="sticky top-24 hidden max-h-[calc(100vh-7rem)] overflow-y-auto rounded-2xl border border-line bg-paper p-4 lg:block">
         <p className="px-2 text-xs font-extrabold uppercase tracking-[.14em] text-forest-700">Table of contents</p>
         <nav className="mt-3 grid" aria-label="University profile sections">
           {sections.map((section) => <a key={section} href={`#${idFor(section)}`} className={`rounded-lg px-2 py-2 text-sm font-bold transition ${active === idFor(section) ? 'bg-forest-50 text-forest-800' : 'text-muted hover:bg-canvas'}`}>{section}</a>)}
@@ -170,7 +170,7 @@ export function ProfileScreen({ universityId, profile, saved, onToggleSave }: { 
           <div className="mt-6"><MissingValue title="Coming soon" reason="University videos and media have not been published in 4Prep yet." action="Check back when sourced university content is published." /></div>
         </Section>
 
-        <button onClick={onToggleSave} className={`flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3.5 font-bold transition sm:w-auto ${saved ? 'bg-forest-100 text-forest-900' : 'bg-forest-800 text-white hover:bg-forest-700'}`}>
+        <button onClick={onToggleSave} className={`flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3.5 font-bold transition sm:w-auto ${saved ? 'bg-forest-100 text-forest-900' : 'bg-action text-on-action hover:bg-action'}`}>
           {saved ? <BookmarkCheck size={19} /> : <Bookmark size={19} />}{saved ? 'Saved to shortlist' : 'Save university'}
         </button>
         {topRanking && <p className="sr-only">Highest listed ranking: {topRanking.label} {topRanking.rankDisplay}.</p>}
@@ -184,7 +184,7 @@ function ProfileHero({ university }: { university: University }) {
   const programmeCount = useCountUp(university.programs.length, animate, revealed)
   const topRanking = university.rankings[0]
   return (
-    <section className="relative h-[410px] min-h-[360px] overflow-hidden bg-forest-900 sm:h-[460px]">
+    <section className="relative h-[410px] min-h-[360px] overflow-hidden bg-band-raised sm:h-[460px]">
       <UniversityVisual university={university} className="absolute inset-0" />
       <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-black/10" />
       <div ref={ref} className="page-container absolute inset-x-0 bottom-0 pb-8 text-white sm:pb-10">
@@ -340,7 +340,7 @@ function Programmes({ university }: { university: University }) {
 
   return <Section title="Programmes" heading="Courses to explore">
     {university.programs.length > 0 && <div className="mt-6 max-w-xl"><ProgrammeLevels programs={university.programs} /></div>}
-    <label className="mt-5 flex items-center gap-2 rounded-xl border border-line bg-white px-3">
+    <label className="mt-5 flex items-center gap-2 rounded-xl border border-line bg-paper px-3">
       <Search size={18} className="text-muted" />
       <span className="sr-only">Search university programmes</span>
       <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search university programmes" className="min-h-12 w-full bg-transparent text-sm outline-none" />
@@ -366,7 +366,7 @@ function Programmes({ university }: { university: University }) {
                     <ChevronDown className={`ml-auto size-4 shrink-0 transition ${subjectOpen ? 'rotate-180' : ''}`} />
                   </button>
                   <Collapse open={subjectOpen}>
-                    <div className="divide-y divide-line border-t border-line bg-white">
+                    <div className="divide-y divide-line border-t border-line bg-paper">
                       {rows.map((program) => <ProgramRow key={program.id} program={program} />)}
                       {subject.programs.length > 6 && !searching && <button type="button" className="w-full px-3 py-3 text-left text-sm font-bold text-forest-800" onClick={() => setAll((current) => toggle(current, key))}>{all.has(key) ? 'Show less' : `View all ${subject.programs.length}`}</button>}
                     </div>

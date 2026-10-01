@@ -44,7 +44,6 @@ function AuthorizedApplication({
   onSignOut: () => void
 }) {
   const [access, setAccess] = useState<AccessState>({ status: 'checking', data: null })
-  const [suspended, setSuspended] = useState(false)
 
   const checkAccess = useCallback(async () => {
     setAccess({ status: 'checking', data: null })
@@ -74,70 +73,6 @@ function AuthorizedApplication({
     }
   }, [accessToken])
 
-  useEffect(() => {
-    const suspendPrivateUi = () => {
-      if (document.visibilityState === 'hidden') setSuspended(true)
-    }
-    document.addEventListener('visibilitychange', suspendPrivateUi)
-    return () => document.removeEventListener('visibilitychange', suspendPrivateUi)
-  }, [accessToken])
-
-  useEffect(() => {
-    if (access.status !== 'ready') return
-    let active = true
-    let inFlight = false
-    let recheckRequested = false
-
-    const verifyCurrentGrant = async (hideUntilVerified = false): Promise<void> => {
-      if (document.visibilityState === 'hidden') return
-      if (hideUntilVerified) setSuspended(true)
-      if (inFlight) {
-        if (hideUntilVerified) recheckRequested = true
-        return
-      }
-      inFlight = true
-      try {
-        await adminApi.access()
-        if (active && !document.hidden && !recheckRequested) setSuspended(false)
-      } catch (reason) {
-        if (!active) return
-        recheckRequested = false
-        setSuspended(false)
-        setAccess(reason instanceof NotAvailableError
-          ? { status: 'not_available', data: null }
-          : { status: 'error', data: null })
-      } finally {
-        inFlight = false
-        if (active && recheckRequested) {
-          recheckRequested = false
-          void verifyCurrentGrant(true)
-        }
-      }
-    }
-
-    void verifyCurrentGrant(true)
-
-    const interval = window.setInterval(() => {
-      void verifyCurrentGrant()
-    }, 10_000)
-    const handleFocus = () => {
-      void verifyCurrentGrant(true)
-    }
-    const handleVisibility = () => {
-      if (document.visibilityState !== 'hidden') {
-        void verifyCurrentGrant(true)
-      }
-    }
-    window.addEventListener('focus', handleFocus)
-    document.addEventListener('visibilitychange', handleVisibility)
-    return () => {
-      active = false
-      window.clearInterval(interval)
-      window.removeEventListener('focus', handleFocus)
-      document.removeEventListener('visibilitychange', handleVisibility)
-    }
-  }, [access.status, accessToken])
-
   const makeUnavailable = useCallback(() => {
     setAccess({ status: 'not_available', data: null })
   }, [])
@@ -147,8 +82,6 @@ function AuthorizedApplication({
   if (access.status === 'error') {
     return <GenericErrorScreen onRetry={checkAccess} onSignOut={onSignOut} />
   }
-  const pageHidden = typeof document !== 'undefined' && document.visibilityState === 'hidden'
-  if (suspended || pageHidden) return <AccessLoading />
 
   return (
     <AdminConsole

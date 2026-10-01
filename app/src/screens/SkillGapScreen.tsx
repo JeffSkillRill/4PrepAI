@@ -29,7 +29,7 @@ function StatusIcon({ status }: { status: SkillGapStatus }) {
 function GapRow({ item }: { item: SkillGapItem }) {
   const style = statusStyles[item.status]
   return (
-    <li className="rounded-xl border border-line bg-white p-4">
+    <li className="rounded-xl border border-line bg-paper p-4">
       <div className="flex items-start gap-3">
         <span className={`grid size-9 shrink-0 place-items-center rounded-lg ${style.chip}`}>
           <StatusIcon status={item.status} />
@@ -169,7 +169,7 @@ export function SkillGapScreen({
           <button
             type="button"
             onClick={() => onNavigate('intake')}
-            className="mt-5 inline-flex min-h-12 items-center gap-2 rounded-xl bg-forest-800 px-5 py-3 font-bold text-white"
+            className="mt-5 inline-flex min-h-12 items-center gap-2 rounded-xl bg-action px-5 py-3 font-bold text-on-action"
           >
             Start the intake <ArrowRight size={18} />
           </button>
@@ -185,7 +185,7 @@ export function SkillGapScreen({
           <AppLink
             href={viewPaths.plan as string}
             onNavigate={() => onNavigate('plan')}
-            className="mt-5 inline-flex min-h-12 items-center gap-2 rounded-xl bg-forest-800 px-5 py-3 font-bold text-white"
+            className="mt-5 inline-flex min-h-12 items-center gap-2 rounded-xl bg-action px-5 py-3 font-bold text-on-action"
           >
             Add my scores <ArrowRight size={18} />
           </AppLink>
@@ -194,7 +194,7 @@ export function SkillGapScreen({
         <DesignedState state="empty" onReset={reload} />
       ) : (
         <>
-          <p className="mt-6 flex items-start gap-2 rounded-xl border border-line bg-white p-4 text-sm leading-6 text-muted">
+          <p className="mt-6 flex items-start gap-2 rounded-xl border border-line bg-paper p-4 text-sm leading-6 text-muted">
             <CircleAlert size={17} className="mt-0.5 shrink-0 text-forest-600" aria-hidden="true" />
             Meeting a published minimum is not an admission decision, and missing one is not a
             rejection. These are the numbers universities publish, compared with the numbers you

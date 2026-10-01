@@ -145,7 +145,7 @@ export function AskACounselor({
           setOpen(true)
           track('handoff_opened', { source })
         }}
-        className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-forest-200 bg-white px-4 py-2.5 text-sm font-bold text-forest-700 transition-colors hover:bg-forest-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest-700"
+        className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-forest-200 bg-paper px-4 py-2.5 text-sm font-bold text-forest-700 transition-colors hover:bg-forest-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest-700"
       >
         <MessageSquareText size={16} aria-hidden="true" /> {label}
       </button>
@@ -155,7 +155,7 @@ export function AskACounselor({
   return (
     <form
       onSubmit={handleSubmit}
-      className="trust-static rounded-2xl border border-forest-200 bg-white p-4"
+      className="trust-static rounded-2xl border border-forest-200 bg-paper p-4"
     >
       <p className="text-sm font-bold text-forest-950">{label}</p>
       <p className="mt-1 text-sm leading-6 text-muted">{promptFor(source)}</p>
@@ -246,7 +246,7 @@ export function AskACounselor({
         <button
           type="submit"
           disabled={!canSubmit}
-          className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-forest-700 px-4 py-2.5 text-sm font-bold text-white transition-colors hover:bg-forest-800 disabled:cursor-not-allowed disabled:opacity-60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest-700"
+          className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-action px-4 py-2.5 text-sm font-bold text-on-action transition-colors hover:bg-action disabled:cursor-not-allowed disabled:opacity-60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest-700"
         >
           <Send size={16} aria-hidden="true" />
           {phase === 'submitting' ? 'Sending…' : 'Send request'}
