@@ -10,31 +10,11 @@ import {
   type PendingDestination,
 } from './auth/pendingAuth'
 import type { Pathway, StudentProfile, University, View } from './types'
-import { IntakeScreen, ResultsScreen } from './screens/FlowScreens'
-import { ProfileScreen } from './screens/ProfileScreen'
-import { SearchScreen } from './screens/SearchScreen'
-import { SavedScreen, ToolsScreen } from './screens/ToolsSavedScreens'
-import { SkillGapScreen } from './screens/SkillGapScreen'
-import { PlanScreen } from './screens/PlanScreen'
-import { ScholarshipScreen } from './screens/ScholarshipScreen'
-import {
-  AuthCallbackScreen,
-  AuthScreen,
-  PrivacyScreen,
-  ResetPasswordScreen,
-} from './screens/AuthPrivacyScreens'
-import { CounselorScreen } from './screens/CounselorScreen'
 import { NotFoundScreen } from './screens/NotFoundScreen'
 import { ConnectionStatus, DesignedState, LoadingState } from './components/States'
 import { AppLink } from './components/AppLink'
 import { EnvironmentBanner } from './components/EnvironmentBanner'
 import { CounselorWidget } from './components/CounselorWidget'
-import {
-  LearningAssignmentScreen,
-  LearningLessonScreen,
-  LearningModuleScreen,
-  LearningTrackScreen,
-} from './screens/LearningScreens'
 import { learningPath, readRoute, viewPaths } from './routes'
 import {
   getRankedPathway,
@@ -47,15 +27,32 @@ import {
 import { runViewTransition } from './motion/viewTransition'
 import { ThemeToggle } from './theme/ThemeToggle'
 
-const DashboardScreen = lazy(async () => {
-  const module = await import('./screens/DashboardScreen')
-  return { default: module.DashboardScreen }
-})
+// Each screen is its own chunk, so a first visit downloads only the screen it opens.
+const loadFlowScreens = () => import('./screens/FlowScreens')
+const loadToolsSavedScreens = () => import('./screens/ToolsSavedScreens')
+const loadAuthPrivacyScreens = () => import('./screens/AuthPrivacyScreens')
+const loadLearningScreens = () => import('./screens/LearningScreens')
 
-const SupportScreen = lazy(async () => {
-  const module = await import('./screens/SupportScreen')
-  return { default: module.SupportScreen }
-})
+const DashboardScreen = lazy(() => import('./screens/DashboardScreen').then((module) => ({ default: module.DashboardScreen })))
+const SupportScreen = lazy(() => import('./screens/SupportScreen').then((module) => ({ default: module.SupportScreen })))
+const SearchScreen = lazy(() => import('./screens/SearchScreen').then((module) => ({ default: module.SearchScreen })))
+const ProfileScreen = lazy(() => import('./screens/ProfileScreen').then((module) => ({ default: module.ProfileScreen })))
+const PlanScreen = lazy(() => import('./screens/PlanScreen').then((module) => ({ default: module.PlanScreen })))
+const SkillGapScreen = lazy(() => import('./screens/SkillGapScreen').then((module) => ({ default: module.SkillGapScreen })))
+const CounselorScreen = lazy(() => import('./screens/CounselorScreen').then((module) => ({ default: module.CounselorScreen })))
+const ScholarshipScreen = lazy(() => import('./screens/ScholarshipScreen').then((module) => ({ default: module.ScholarshipScreen })))
+const IntakeScreen = lazy(() => loadFlowScreens().then((module) => ({ default: module.IntakeScreen })))
+const ResultsScreen = lazy(() => loadFlowScreens().then((module) => ({ default: module.ResultsScreen })))
+const SavedScreen = lazy(() => loadToolsSavedScreens().then((module) => ({ default: module.SavedScreen })))
+const ToolsScreen = lazy(() => loadToolsSavedScreens().then((module) => ({ default: module.ToolsScreen })))
+const AuthScreen = lazy(() => loadAuthPrivacyScreens().then((module) => ({ default: module.AuthScreen })))
+const AuthCallbackScreen = lazy(() => loadAuthPrivacyScreens().then((module) => ({ default: module.AuthCallbackScreen })))
+const PrivacyScreen = lazy(() => loadAuthPrivacyScreens().then((module) => ({ default: module.PrivacyScreen })))
+const ResetPasswordScreen = lazy(() => loadAuthPrivacyScreens().then((module) => ({ default: module.ResetPasswordScreen })))
+const LearningTrackScreen = lazy(() => loadLearningScreens().then((module) => ({ default: module.LearningTrackScreen })))
+const LearningModuleScreen = lazy(() => loadLearningScreens().then((module) => ({ default: module.LearningModuleScreen })))
+const LearningLessonScreen = lazy(() => loadLearningScreens().then((module) => ({ default: module.LearningLessonScreen })))
+const LearningAssignmentScreen = lazy(() => loadLearningScreens().then((module) => ({ default: module.LearningAssignmentScreen })))
 
 const navItems: { label: string; view: View }[] = [
   { label: 'University List', view: 'search' },
@@ -656,7 +653,9 @@ export default function App() {
       <Navbar view={view} onNavigate={navigate} hasPlan={Boolean(profile)} />
       <ConnectionStatus />
       {profileConflict && user ? <ProfileConflictBanner status={conflictStatus} onReplace={() => void replaceWithNewAnswers()} onKeep={keepSavedPlan} /> : null}
-      <main id="main-content" tabIndex={-1}>{screen}</main>
+      <main id="main-content" tabIndex={-1}>
+        <Suspense fallback={<LoadingState kind="page" />}>{screen}</Suspense>
+      </main>
       <Footer onNavigate={navigate} />
       <CounselorWidget onOpenCounselor={() => navigate('counselor')} />
       <EnvironmentBanner />

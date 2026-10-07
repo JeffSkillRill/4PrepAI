@@ -10,7 +10,7 @@ function Illustration({ type }: { type: DevState }) {
   return <Sparkles size={54} strokeWidth={1.5} />
 }
 
-export type LoadingKind = 'catalogue' | 'profile' | 'compare' | 'form' | 'private' | 'dashboard'
+export type LoadingKind = 'catalogue' | 'profile' | 'compare' | 'form' | 'private' | 'dashboard' | 'page'
 
 export function LoadingState({ kind = 'catalogue' }: { kind?: LoadingKind }) {
   if (kind === 'profile') {
@@ -41,10 +41,11 @@ export function LoadingState({ kind = 'catalogue' }: { kind?: LoadingKind }) {
     )
   }
 
-  if (kind === 'form' || kind === 'private') {
+  if (kind === 'form' || kind === 'private' || kind === 'page') {
+    const label = kind === 'form' ? 'Loading form' : kind === 'page' ? 'Loading page' : 'Loading private account data'
     return (
-      <section className="page-container py-10" aria-label={kind === 'form' ? 'Loading form' : 'Loading private account data'} aria-live="polite">
-        <h1 className="sr-only">{kind === 'form' ? 'Loading form' : 'Loading private account data'}</h1>
+      <section className="page-container py-10" aria-label={label} aria-live="polite">
+        <h1 className="sr-only">{label}</h1>
         <div className="mx-auto max-w-xl">
           <div className="h-5 w-36 rounded skeleton" />
           <div className="mt-5 h-10 w-4/5 rounded-lg skeleton" />

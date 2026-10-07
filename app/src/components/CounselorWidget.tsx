@@ -2,7 +2,7 @@ import { ArrowUpRight, Bot, ChevronDown, Send, X } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { useCounselorConversation } from '../counselor/conversation'
 import { SafeMarkdown } from './SafeMarkdown'
-import { requestCounselorAnswer } from '../screens/CounselorScreen'
+import { requestCounselorAnswer } from '../counselor/request'
 
 export function CounselorWidget({ onOpenCounselor }: { onOpenCounselor?: () => void }) {
   const [open, setOpen] = useState(false)

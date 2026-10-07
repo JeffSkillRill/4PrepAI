@@ -3,9 +3,9 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { CounselorWidget } from './CounselorWidget'
-import { requestCounselorAnswer } from '../screens/CounselorScreen'
+import { requestCounselorAnswer } from '../counselor/request'
 
-vi.mock('../screens/CounselorScreen', () => ({
+vi.mock('../counselor/request', () => ({
   requestCounselorAnswer: vi.fn(),
 }))
 
