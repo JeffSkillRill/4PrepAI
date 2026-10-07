@@ -99,6 +99,36 @@ describe('DashboardScreen stage and goal', () => {
     expect(screen.getByRole('link', { name: /Complete intake/ }).getAttribute('href')).toBe('/intake')
   })
 
+  it('keeps saved-university rows within the saved-plans card', async () => {
+    const savedUniversity = {
+      id: 'berea',
+      name: 'Berea College with a deliberately long university name',
+      city: 'Berea',
+      country: 'United States',
+      flag: '🇺🇸',
+    }
+    repositoryMocks.getRankedPathway.mockResolvedValue({
+      profile,
+      ranked: [savedUniversity],
+      milestones: [],
+    })
+
+    render(
+      <DashboardScreen
+        userId="student-1"
+        profile={profile}
+        saved={new Set(['berea'])}
+        onNavigate={vi.fn()}
+        onOpenUniversity={vi.fn()}
+      />,
+    )
+
+    const savedRow = await screen.findByRole('link', { name: /Berea College with a deliberately long university name/ })
+    expect(savedRow.className).toContain('w-full')
+    expect(savedRow.className).toContain('min-w-0')
+    expect(savedRow.closest('li')?.className).toContain('min-w-0')
+  })
+
 
   it('shows the getting-started stage and intake route in the true empty state', async () => {
     render(

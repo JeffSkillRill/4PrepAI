@@ -14,7 +14,7 @@ import {
   SlidersHorizontal,
   X,
 } from 'lucide-react'
-import { useId, useMemo, useState } from 'react'
+import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import type { University } from '../types'
 import { UniversityCard } from '../components/UniversityCard'
 import { DesignedState } from '../components/States'
@@ -62,6 +62,7 @@ export type CatalogueResult = {
 }
 
 export const budgetLimits = { min: 5000, max: 100000, step: 1000 } as const
+export const cataloguePageSizes = { initial: 20, increment: 30 } as const
 
 const featureItems = [
   { icon: GitCompareArrows, title: 'Compare universities', detail: 'Find the best fit' },
@@ -69,25 +70,6 @@ const featureItems = [
   { icon: CalendarCheck, title: 'Admission information', detail: 'Requirements & deadlines' },
   { icon: Compass, title: 'Personalized guidance', detail: 'Plan with confidence' },
 ]
-
-// Reference chips. The catalogue is sourced US-only, so the region chips are
-// labels, not filters; the subject chips drive the existing major filter.
-const regionChips = [
-  { label: 'USA', note: 'The catalogue currently covers United States universities only.' },
-  { label: 'UK', note: 'No United Kingdom universities are in the sourced catalogue yet.' },
-  { label: 'Canada', note: 'No Canadian universities are in the sourced catalogue yet.' },
-  { label: 'Australia', note: 'No Australian universities are in the sourced catalogue yet.' },
-]
-
-const primaryFieldChips = [
-  { label: 'Business', value: 'Business & Management' },
-  { label: 'Computer Science', value: 'Computer Science' },
-  { label: 'Engineering', value: 'Engineering' },
-]
-
-const extraFieldChips = fieldOptions
-  .filter((option) => !primaryFieldChips.some((chip) => chip.value === option))
-  .map((option) => ({ label: option, value: option }))
 
 export function filterCatalogueUniversities(
   universities: readonly University[],
@@ -192,7 +174,6 @@ function FilterContent({
 
 export function SearchScreen({ query, setQuery, saved, onToggleSave, onOpen }: Props) {
   const [filtersOpen, setFiltersOpen] = useState(false)
-  const [showMoreChips, setShowMoreChips] = useState(false)
   const [budget, setBudget] = useState<number>(budgetLimits.max)
   const [field, setField] = useState('')
   const [selectedStates, setSelectedStates] = useState<string[]>([])
@@ -225,8 +206,6 @@ export function SearchScreen({ query, setQuery, saved, onToggleSave, onOpen }: P
     setField('')
   }
   const filterProps = { budget, setBudget, field, setField, fields, selectedStates, setSelectedStates, stateOptions }
-  const shownFieldChips = showMoreChips ? [...primaryFieldChips, ...extraFieldChips] : primaryFieldChips
-  const moreFieldChips = extraFieldChips
 
   return (
     <div className="motion-resolve">
@@ -246,12 +225,6 @@ export function SearchScreen({ query, setQuery, saved, onToggleSave, onOpen }: P
               {query ? <button type="button" onClick={() => setQuery('')} className="grid size-10 shrink-0 place-items-center rounded-full text-muted transition hover:bg-canvas hover:text-forest-800" aria-label="Clear university search"><X size={18} /></button> : null}
               <button type="submit" className="inline-flex min-h-12 shrink-0 items-center gap-2 rounded-full bg-action px-5 font-bold text-on-action transition hover:bg-action-hover sm:px-7" aria-label="Search universities"><span className="hidden sm:inline">Search</span><ArrowRight size={17} /></button>
             </label>
-            <div className="mt-4 flex flex-wrap items-center gap-2 text-xs text-forest-900">
-              <span className="font-bold">Popular:</span>
-              {regionChips.map((chip) => <span key={chip.label} className="rounded-full border border-glass-line bg-glass px-3.5 py-1.5 font-semibold text-forest-900 backdrop-blur" title={chip.note}>{chip.label}</span>)}
-              {shownFieldChips.map((chip) => <button key={chip.label} type="button" onClick={() => setField(chip.value)} className={`min-h-0 rounded-full border px-3.5 py-1.5 font-semibold backdrop-blur transition ${field === chip.value ? 'border-action bg-action text-on-action' : 'border-glass-line bg-glass text-forest-900 hover:bg-glass-strong'}`} aria-pressed={field === chip.value}>{chip.label}</button>)}
-              {moreFieldChips.length > 0 && <button type="button" onClick={() => setShowMoreChips(!showMoreChips)} className="inline-flex min-h-0 items-center gap-1 rounded-full border border-glass-line bg-glass px-3.5 py-1.5 font-semibold text-forest-900 backdrop-blur transition hover:bg-glass-strong" aria-expanded={showMoreChips}>More <ChevronDown size={14} className={showMoreChips ? 'rotate-180 transition' : 'transition'} aria-hidden="true" /></button>}
-            </div>
           </form>
           <p className="mt-8 inline-flex items-center gap-1.5 self-end rounded-full border border-glass-line bg-glass px-3.5 py-1.5 text-xs font-semibold text-forest-900 backdrop-blur">
             <MapPin size={14} aria-hidden="true" /> Dream · Learn · Grow
@@ -320,9 +293,7 @@ export function SearchScreen({ query, setQuery, saved, onToggleSave, onOpen }: P
 
             {status === 'loading' ? <CatalogueListSkeleton /> : loadState ? (
               <DesignedState state={loadState} headingLevel={2} onReset={reload} />
-            ) : filtered.length > 0 ? <div className="grid gap-6" data-testid="university-results">
-              {filtered.map(({ university, fitsAfterScholarship }) => <UniversityCard key={university.id} university={university} layout="list" fitsAfterScholarship={fitsAfterScholarship} saved={saved.has(university.id)} onSave={() => onToggleSave(university.id)} onOpen={() => onOpen(university)} />)}
-            </div> : <CatalogueEmptyState onReset={resetAll} />}
+            ) : filtered.length > 0 ? <PaginatedResults key={JSON.stringify([query, budget, field, selectedStates])} results={filtered} saved={saved} onToggleSave={onToggleSave} onOpen={onOpen} /> : <CatalogueEmptyState onReset={resetAll} />}
           </section>
         </div>
       </div>
@@ -330,6 +301,58 @@ export function SearchScreen({ query, setQuery, saved, onToggleSave, onOpen }: P
       {filtersOpen && <div className="fixed inset-0 z-50 bg-scrim/40 lg:hidden" role="dialog" aria-modal="true" aria-label="Search filters" onMouseDown={() => setFiltersOpen(false)}><aside className="absolute inset-x-0 bottom-0 max-h-[88vh] overflow-y-auto rounded-t-[28px] bg-elevated p-6" onMouseDown={(event) => event.stopPropagation()}><div className="mb-6 flex items-center justify-between gap-3"><h2 className="display text-2xl font-extrabold">Refine results</h2><div className="flex items-center gap-2">{(hasActiveFilters || query) && <button type="button" onClick={resetAll} className="min-h-10 px-2 text-sm font-bold text-forest-700 underline underline-offset-4">Reset</button>}<button type="button" onClick={() => setFiltersOpen(false)} className="grid size-10 place-items-center rounded-full bg-canvas" aria-label="Close filters"><X size={20} /></button></div></div><FilterContent {...filterProps} /><button type="button" onClick={() => setFiltersOpen(false)} className="sticky bottom-4 mt-7 w-full rounded-xl bg-action py-3.5 font-bold text-on-action shadow-lg">Show {filtered.length} {filtered.length === 1 ? 'result' : 'results'}</button></aside></div>}
     </div>
   )
+}
+
+function PaginatedResults({
+  results,
+  saved,
+  onToggleSave,
+  onOpen,
+}: {
+  results: readonly CatalogueResult[]
+  saved: Set<string>
+  onToggleSave: (id: string) => void
+  onOpen: (university: University) => void
+}) {
+  const [visibleCount, setVisibleCount] = useState<number>(cataloguePageSizes.initial)
+  // Index of the first card added by the latest "Show more"; cards from here on animate in.
+  const [revealFrom, setRevealFrom] = useState<number | null>(null)
+  const visibleResults = results.slice(0, visibleCount)
+  const remainingResultCount = results.length - visibleResults.length
+  const showMoreRef = useRef<HTMLDivElement>(null)
+  // Without IntersectionObserver (old browsers, tests) the button is simply shown.
+  const [showMoreInView, setShowMoreInView] = useState(() => typeof IntersectionObserver === 'undefined')
+  const hasMore = remainingResultCount > 0
+
+  useEffect(() => {
+    const node = showMoreRef.current
+    if (!node || typeof IntersectionObserver === 'undefined') return
+    // Replays each time the block re-enters view, e.g. after new cards push it down.
+    const observer = new IntersectionObserver(([entry]) => setShowMoreInView(entry.isIntersecting), { threshold: 0.4 })
+    observer.observe(node)
+    return () => observer.disconnect()
+  }, [hasMore])
+
+  function showMore() {
+    setRevealFrom(visibleCount)
+    setVisibleCount((current) => Math.min(current + cataloguePageSizes.increment, results.length))
+  }
+
+  return <>
+    <div className="grid gap-6" data-testid="university-results">
+      {visibleResults.map(({ university, fitsAfterScholarship }, index) => {
+        const card = <UniversityCard university={university} layout="list" fitsAfterScholarship={fitsAfterScholarship} saved={saved.has(university.id)} onSave={() => onToggleSave(university.id)} onOpen={() => onOpen(university)} />
+        if (revealFrom === null || index < revealFrom) return <div key={university.id}>{card}</div>
+        return <div key={university.id} className="catalogue-card-enter" style={{ animationDelay: `${Math.min(index - revealFrom, 8) * 60}ms` }}>{card}</div>
+      })}
+    </div>
+    {hasMore && <div ref={showMoreRef} className={`catalogue-show-more mt-8 flex flex-col items-center gap-3 text-center${showMoreInView ? ' is-in-view' : ''}`}>
+      <p className="text-sm text-muted">Showing {visibleResults.length} of {results.length} results</p>
+      <button type="button" onClick={showMore} className="min-h-11 rounded-xl border border-forest-700 bg-paper px-5 py-2.5 text-sm font-bold text-forest-800 transition hover:bg-forest-50">
+        Show {Math.min(cataloguePageSizes.increment, remainingResultCount)} more {remainingResultCount === 1 ? 'university' : 'universities'}
+      </button>
+    </div>}
+  </>
 }
 
 function ActiveFilterChip({ label, icon, onClear }: { label: string; icon: React.ReactNode; onClear: () => void }) {

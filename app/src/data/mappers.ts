@@ -292,11 +292,34 @@ function programFigure(
   return known(format(numericValue), sourceId, { numericValue, currency: 'USD' })
 }
 
+const PROFILE_ONLY: DataPoint<string> = unknown(
+  'Programme outcomes load on the university profile, not in catalogue lists.',
+  'Open the university profile to see this figure.',
+)
+
 export function mapProgram(row: RawProgram, universityId: string): Program {
   const family = cipFamilyName(row.cip_code)
   const source = row.source_id ?? null
   const suppressed = 'College Scorecard withholds this figure when too few graduates are in the cohort.'
   const checkWith = 'Check the university programme page, or compare the national figure.'
+  // Catalogue lists select only the programme identity columns. An absent column
+  // means "not requested here", which must never be reported as Scorecard suppression.
+  const outcomesRequested = 'median_earnings_4yr' in row
+  if (!outcomesRequested) {
+    return {
+      id: `${universityId}:${row.cip_code}:${row.credential_level}`,
+      name: (row.title ?? `CIP ${row.cip_code}`).replace(/\.$/, ''),
+      degree: row.credential_title ?? 'Credential level not reported',
+      field: family,
+      degreeLevel: Number(row.credential_level),
+      subjectArea: family,
+      graduates: PROFILE_ONLY,
+      medianEarnings: PROFILE_ONLY,
+      nationalMedianEarnings: PROFILE_ONLY,
+      medianDebt: PROFILE_ONLY,
+      medianMonthlyPayment: PROFILE_ONLY,
+    }
+  }
   return {
     // Scorecard has no programme id; the CIP code plus credential level is the
     // natural key, and matches the table's own primary key.

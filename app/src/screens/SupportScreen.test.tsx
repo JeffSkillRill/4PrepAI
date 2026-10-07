@@ -18,6 +18,7 @@ afterEach(() => {
   sendMessageMock.mockReset()
   vi.restoreAllMocks()
   window.sessionStorage.clear()
+  window.localStorage.clear()
   Object.defineProperty(window.navigator, 'onLine', { configurable: true, value: true })
 })
 

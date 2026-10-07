@@ -11,8 +11,10 @@ export type QueuedSupportMessage = {
 
 type QueueStorage = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>
 
+const QUEUE_KEY_PREFIX = '4prep:support-queue:v1:'
+
 function queueKey(userId: string): string {
-  return `4prep:support-queue:v1:${userId}`
+  return `${QUEUE_KEY_PREFIX}${userId}`
 }
 
 function validQueuedMessage(value: unknown, userId: string): value is QueuedSupportMessage {
@@ -32,12 +34,37 @@ function validQueuedMessage(value: unknown, userId: string): value is QueuedSupp
     ))
 }
 
+// localStorage, not sessionStorage: a message the student was told is queued must
+// survive closing the tab. Keys are per user, readSupportQueue filters on userId, the
+// server binds sends to auth.uid(), and resending the same id is idempotent, so two
+// tabs draining one queue cannot duplicate a message. Queues are cleared on sign-out
+// (clearSupportQueues) so a shared device keeps no message text.
 export function supportQueueStorage(): QueueStorage | null {
   if (typeof window === 'undefined') return null
   try {
-    return window.sessionStorage
+    return window.localStorage
   } catch {
     return null
+  }
+}
+
+export function clearSupportQueues(storage: Pick<Storage, 'length' | 'key' | 'removeItem'> | null): void {
+  if (!storage) return
+  const keys: string[] = []
+  for (let index = 0; index < storage.length; index += 1) {
+    const key = storage.key(index)
+    if (key?.startsWith(QUEUE_KEY_PREFIX)) keys.push(key)
+  }
+  keys.forEach((key) => storage.removeItem(key))
+}
+
+/** Sign-out / account-deletion hook: drop every queued message on this device. */
+export function clearDeviceSupportQueues(): void {
+  if (typeof window === 'undefined') return
+  try {
+    clearSupportQueues(window.localStorage)
+  } catch {
+    // Storage blocked: nothing was persisted there either.
   }
 }
 

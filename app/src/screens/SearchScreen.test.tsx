@@ -65,6 +65,45 @@ describe('SearchScreen result announcements', () => {
     expect(screen.getByText('Alpha University').getAttribute('data-layout')).toBe('list')
   })
 
+  it('shows 20 universities initially and adds 30 more results at a time', () => {
+    repositoryMocks.data = Array.from({ length: 81 }, (_, index) => ({
+      id: `university-${index + 1}`,
+      name: `University ${index + 1}`,
+      city: 'Example City',
+      country: 'United States',
+      programs: [],
+      scholarships: [],
+      aidInternational: { status: 'unknown', reason: 'Not published', suggestedAction: 'Ask admissions' },
+      totalCostOfAttendance: { status: 'unknown', reason: 'Not published', suggestedAction: 'Ask admissions' },
+    } as unknown as University))
+
+    render(
+      <SearchScreen
+        query=""
+        setQuery={vi.fn()}
+        saved={new Set()}
+        onToggleSave={vi.fn()}
+        onOpen={vi.fn()}
+      />,
+    )
+
+    const renderedCards = () => screen.getByTestId('university-results').querySelectorAll('article')
+    expect(renderedCards()).toHaveLength(20)
+    expect(screen.getByText('Showing 20 of 81 results')).toBeTruthy()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Show 30 more universities' }))
+    expect(renderedCards()).toHaveLength(50)
+    expect(screen.getByText('Showing 50 of 81 results')).toBeTruthy()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Show 30 more universities' }))
+    expect(renderedCards()).toHaveLength(80)
+    expect(screen.getByRole('button', { name: 'Show 1 more university' })).toBeTruthy()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Show 1 more university' }))
+    expect(renderedCards()).toHaveLength(81)
+    expect(screen.queryByRole('button', { name: /Show .* more universit/i })).toBeNull()
+  })
+
   it('updates the university-name search as soon as the user types', () => {
     const setQuery = vi.fn()
 
@@ -106,6 +145,23 @@ describe('SearchScreen result announcements', () => {
     fireEvent.change(fieldSelect, { target: { value: 'Engineering' } })
 
     expect(screen.getByRole('button', { name: 'Remove filter: Engineering' })).toBeTruthy()
+  })
+
+  it('keeps major selection in the catalogue filters instead of the search hero', () => {
+    render(
+      <SearchScreen
+        query=""
+        setQuery={vi.fn()}
+        saved={new Set()}
+        onToggleSave={vi.fn()}
+        onOpen={vi.fn()}
+      />,
+    )
+
+    expect(screen.queryByText('Your major:')).toBeNull()
+    expect(screen.queryByText('Popular:')).toBeNull()
+    expect(screen.queryByRole('button', { name: 'More' })).toBeNull()
+    expect(screen.getByRole('combobox', { name: 'Major' })).toBeTruthy()
   })
 
   it('filters typed search text against university names', () => {

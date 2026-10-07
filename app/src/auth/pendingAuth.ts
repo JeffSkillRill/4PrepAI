@@ -143,13 +143,34 @@ type ResolveAccountProfileOptions = {
   saveProfile: (userId: string, profile: StudentProfile) => Promise<void>
 }
 
+export type ResolvedAccountProfile = {
+  profile: StudentProfile | null
+  /** True when anonymous answers were written to an account that had no profile. */
+  carried: boolean
+  /**
+   * Anonymous answers that differ from a profile the account already has. They are
+   * NOT saved: the student chooses whether to replace their stored plan.
+   */
+  conflict: StudentProfile | null
+}
+
+function sameProfile(left: StudentProfile, right: StudentProfile): boolean {
+  const keys = new Set([...Object.keys(left), ...Object.keys(right)]) as Set<keyof StudentProfile>
+  return [...keys].every((key) => left[key] === right[key])
+}
+
 export async function resolveAccountProfile({
   userId,
   anonymousProfile,
   storedProfile,
   saveProfile,
-}: ResolveAccountProfileOptions): Promise<{ profile: StudentProfile | null; carried: boolean }> {
-  if (!anonymousProfile) return { profile: storedProfile, carried: false }
-  await saveProfile(userId, anonymousProfile)
-  return { profile: anonymousProfile, carried: true }
+}: ResolveAccountProfileOptions): Promise<ResolvedAccountProfile> {
+  if (!anonymousProfile) return { profile: storedProfile, carried: false, conflict: null }
+  if (!storedProfile) {
+    await saveProfile(userId, anonymousProfile)
+    return { profile: anonymousProfile, carried: true, conflict: null }
+  }
+  // Never overwrite real scores the student saved earlier without asking.
+  if (sameProfile(storedProfile, anonymousProfile)) return { profile: storedProfile, carried: false, conflict: null }
+  return { profile: storedProfile, carried: false, conflict: anonymousProfile }
 }

@@ -15,6 +15,7 @@ import {
   SCOPE_SUGGESTIONS,
   classifyScope,
 } from './scope.ts'
+import { matchUniversities, type NamedUniversity } from './match.ts'
 
 const ANONYMOUS_MINUTE_LIMIT = 8
 const ANONYMOUS_HOUR_LIMIT = 40
@@ -23,8 +24,9 @@ const AUTHENTICATED_HOUR_LIMIT = 200
 const CACHE_TTL_SECONDS = 24 * 60 * 60
 const PERPLEXITY_TIMEOUT_MS = 25_000
 const CACHE_VERSION = 'counselor-cache-v2'
-const PHI_VERSION = 'phi-v0.2'
+const PHI_VERSION = 'phi-v0.3'
 const PROMPT_VERSION = 'counselor-prompt-v4'
+const CATALOG_EVIDENCE_SELECT = 'id,name,university_facts(kind,value,source_id,unknown_reason,suggested_action),requirements(kind,value,source_id,unknown_reason,suggested_action),university_scholarships(scholarships(name,amount_value,amount_source_id,amount_unknown_reason,amount_suggested_action))'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -52,23 +54,12 @@ type RequestOutcome =
   | 'server_failure'
 
 type ParsedProviderPayload = {
-  answerType: CounselorAnswer['answerType']
+  // parseProviderPayload accepts only these three; out_of_scope is decided locally.
+  answerType: Exclude<CounselorAnswer['answerType'], 'out_of_scope'>
   answer: string
   recordCitations: string[]
 }
 
-const aliases: Record<string, string[]> = {
-  harvard: ['harvard', 'harvard university'],
-  yale: ['yale', 'yale university'],
-  princeton: ['princeton', 'princeton university'],
-  berea: ['berea', 'berea college'],
-  'illinois-wesleyan': ['illinois wesleyan', 'iwu'],
-  clark: ['clark', 'clark university'],
-  usm: ['southern miss', 'university of southern mississippi', 'usm'],
-  alabama: ['university of alabama', 'alabama'],
-  unk: ['university of nebraska at kearney', 'unk'],
-  hcc: ['houston city college', 'houston community college', 'hcc'],
-}
 
 function targetedKind(message: string): string | null {
   if (/\bapplication fee\b|\bapply fee\b/i.test(message)) return 'application_fee'
@@ -87,14 +78,6 @@ function targetedKind(message: string): string | null {
   if (/\bact\b/i.test(message)) return 'act'
   if (/\bgpa\b/i.test(message)) return 'gpa'
   return null
-}
-
-function selectRelevant(message: string, rows: CatalogUniversity[]): CatalogUniversity[] {
-  const normalized = message.toLowerCase()
-  const ids = Object.entries(aliases)
-    .filter(([, names]) => names.some((name) => normalized.includes(name)))
-    .map(([id]) => id)
-  return ids.length ? rows.filter((row) => ids.includes(row.id)) : []
 }
 
 function refusal(requestId: string, answer: string): CounselorAnswer {
@@ -192,7 +175,7 @@ async fetch(request: Request) {
       if (!universityId || !profileField || !fitLabel) return json({ error: 'A university, profile field, and fit are required.' }, 400)
       const { data: rationaleRows, error: rationaleError } = await database
         .from('universities')
-        .select('id,name,university_facts(kind,value,source_id,unknown_reason,suggested_action),requirements(kind,value,source_id,unknown_reason,suggested_action),university_scholarships(scholarships(name,amount_value,amount_source_id,amount_unknown_reason,amount_suggested_action))')
+        .select(CATALOG_EVIDENCE_SELECT)
         .eq('id', universityId)
         .maybeSingle()
       if (rationaleError) throw rationaleError
@@ -262,13 +245,21 @@ async fetch(request: Request) {
       } satisfies CounselorAnswer)
     }
 
-    const { data, error } = await database
-      .from('universities')
-      .select('id,name,university_facts(kind,value,source_id,unknown_reason,suggested_action),requirements(kind,value,source_id,unknown_reason,suggested_action),university_scholarships(scholarships(name,amount_value,amount_source_id,amount_unknown_reason,amount_suggested_action))')
-      .order('name')
-    if (error) throw error
-
-    const relevant = selectRelevant(message, (data ?? []) as unknown as CatalogUniversity[])
+    // Match against every catalogue name (cheap), then load evidence only for the
+    // universities the student actually named.
+    const { data: names, error: namesError } = await database.from('universities').select('id,name')
+    if (namesError) throw namesError
+    const matchedIds = matchUniversities(message, (names ?? []) as NamedUniversity[])
+    let relevant: CatalogUniversity[] = []
+    if (matchedIds.length) {
+      const { data, error } = await database
+        .from('universities')
+        .select(CATALOG_EVIDENCE_SELECT)
+        .in('id', matchedIds)
+      if (error) throw error
+      const byId = new Map(((data ?? []) as unknown as CatalogUniversity[]).map((row) => [row.id, row]))
+      relevant = matchedIds.map((id) => byId.get(id)).filter((row): row is CatalogUniversity => Boolean(row))
+    }
     const kind = targetedKind(message)
     if (kind && relevant.length === 0) {
       await completeRequest('local_response')

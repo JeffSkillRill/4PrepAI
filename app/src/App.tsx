@@ -125,6 +125,26 @@ function Footer({ onNavigate }: { onNavigate: (view: View) => void }) {
   return <footer className="mt-8 border-t border-band-line bg-band text-white"><div className="page-container grid gap-8 py-10 sm:grid-cols-[1fr_auto] sm:items-end"><div><Logo inverse href={viewPaths.search as string} onNavigate={() => onNavigate('search')} /></div><div className="flex flex-wrap gap-5 text-sm font-bold text-white/75"><AppLink href={viewPaths.tools as string} onNavigate={() => onNavigate('tools')}>Tools</AppLink><AppLink href={viewPaths.counselor as string} onNavigate={() => onNavigate('counselor')}>Counselor</AppLink><AppLink href={viewPaths.support as string} onNavigate={() => onNavigate('support')}>Platform support</AppLink><AppLink href={viewPaths.privacy as string} onNavigate={() => onNavigate('privacy')}>Privacy</AppLink><AppLink href={viewPaths[accountView] as string} onNavigate={() => onNavigate(accountView)}>Account</AppLink></div></div><div className="border-t border-band-line"><div className="page-container flex flex-wrap items-center justify-between gap-2 py-4 text-xs text-white/65"><span>© 2026 4Prep</span><span>Verify university details before applying</span></div></div></footer>
 }
 
+export function ProfileConflictBanner({ status, onReplace, onKeep }: { status: 'idle' | 'saving' | 'error'; onReplace: () => void; onKeep: () => void }) {
+  return (
+    <section role="alertdialog" aria-labelledby="profile-conflict-title" aria-describedby="profile-conflict-detail" className="border-b border-line bg-elevated">
+      <div className="page-container flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h2 id="profile-conflict-title" className="font-extrabold text-ink">You already have a saved plan</h2>
+          <p id="profile-conflict-detail" className="text-sm leading-6 text-muted">
+            You answered the plan questions again before signing in. Your saved plan is unchanged until you choose.
+          </p>
+          {status === 'error' ? <p role="alert" className="mt-1 text-sm font-bold text-rose-700">Your new answers could not be saved. Your saved plan is unchanged; try again.</p> : null}
+        </div>
+        <div className="flex shrink-0 flex-wrap gap-2">
+          <button type="button" onClick={onKeep} disabled={status === 'saving'} className="min-h-11 rounded-xl border border-line px-4 py-2.5 text-sm font-bold text-forest-800">Keep saved plan</button>
+          <button type="button" onClick={onReplace} disabled={status === 'saving'} className="min-h-11 rounded-xl bg-action px-4 py-2.5 text-sm font-bold text-on-action">{status === 'saving' ? 'Saving…' : 'Use new answers'}</button>
+        </div>
+      </div>
+    </section>
+  )
+}
+
 export default function App() {
   const initial = readRoute()
   const [view, setView] = useState<View>(initial.view)
@@ -137,6 +157,9 @@ export default function App() {
   /** Set only by "Rebuild my plan", so the wizard is never reached by accident. */
   const [rebuildRequested, setRebuildRequested] = useState(false)
   const [saved, setSaved] = useState<Set<string>>(new Set())
+  /** Answers entered while signed out that differ from the account's stored plan. Never saved unasked. */
+  const [profileConflict, setProfileConflict] = useState<StudentProfile | null>(null)
+  const [conflictStatus, setConflictStatus] = useState<'idle' | 'saving' | 'error'>('idle')
   const [privateLoading, setPrivateLoading] = useState(false)
   const [privateLoadFailed, setPrivateLoadFailed] = useState(false)
   const [privateRetry, setPrivateRetry] = useState(0)
@@ -235,6 +258,7 @@ export default function App() {
     if (!user) {
       // eslint-disable-next-line react-hooks/set-state-in-effect -- Auth transitions must clear private in-memory data before another user's records can render.
       setSaved(new Set())
+      setProfileConflict(null)
       loadedUserRef.current = null
       setPrivateLoading(false)
       setPrivateLoadFailed(false)
@@ -273,6 +297,7 @@ export default function App() {
           saveProfile: saveStudentProfile,
         })
         if (!isCurrentRun()) return
+        setProfileConflict(resolved.conflict)
         profileRef.current = resolved.profile
         profileOwnerRef.current = user.id
         setProfile(resolved.profile)
@@ -346,6 +371,25 @@ export default function App() {
     if (view !== 'results' || !profile || pathway) return
     void getRankedPathway(profile).then(setPathway)
   }, [view, profile, pathway])
+
+  const replaceWithNewAnswers = async () => {
+    if (!user || !profileConflict) return
+    setConflictStatus('saving')
+    try {
+      await saveStudentProfile(user.id, profileConflict)
+      profileRef.current = profileConflict
+      setProfile(profileConflict)
+      setPathway(null)
+      setProfileConflict(null)
+      setConflictStatus('idle')
+    } catch {
+      setConflictStatus('error')
+    }
+  }
+  const keepSavedPlan = () => {
+    setProfileConflict(null)
+    setConflictStatus('idle')
+  }
 
   const navigate = (requested: View) => {
     // The intake is answered once. Every "Build my plan" entry point in the app
@@ -611,6 +655,7 @@ export default function App() {
       <a href="#main-content" className="skip-link">Skip to main content</a>
       <Navbar view={view} onNavigate={navigate} hasPlan={Boolean(profile)} />
       <ConnectionStatus />
+      {profileConflict && user ? <ProfileConflictBanner status={conflictStatus} onReplace={() => void replaceWithNewAnswers()} onKeep={keepSavedPlan} /> : null}
       <main id="main-content" tabIndex={-1}>{screen}</main>
       <Footer onNavigate={navigate} />
       <CounselorWidget onOpenCounselor={() => navigate('counselor')} />

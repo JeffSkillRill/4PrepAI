@@ -11,7 +11,7 @@ vi.mock('./auth/AuthProvider', async (importOriginal) => {
   return { ...actual, useAuth: () => ({ user: authState.user }) }
 })
 
-import { Navbar } from './App'
+import { Navbar, ProfileConflictBanner } from './App'
 
 afterEach(() => {
   authState.user = null
@@ -56,5 +56,25 @@ describe('Navbar identity and plan state', () => {
 
     expect(screen.getByText('AL')).toBeTruthy()
     expect(screen.getByRole('link', { name: 'Ada Lovelace' })).toBeTruthy()
+  })
+})
+
+describe('ProfileConflictBanner', () => {
+  it('lets the student keep the saved plan or use the new answers', () => {
+    const onKeep = vi.fn()
+    const onReplace = vi.fn()
+    render(<ProfileConflictBanner status="idle" onKeep={onKeep} onReplace={onReplace} />)
+    expect(screen.getByRole('alertdialog', { name: 'You already have a saved plan' })).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Keep saved plan' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Use new answers' }))
+    expect(onKeep).toHaveBeenCalledOnce()
+    expect(onReplace).toHaveBeenCalledOnce()
+  })
+
+  it('says the saved plan is unchanged when replacing fails, and blocks double submits while saving', () => {
+    const { rerender } = render(<ProfileConflictBanner status="error" onKeep={vi.fn()} onReplace={vi.fn()} />)
+    expect(screen.getByRole('alert').textContent).toMatch(/saved plan is unchanged/)
+    rerender(<ProfileConflictBanner status="saving" onKeep={vi.fn()} onReplace={vi.fn()} />)
+    expect((screen.getByRole('button', { name: 'Saving…' }) as HTMLButtonElement).disabled).toBe(true)
   })
 })

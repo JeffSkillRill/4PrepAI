@@ -39,15 +39,43 @@ import {
   validateLearningSubmissionFile,
 } from '../learning/logic'
 
-const universitySelect = `
+const universitySelectFor = (programColumns: string) => `
   id,name,city,state,country,flag,tagline,description,photo_seed,highlights,source_id,
   university_facts(kind,value,numeric_value,currency,amount_period,source_id,unknown_reason,suggested_action),
   requirements(kind,value,numeric_value,benchmark,source_id,unknown_reason,suggested_action),
-  university_scorecard_programs(cip_code,credential_level,credential_title,title,awards_ipeds1,awards_ipeds2,median_earnings_4yr,median_earnings_4yr_national,median_debt,median_monthly_payment,source_id),
+  university_scorecard_programs(${programColumns}),
   university_scholarships(scholarships(id,name,amount_value,amount_numeric,currency,amount_period,amount_source_id,amount_unknown_reason,amount_suggested_action,award_conditions(kind,minimum,published_text,source_id))),
   rankings(id,label,rank_display,year,source_id),
   campuses(id,name,city,country,source_id)
 `
+// A university profile shows every programme outcome.
+const universitySelect = universitySelectFor(
+  'cip_code,credential_level,credential_title,title,awards_ipeds1,awards_ipeds2,median_earnings_4yr,median_earnings_4yr_national,median_debt,median_monthly_payment,source_id',
+)
+// Catalogue lists only need programme identity for search, filters, and Φ career fit;
+// outcome figures stay on the profile page (see mapProgram).
+const catalogueSelect = universitySelectFor('cip_code,credential_level,credential_title,title,source_id')
+
+// Public catalogue data changes only through reviewed migrations, so one copy per
+// session is enough. Before this, every catalogue screen re-downloaded the whole
+// catalogue (and the source list twice). A failed load is evicted so Retry refetches.
+const PUBLIC_CACHE_TTL_MS = 5 * 60_000
+type CacheEntry<T> = { at: number; promise: Promise<T> }
+let sourcesCache: CacheEntry<Source[]> | null = null
+let catalogueCache: CacheEntry<University[]> | null = null
+
+function cachedLoad<T>(entry: CacheEntry<T> | null, load: () => Promise<T>, store: (next: CacheEntry<T> | null) => void): Promise<T> {
+  if (entry && Date.now() - entry.at < PUBLIC_CACHE_TTL_MS) return entry.promise
+  const next: CacheEntry<T> = { at: Date.now(), promise: load() }
+  next.promise.catch(() => store(null))
+  store(next)
+  return next.promise
+}
+
+export function clearPublicCatalogueCache() {
+  sourcesCache = null
+  catalogueCache = null
+}
 
 const learningTrackSelect = `
   id,slug,title,description,sort_order,
@@ -105,24 +133,30 @@ function matchesFilters(university: University, filters: UniversityFilters): boo
   return true
 }
 
-export async function listSources(): Promise<Source[]> {
-  const { data, error } = await getSupabaseClient()
-    .from('sources')
-    .select('id,name,url,retrieved_at,verification')
-    .order('id')
-  throwIfError(error)
-  return ((data ?? []) as RawSource[]).map(mapSource)
+export function listSources(): Promise<Source[]> {
+  return cachedLoad(sourcesCache, async () => {
+    const { data, error } = await getSupabaseClient()
+      .from('sources')
+      .select('id,name,url,retrieved_at,verification')
+      .order('id')
+    throwIfError(error)
+    return ((data ?? []) as RawSource[]).map(mapSource)
+  }, (next) => { sourcesCache = next })
+}
+
+function loadCatalogue(): Promise<University[]> {
+  return cachedLoad(catalogueCache, async () => {
+    const [result, verificationBySource] = await Promise.all([
+      getSupabaseClient().from('universities').select(catalogueSelect).order('name'),
+      verificationLookup(),
+    ])
+    throwIfError(result.error)
+    return ((result.data ?? []) as unknown as RawUniversity[]).map((row) => mapUniversity(row, verificationBySource))
+  }, (next) => { catalogueCache = next })
 }
 
 export async function listUniversities(filters: UniversityFilters = {}): Promise<University[]> {
-  const [result, verificationBySource] = await Promise.all([
-    getSupabaseClient().from('universities').select(universitySelect).order('name'),
-    verificationLookup(),
-  ])
-  throwIfError(result.error)
-  return ((result.data ?? []) as unknown as RawUniversity[])
-    .map((row) => mapUniversity(row, verificationBySource))
-    .filter((university) => matchesFilters(university, filters))
+  return (await loadCatalogue()).filter((university) => matchesFilters(university, filters))
 }
 
 export async function getUniversity(id: string): Promise<University | null> {
@@ -190,6 +224,9 @@ export async function saveStudentProfile(userId: string, profile: StudentProfile
     gpa: profile.gpa,
     needs_language_pathway: profile.needsLanguagePathway,
     intake: profile.intake,
+    // Ignored by the server (trigger student_profiles_pin_consent, migration 20261007120000),
+    // which records the first-save time itself. Still sent so the NOT NULL column is
+    // satisfied on a database that has not applied that migration yet.
     consented_at: new Date().toISOString(),
   }, { onConflict: 'user_id' })
   throwIfError(error)

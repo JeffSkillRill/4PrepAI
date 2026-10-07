@@ -216,7 +216,7 @@ function SignedInDashboard({
       </section>
 
       <div className="mt-6 grid gap-5 lg:grid-cols-2 lg:items-stretch">
-        <div className="flex flex-col gap-5">
+        <div className="flex min-w-0 flex-col gap-5">
         <DashboardCard icon={<Flag />} eyebrow="Where you are" title={data.learningUserStateUnavailable ? 'Stage could not be checked' : stage.label}>
           {data.learningUserStateUnavailable ? (
             <UnavailableNote>Your private lesson and homework records could not be loaded, so 4Prep will not guess your stage. Reconnect and retry.</UnavailableNote>
@@ -256,9 +256,9 @@ function SignedInDashboard({
         <DashboardCard className="lg:flex-1" icon={<Bookmark />} eyebrow="Saved plans" title={`${saved.size} universit${saved.size === 1 ? 'y' : 'ies'} saved`}>
           {savedUniversities.length > 0 ? (
             <>
-              <ul className="grid gap-3">
+              <ul className="grid min-w-0 gap-3">
                 {savedUniversities.slice(0, 4).map((university) => (
-                  <li key={university.id}>
+                  <li key={university.id} className="min-w-0">
                     <SavedUniversityRow university={university} onOpen={() => onOpenUniversity(university)} />
                   </li>
                 ))}
@@ -290,7 +290,7 @@ function SignedInDashboard({
         </DashboardCard>
 
         </div>
-        <div className="flex flex-col gap-5">
+        <div className="flex min-w-0 flex-col gap-5">
         <DashboardCard className="lg:flex-1" icon={<BookOpenCheck />} eyebrow="Learning portal" title={`${signals.completedLessonCount} lessons complete · ${signals.submittedHomeworkCount} homework submitted`}>
           {data.learningUnavailable ? (
             <UnavailableNote>Learning progress could not be checked. Nothing was changed; reconnect and retry from the Learning Portal.</UnavailableNote>
@@ -404,7 +404,7 @@ function DashboardCard({
   className?: string
 }) {
   return (
-    <section className={`card p-5 sm:p-6 ${className}`}>
+    <section className={`card min-w-0 p-5 sm:p-6 ${className}`}>
       <div className="flex items-start gap-3">
         <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-forest-50 text-forest-700 [&>svg]:size-5">{icon}</span>
         <div><p className="text-xs font-extrabold uppercase tracking-[.12em] text-forest-700">{eyebrow}</p><h2 className="display mt-1 text-xl font-extrabold">{title}</h2></div>
@@ -436,7 +436,7 @@ function SavedUniversityRow({ university, onOpen }: { university: University; on
     <AppLink
       href={`/universities/${encodeURIComponent(university.id)}`}
       onNavigate={onOpen}
-      className="group flex items-center gap-3.5 rounded-2xl border border-line bg-paper px-4 py-4 text-left transition hover:border-forest-300 hover:bg-forest-50/40 hover:shadow-sm"
+      className="group flex w-full min-w-0 max-w-full items-center gap-3.5 rounded-2xl border border-line bg-paper px-4 py-4 text-left transition hover:border-forest-300 hover:bg-forest-50/40 hover:shadow-sm"
     >
       <span className="grid size-12 shrink-0 place-items-center rounded-xl bg-forest-800 text-xl ring-1 ring-forest-900/10" aria-hidden="true">{university.flag}</span>
       <span className="min-w-0 flex-1">

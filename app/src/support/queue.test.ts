@@ -6,6 +6,7 @@ import {
   readSupportQueue,
   retryTimeFromNow,
   writeSupportQueue,
+  clearSupportQueues,
 } from './queue'
 
 function memoryStorage() {
@@ -40,5 +41,22 @@ describe('support offline queue', () => {
     expect(canRetryQueuedMessage(queued, new Date('2026-08-05T10:01:00.000Z'))).toBe(false)
     expect(canRetryQueuedMessage(queued, new Date('2026-08-05T10:01:30.000Z'))).toBe(true)
     expect(helpfulRetryMessage(90)).toContain('2 minutes')
+  })
+})
+
+describe('clearSupportQueues', () => {
+  it('removes every user queue and nothing else', () => {
+    const values = new Map<string, string>([
+      ['4prep:support-queue:v1:user-a', '[]'],
+      ['4prep:support-queue:v1:user-b', '[]'],
+      ['4prep.pending-auth', '{}'],
+    ])
+    const storage = {
+      get length() { return values.size },
+      key: (index: number) => [...values.keys()][index] ?? null,
+      removeItem: (key: string) => { values.delete(key) },
+    }
+    clearSupportQueues(storage)
+    expect([...values.keys()]).toEqual(['4prep.pending-auth'])
   })
 })

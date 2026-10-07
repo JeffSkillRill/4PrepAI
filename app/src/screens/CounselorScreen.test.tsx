@@ -6,7 +6,7 @@ import { FunctionsHttpError } from '@supabase/supabase-js'
 import { CounselorScreen } from './CounselorScreen'
 import type { University } from '../types'
 
-const clientMocks = vi.hoisted(() => ({ invoke: vi.fn() }))
+const clientMocks = vi.hoisted(() => ({ invoke: vi.fn(), from: vi.fn() }))
 const comparisonUniversities = vi.hoisted(() => ['Alpha University', 'Beta College', 'Gamma Institute', 'Delta University'].map((name, index) => ({
   id: `university-${index + 1}`,
   name,
@@ -18,6 +18,7 @@ const comparisonUniversities = vi.hoisted(() => ['Alpha University', 'Beta Colle
 vi.mock('../data/client', () => ({
   getSupabaseClient: () => ({
     functions: { invoke: clientMocks.invoke },
+    from: clientMocks.from,
   }),
 }))
 vi.mock('../data/useRepositoryData', () => ({ useRepositoryData: () => ({ data: comparisonUniversities, status: 'ready', reload: vi.fn() }) }))
@@ -29,6 +30,7 @@ const counselorProps = { profile: null, saved: new Set<string>() }
 
 beforeEach(() => {
   clientMocks.invoke.mockReset()
+  clientMocks.from.mockReset()
   window.sessionStorage.clear()
 })
 afterEach(cleanup)
@@ -162,5 +164,31 @@ describe('CounselorScreen answer hierarchy', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Ask counselor' }))
 
     expect((await screen.findByRole('alert')).textContent).toContain('not configured or cannot be reached from this environment')
+  })
+
+  it('refuses an unknown figure locally after loading only the named university', async () => {
+    const selects: string[] = []
+    clientMocks.from.mockImplementation(() => ({
+      select: (columns: string) => {
+        selects.push(columns)
+        if (columns === 'id,name') return Promise.resolve({ data: [{ id: 'alpha', name: 'Alpha University' }, { id: 'beta', name: 'Beta College' }], error: null })
+        return {
+          eq: (_column: string, id: string) => ({
+            maybeSingle: () => Promise.resolve({
+              data: { id, name: 'Alpha University', university_facts: [{ kind: 'tuition', value: null, unknown_reason: 'Not published.', suggested_action: 'Ask the admissions office.' }], requirements: [] },
+              error: null,
+            }),
+          }),
+        }
+      },
+    }))
+    render(<CounselorScreen {...counselorProps} />)
+    fireEvent.change(screen.getByLabelText('What would you like to know?'), { target: { value: 'What is the tuition at Alpha University?' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Ask counselor' }))
+    expect(await screen.findByText(/4Prep does not have a verified tuition figure for Alpha University\. Ask the admissions office\./)).toBeTruthy()
+    expect(clientMocks.invoke).not.toHaveBeenCalled()
+    // Two small queries, never the facts of the whole catalogue.
+    expect(selects).toHaveLength(2)
+    expect(selects[0]).toBe('id,name')
   })
 })

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   mapFact,
+  mapProgram,
   mapLearningSubmission,
   mapLearningTrack,
   mapSource,
@@ -199,5 +200,24 @@ describe('data mappers', () => {
       feedbackRef: null,
       files: [{ byteSize: 42, originalFilename: 'file.pdf' }],
     })
+  })
+})
+
+describe('mapProgram list mode', () => {
+  it('labels outcome figures as profile-only when the list query did not request them', () => {
+    const program = mapProgram({ cip_code: '11.0701', credential_level: 3, credential_title: "Bachelor's Degree", title: 'Computer Science.', source_id: 'scorecard' }, 'alpha')
+    expect(program.name).toBe('Computer Science')
+    for (const figure of [program.graduates, program.medianEarnings, program.nationalMedianEarnings, program.medianDebt, program.medianMonthlyPayment]) {
+      expect(figure.status).toBe('unknown')
+      if (figure.status === 'unknown') {
+        expect(figure.reason).toMatch(/load on the university profile/)
+        expect(figure.reason).not.toMatch(/withholds/)
+      }
+    }
+  })
+
+  it('still reports Scorecard suppression when the column was requested and is null', () => {
+    const program = mapProgram({ cip_code: '11.0701', credential_level: 3, credential_title: null, title: null, median_earnings_4yr: null, source_id: 'scorecard' }, 'alpha')
+    expect(program.medianEarnings.status === 'unknown' && program.medianEarnings.reason).toMatch(/withholds/)
   })
 })

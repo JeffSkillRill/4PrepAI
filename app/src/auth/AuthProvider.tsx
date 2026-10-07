@@ -3,6 +3,7 @@ import { createContext, useContext, useEffect, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
 import { getSupabaseClient } from '../data/client'
 import { destructiveOperationsAllowed } from '../data/environment'
+import { clearDeviceSupportQueues } from '../support/queue'
 
 type AuthContextValue = {
   user: User | null
@@ -241,12 +242,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         throw new Error('Account deletion did not complete.')
       }
       await client.auth.signOut({ scope: 'local' })
+      clearDeviceSupportQueues()
       setSession(null)
       setIsPasswordRecovery(false)
     },
     signOut: async () => {
       const { error } = await getSupabaseClient().auth.signOut({ scope: 'local' })
       if (error) throw error
+      clearDeviceSupportQueues()
     },
   }), [authEvent, isPasswordRecovery, loading, session])
 

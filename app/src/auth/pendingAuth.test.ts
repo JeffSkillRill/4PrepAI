@@ -23,20 +23,48 @@ const anonymousProfile: StudentProfile = {
 }
 
 describe('resolveAccountProfile', () => {
-  it('writes anonymous intake work to the newly authenticated account before returning it', async () => {
+  it('writes anonymous intake work to an account that has no profile yet', async () => {
     const saveProfile = vi.fn(async () => undefined)
-    const storedProfile = { ...anonymousProfile, field: 'Economics' }
 
     const result = await resolveAccountProfile({
       userId: 'new-user-id',
       anonymousProfile,
-      storedProfile,
+      storedProfile: null,
       saveProfile,
     })
 
     expect(saveProfile).toHaveBeenCalledOnce()
     expect(saveProfile).toHaveBeenCalledWith('new-user-id', anonymousProfile)
-    expect(result).toEqual({ profile: anonymousProfile, carried: true })
+    expect(result).toEqual({ profile: anonymousProfile, carried: true, conflict: null })
+  })
+
+  it('never overwrites a stored profile; it returns the anonymous answers as a conflict', async () => {
+    const saveProfile = vi.fn(async () => undefined)
+    const storedProfile = { ...anonymousProfile, field: 'Economics' }
+
+    const result = await resolveAccountProfile({
+      userId: 'returning-user-id',
+      anonymousProfile,
+      storedProfile,
+      saveProfile,
+    })
+
+    expect(saveProfile).not.toHaveBeenCalled()
+    expect(result).toEqual({ profile: storedProfile, carried: false, conflict: anonymousProfile })
+  })
+
+  it('reports no conflict when the anonymous answers equal the stored profile', async () => {
+    const saveProfile = vi.fn(async () => undefined)
+
+    const result = await resolveAccountProfile({
+      userId: 'returning-user-id',
+      anonymousProfile,
+      storedProfile: { ...anonymousProfile },
+      saveProfile,
+    })
+
+    expect(saveProfile).not.toHaveBeenCalled()
+    expect(result).toEqual({ profile: anonymousProfile, carried: false, conflict: null })
   })
 
   it('keeps the account profile when there is no anonymous intake to carry', async () => {
@@ -50,7 +78,7 @@ describe('resolveAccountProfile', () => {
     })
 
     expect(saveProfile).not.toHaveBeenCalled()
-    expect(result).toEqual({ profile: anonymousProfile, carried: false })
+    expect(result).toEqual({ profile: anonymousProfile, carried: false, conflict: null })
   })
 })
 

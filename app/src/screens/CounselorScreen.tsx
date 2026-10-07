@@ -86,15 +86,22 @@ function requestedKind(message: string): string | null {
 async function preflightUnknown(message: string): Promise<CounselorAnswer | null> {
   const kind = requestedKind(message)
   if (!kind) return null
-  const { data, error } = await getSupabaseClient()
-    .from('universities')
-    .select('id,name,university_facts(kind,value,unknown_reason,suggested_action),requirements(kind,value,unknown_reason,suggested_action)')
-  if (error) return null
+  // Names first (small), then facts for the one university named — not the whole catalogue.
+  const client = getSupabaseClient()
+  const { data: names, error: namesError } = await client.from('universities').select('id,name')
+  if (namesError || !names) return null
   const normalized = message.toLowerCase()
-  const university = (data as unknown as PreflightUniversity[]).find((item) =>
+  const named = (names as { id: string; name: string }[]).find((item) =>
     normalized.includes(item.id.toLowerCase())
     || normalized.includes(item.name.toLowerCase()))
-  if (!university) return null
+  if (!named) return null
+  const { data, error } = await client
+    .from('universities')
+    .select('id,name,university_facts(kind,value,unknown_reason,suggested_action),requirements(kind,value,unknown_reason,suggested_action)')
+    .eq('id', named.id)
+    .maybeSingle()
+  if (error || !data) return null
+  const university = data as unknown as PreflightUniversity
   const record = [...university.university_facts, ...university.requirements]
     .find((fact) => fact.kind === kind)
   if (!record || record.value !== null) return null

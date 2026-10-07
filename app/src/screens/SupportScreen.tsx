@@ -212,7 +212,7 @@ export function SupportScreen({
     setDraft('')
     setAnnouncement(online
       ? 'Message queued. 4Prep will confirm when it is sent.'
-      : 'You are offline. The message is queued in this tab and has not been sent.')
+      : 'You are offline. The message is saved on this device and has not been sent. It will send when you reconnect while signed in.')
     window.setTimeout(() => void drainQueue(), 0)
   }
 
