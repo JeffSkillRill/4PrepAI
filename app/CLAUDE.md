@@ -137,7 +137,7 @@ Regenerate `../docs/DATABASE_STATE.md` after every task that touches the databas
 - Purchase/fund Perplexity API usage.
 - Generate the production API key.
 - Store it only as the Supabase Edge Function secret `PPLX_API_KEY`.
-- Optionally store `PPLX_MODEL=sonar`.
+- Optionally store `PPLX_MODEL` as a provider-prefixed Agent API model id (default `openai/gpt-6-luna`). The counselor calls the Agent API (`/v1/agent`); a legacy value such as `sonar` is ignored.
 - Never expose either value through a `VITE_` variable, client code, logs, or Git.
 
 ### 2. Counselor Edge Function

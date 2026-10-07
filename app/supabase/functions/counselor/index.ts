@@ -16,6 +16,13 @@ import {
   classifyScope,
 } from './scope.ts'
 import { matchUniversities, type NamedUniversity } from './match.ts'
+import {
+  AGENT_API_URL,
+  buildAgentRequest,
+  parseAgentPayload,
+  resolveAgentModel,
+  type ParsedProviderPayload,
+} from './provider.ts'
 
 const ANONYMOUS_MINUTE_LIMIT = 8
 const ANONYMOUS_HOUR_LIMIT = 40
@@ -25,7 +32,7 @@ const CACHE_TTL_SECONDS = 24 * 60 * 60
 const PERPLEXITY_TIMEOUT_MS = 25_000
 const CACHE_VERSION = 'counselor-cache-v2'
 const PHI_VERSION = 'phi-v0.3'
-const PROMPT_VERSION = 'counselor-prompt-v4'
+const PROMPT_VERSION = 'counselor-prompt-v5'
 const CATALOG_EVIDENCE_SELECT = 'id,name,university_facts(kind,value,source_id,unknown_reason,suggested_action),requirements(kind,value,source_id,unknown_reason,suggested_action),university_scholarships(scholarships(name,amount_value,amount_source_id,amount_unknown_reason,amount_suggested_action))'
 
 const corsHeaders = {
@@ -52,13 +59,6 @@ type RequestOutcome =
   | 'out_of_scope'
   | 'provider_failure'
   | 'server_failure'
-
-type ParsedProviderPayload = {
-  // parseProviderPayload accepts only these three; out_of_scope is decided locally.
-  answerType: Exclude<CounselorAnswer['answerType'], 'out_of_scope'>
-  answer: string
-  recordCitations: string[]
-}
 
 
 function targetedKind(message: string): string | null {
@@ -92,35 +92,6 @@ function cachedAnswer(value: unknown): CachedCounselorAnswer | null {
   if (!Array.isArray(candidate.recordCitations) || !candidate.recordCitations.every((item) => typeof item === 'string')) return null
   if (!Array.isArray(candidate.webCitations) || !candidate.webCitations.every((item) => typeof item === 'string')) return null
   return candidate as CachedCounselorAnswer
-}
-
-function parseProviderPayload(value: unknown): {
-  parsed: ParsedProviderPayload
-  webCitations: string[]
-} {
-  if (!value || typeof value !== 'object') throw new Error('Counselor provider returned malformed JSON.')
-  const payload = value as {
-    choices?: Array<{ message?: { content?: unknown } }>
-    citations?: unknown
-  }
-  const content = payload.choices?.[0]?.message?.content
-  if (typeof content !== 'string') throw new Error('Counselor provider response is missing content.')
-  const parsed = JSON.parse(content) as Partial<ParsedProviderPayload>
-  if (!['verified_fact', 'general_guidance', 'refusal'].includes(parsed.answerType ?? '')) {
-    throw new Error('Counselor provider returned an invalid answer type.')
-  }
-  if (typeof parsed.answer !== 'string' || !parsed.answer.trim()) {
-    throw new Error('Counselor provider returned an empty answer.')
-  }
-  if (!Array.isArray(parsed.recordCitations) || !parsed.recordCitations.every((item) => typeof item === 'string')) {
-    throw new Error('Counselor provider returned malformed record citations.')
-  }
-  return {
-    parsed: parsed as ParsedProviderPayload,
-    webCitations: Array.isArray(payload.citations)
-      ? payload.citations.filter((item): item is string => typeof item === 'string')
-      : [],
-  }
 }
 
 async function logStrike(requestId: string, userId: string | null, detail: string) {
@@ -366,28 +337,20 @@ ${JSON.stringify(records)}`
     let parsed: ParsedProviderPayload
     let providerWebCitations: string[]
     try {
-      const response = await fetch('https://api.perplexity.ai/chat/completions', {
+      const response = await fetch(AGENT_API_URL, {
         method: 'POST',
         headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
         signal: controller.signal,
-        body: JSON.stringify({
-          model: Deno.env.get('PPLX_MODEL') ?? 'sonar',
-          messages: [{ role: 'system', content: system }, { role: 'user', content: message }],
-          temperature: 0,
-          ...(records.length > 0 ? { web_search_options: { disable_search: true } } : {}),
-          response_format: { type: 'json_schema', json_schema: { schema: {
-            type: 'object',
-            required: ['answerType', 'answer', 'recordCitations'],
-            properties: {
-              answerType: { type: 'string', enum: ['verified_fact', 'general_guidance', 'refusal'] },
-              answer: { type: 'string' },
-              recordCitations: { type: 'array', items: { type: 'string' } },
-            },
-          } } },
-        }),
+        body: JSON.stringify(buildAgentRequest({
+          model: resolveAgentModel(Deno.env.get('PPLX_MODEL')),
+          system,
+          message,
+          // Verified-record answers never search the web; general guidance may.
+          searchWeb: records.length === 0,
+        })),
       })
       if (!response.ok) throw new Error(`Counselor provider returned ${response.status}.`)
-      const provider = parseProviderPayload(await response.json())
+      const provider = parseAgentPayload(await response.json())
       parsed = provider.parsed
       providerWebCitations = provider.webCitations
     } catch (error) {
