@@ -48,10 +48,13 @@ const university: University = {
     name: 'Computer Science',
     degree: 'BSc',
     field: 'Computer Science',
-    degreeLevel: 'bachelor',
-    subjectArea: 'Engineering and Technology',
-    duration: known('3 years', 'source'),
-    tuition: known('US$10,000 / year', 'source', { numericValue: 10000, currency: 'USD', period: 'year' }),
+    degreeLevel: 3,
+    subjectArea: 'Engineering',
+    graduates: known('120', 'source', { numericValue: 120 }),
+    medianEarnings: known('$70,000', 'source', { numericValue: 70000, currency: 'USD' }),
+    nationalMedianEarnings: known('$65,000', 'source', { numericValue: 65000, currency: 'USD' }),
+    medianDebt: known('$25,000', 'source', { numericValue: 25000, currency: 'USD' }),
+    medianMonthlyPayment: known('$260', 'source', { numericValue: 260, currency: 'USD' }),
   }],
   scholarships: [],
   rankings: [],
@@ -219,7 +222,7 @@ describe('computeFit Φ v0.3 contract', () => {
       ...university,
       programs: [
         university.programs[0],
-        { id: 'cs2', name: 'Computer Science and AI', degree: 'BSc', field: 'Computer Science', degreeLevel: 'bachelor', subjectArea: 'Engineering and Technology', duration: known('4 years', 'source'), tuition: known('US$10,000 / year', 'source', { numericValue: 10000, currency: 'USD', period: 'year' }) },
+        { id: 'cs2', name: 'Computer Science and AI', degree: 'BSc', field: 'Computer Science', degreeLevel: 3, subjectArea: 'Engineering', graduates: known('80', 'source', { numericValue: 80 }), medianEarnings: known('$72,000', 'source', { numericValue: 72000, currency: 'USD' }), nationalMedianEarnings: known('$65,000', 'source', { numericValue: 65000, currency: 'USD' }), medianDebt: known('$24,000', 'source', { numericValue: 24000, currency: 'USD' }), medianMonthlyPayment: known('$250', 'source', { numericValue: 250, currency: 'USD' }) },
       ],
     }
     const deep = computeFit(profile, twoExact)

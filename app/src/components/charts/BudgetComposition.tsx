@@ -5,13 +5,7 @@ import { useScrollReveal } from '../../motion/hooks'
 import { ChartFrame } from './ChartFrame'
 import { chartSwatch, money, plottableAmounts, singleCurrency } from './chartUtils'
 
-/**
- * Published budget components stacked against the published total.
- *
- * The bar plots only components the university published. When the total is
- * larger than the components, the gap is left visibly unfilled and named as
- * "not itemised" rather than being filled with a derived figure.
- */
+
 export function BudgetComposition({ university }: { university: University }) {
   const { ref, revealed, animate } = useScrollReveal<HTMLDivElement>()
   const segments = plottableAmounts([

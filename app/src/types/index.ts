@@ -92,12 +92,29 @@ export type FitScore = {
 export type Program = {
   id: string
   name: string
+  /** College Scorecard's own credential title, e.g. "Bachelor's Degree". Shown verbatim. */
   degree: string
+  /** CIP 2-digit family name; see cipFamilyName. Used by search and fit scoring. */
   field: string
-  degreeLevel: 'bachelor' | 'master' | 'mba' | 'phd'
-  subjectArea: 'Arts and Humanities' | 'Business and Management' | 'Engineering and Technology' | 'Life Sciences and Medicine' | 'Natural Sciences' | 'Social Sciences and Management'
-  duration: DataPoint<string>
-  tuition: DataPoint<string>
+  /**
+   * Scorecard credential level: 1 undergraduate certificate, 2 associate,
+   * 3 bachelor, 4 post-baccalaureate certificate, 5 master, 6 doctoral,
+   * 7 first professional, 8 graduate certificate, 99 non-credential.
+   * An ordering key, not a label — `degree` carries the wording.
+   */
+  degreeLevel: number
+  /** Same CIP family as `field`; kept separate because the UI groups on it. */
+  subjectArea: string
+  /** Graduates in the reported year (IPEDS awards). */
+  graduates: DataPoint<string>
+  /** Median earnings 4 years after completing THIS programme at THIS university. */
+  medianEarnings: DataPoint<string>
+  /** National median for the same CIP code and credential level — a benchmark. */
+  nationalMedianEarnings: DataPoint<string>
+  /** Median federal loan debt at completion. */
+  medianDebt: DataPoint<string>
+  /** Median monthly repayment on that debt. */
+  medianMonthlyPayment: DataPoint<string>
 }
 
 export type Ranking = {

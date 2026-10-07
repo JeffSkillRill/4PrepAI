@@ -49,15 +49,18 @@ const fit = (resolvedCount: number): FitScore => ({
   },
 })
 
-const programme = (id: string, degreeLevel: Program['degreeLevel']): Program => ({
+const programme = (id: string, degreeLevel: number, degree = "Bachelor's Degree"): Program => ({
   id,
   name: `Programme ${id}`,
-  degree: degreeLevel,
+  degree,
   field: 'Computer Science',
   degreeLevel,
-  subjectArea: 'Engineering and Technology',
-  duration: missing,
-  tuition: missing,
+  subjectArea: 'Engineering',
+  graduates: missing,
+  medianEarnings: missing,
+  nationalMedianEarnings: missing,
+  medianDebt: missing,
+  medianMonthlyPayment: missing,
 })
 
 const ranking = (id: string, rankDisplay: string): Ranking =>
@@ -153,12 +156,18 @@ describe('programme levels', () => {
     expect(screen.getByText('Coming soon')).toBeTruthy()
   })
 
-  it('draws no bar for a level the catalogue has no programme at', () => {
-    render(<ProgrammeLevels programs={[programme('1', 'bachelor'), programme('2', 'bachelor'), programme('3', 'mba')]} />)
+  it('charts only the credential levels the source reports, in Scorecard order', () => {
+    render(<ProgrammeLevels programs={[
+      programme('1', 3, "Bachelor's Degree"),
+      programme('2', 3, "Bachelor's Degree"),
+      programme('3', 5, "Master's Degree"),
+    ]} />)
 
     const chart = screen.getByRole('img')
-    expect(chart.getAttribute('aria-label')).toContain('Bachelor: 2. MBA: 1')
-    expect(chart.getAttribute('aria-label')).toContain('No sourced programme is published at these levels: Master, PhD')
+    expect(chart.getAttribute('aria-label')).toContain("Bachelor's Degree: 2. Master's Degree: 1")
+    // A level the source does not report for this university is absent entirely
+    // rather than drawn as a zero, which would claim the university offers none.
+    expect(chart.getAttribute('aria-label')).not.toContain('Doctoral')
   })
 })
 

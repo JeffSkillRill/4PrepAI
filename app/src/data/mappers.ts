@@ -19,6 +19,7 @@ import type {
   Verification,
 } from '../types'
 import { known, unknown } from '../types'
+import { cipFamilyName } from './cip'
 
 export type RawFact = {
   kind: string
@@ -33,14 +34,19 @@ export type RawFact = {
   suggested_action: string | null
 }
 
+/** A row of public.university_scorecard_programs, verbatim from College Scorecard. */
 export type RawProgram = {
-  id: string
-  name: string
-  degree: string
-  field: string
-  degree_level: Program['degreeLevel']
-  subject_area: Program['subjectArea']
-  program_facts?: RawFact[] | null
+  cip_code: string
+  credential_level: number | string
+  credential_title: string | null
+  title: string | null
+  awards_ipeds1?: number | string | null
+  awards_ipeds2?: number | string | null
+  median_earnings_4yr?: number | string | null
+  median_earnings_4yr_national?: number | string | null
+  median_debt?: number | string | null
+  median_monthly_payment?: number | string | null
+  source_id?: string | null
 }
 
 export type RawRanking = {
@@ -98,7 +104,7 @@ export type RawUniversity = {
   highlights: string[]
   source_id: string
   university_facts?: RawFact[] | null
-  programs?: RawProgram[] | null
+  university_scorecard_programs?: RawProgram[] | null
   requirements?: RawRequirement[] | null
   university_scholarships?: RawScholarshipLink[] | null
   rankings?: RawRanking[] | null
@@ -262,17 +268,59 @@ export function mapScholarship(row: RawScholarship): Scholarship {
   }
 }
 
-export function mapProgram(row: RawProgram): Program {
-  const facts = new Map((row.program_facts ?? []).map((fact) => [fact.kind, fact]))
+const usd = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 })
+const count = new Intl.NumberFormat('en-US')
+
+/**
+ * A Scorecard programme figure.
+ *
+ * Scorecard suppresses any figure drawn from too small a cohort, so a null here
+ * means "not reported", never zero. It becomes an explicit unknown carrying that
+ * reason, which is why the panel can say why a number is missing instead of
+ * leaving a blank the reader fills in themselves.
+ */
+function programFigure(
+  value: number | string | null | undefined,
+  sourceId: string | null | undefined,
+  format: (input: number) => string,
+  reason: string,
+  action: string,
+): DataPoint<string> {
+  if (value === null || value === undefined || value === '' || !sourceId) return unknown(reason, action)
+  const numericValue = Number(value)
+  if (!Number.isFinite(numericValue)) return unknown(reason, action)
+  return known(format(numericValue), sourceId, { numericValue, currency: 'USD' })
+}
+
+export function mapProgram(row: RawProgram, universityId: string): Program {
+  const family = cipFamilyName(row.cip_code)
+  const source = row.source_id ?? null
+  const suppressed = 'College Scorecard withholds this figure when too few graduates are in the cohort.'
+  const checkWith = 'Check the university programme page, or compare the national figure.'
   return {
-    id: row.id,
-    name: row.name,
-    degree: row.degree,
-    field: row.field,
-    degreeLevel: row.degree_level,
-    subjectArea: row.subject_area,
-    duration: mapFact(facts.get('duration'), 'Program duration'),
-    tuition: mapFact(facts.get('tuition'), 'Program tuition'),
+    // Scorecard has no programme id; the CIP code plus credential level is the
+    // natural key, and matches the table's own primary key.
+    id: `${universityId}:${row.cip_code}:${row.credential_level}`,
+    // Scorecard titles carry a trailing period. The stored value keeps it, because
+    // the database holds the source verbatim; stripping it here is presentation only.
+    name: (row.title ?? `CIP ${row.cip_code}`).replace(/\.$/, ''),
+    degree: row.credential_title ?? 'Credential level not reported',
+    field: family,
+    degreeLevel: Number(row.credential_level),
+    subjectArea: family,
+    graduates: programFigure(
+      row.awards_ipeds2, source, (value) => count.format(value),
+      'College Scorecard does not report a graduate count for this programme.',
+      'Check the university programme page for enrolment and completion numbers.',
+    ),
+    medianEarnings: programFigure(row.median_earnings_4yr, source, (value) => usd.format(value), suppressed, checkWith),
+    nationalMedianEarnings: programFigure(
+      row.median_earnings_4yr_national, source, (value) => usd.format(value),
+      'College Scorecard publishes no national median for this field and credential level.',
+      'Compare similar programmes at other universities.',
+    ),
+    medianDebt: programFigure(row.median_debt, source, (value) => usd.format(value), suppressed, checkWith),
+    medianMonthlyPayment: programFigure(row.median_monthly_payment, source, (value) => usd.format(value), suppressed, checkWith),
   }
 }
 
@@ -341,7 +389,7 @@ export function mapUniversity(
     employabilityRate: mapFact(facts.get('employability_rate'), 'Employability rate'),
     employabilitySummary: mapFact(facts.get('employability_summary'), 'Employability summary'),
     facultyCount: mapFact(facts.get('faculty_count'), 'Faculty count'),
-    programs: (row.programs ?? []).map(mapProgram),
+    programs: (row.university_scorecard_programs ?? []).map((program) => mapProgram(program, row.id)),
     scholarships,
     rankings: (row.rankings ?? []).map(mapRanking),
     campuses: (row.campuses ?? []).map(mapCampus),

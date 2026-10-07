@@ -49,8 +49,6 @@ const sections = [
   'Videos & Media',
 ] as const
 
-const levels: Program['degreeLevel'][] = ['bachelor', 'master', 'mba', 'phd']
-const levelLabels: Record<Program['degreeLevel'], string> = { bachelor: 'Bachelor', master: 'Master', mba: 'MBA', phd: 'PhD' }
 const idFor = (title: string) => title.toLowerCase().replaceAll(/[^a-z0-9]+/g, '-').replaceAll(/(^-|-$)/g, '')
 
 /** Tests the catalogue does not carry as a field at all, kept in one strip
@@ -58,7 +56,33 @@ const idFor = (title: string) => title.toLowerCase().replaceAll(/[^a-z0-9]+/g, '
 const untrackedTests = ['GRE', 'GMAT', 'ATAR', 'IB', 'PTE', 'Cambridge']
 
 export function filterProgrammes(programs: Program[], query: string) { const q = query.trim().toLowerCase(); return q ? programs.filter((program) => program.name.toLowerCase().includes(q)) : programs }
-export function groupProgrammes(programs: Program[]) { return levels.flatMap((level) => { const atLevel = programs.filter((program) => program.degreeLevel === level); return atLevel.length ? [{ level, programs: atLevel, subjects: [...new Set(atLevel.map((program) => program.subjectArea))].map((subjectArea) => ({ subjectArea, programs: atLevel.filter((program) => program.subjectArea === subjectArea) })) }] : [] }) }
+/**
+ * Groups by credential level, then by CIP family.
+ *
+ * The levels come from the data rather than a fixed list: College Scorecard
+ * reports nine of them and names each one itself, so inventing our own labels
+ * would only risk contradicting the source. Ordering follows Scorecard's
+ * numeric level, which runs from undergraduate certificate up to graduate
+ * certificate.
+ */
+export function groupProgrammes(programs: Program[]) {
+  const levels = [...new Map(programs.map((program) => [program.degreeLevel, program.degree])).entries()]
+    .sort(([left], [right]) => left - right)
+  return levels.map(([level, label]) => {
+    const atLevel = programs.filter((program) => program.degreeLevel === level)
+    return {
+      level,
+      label,
+      programs: atLevel,
+      subjects: [...new Set(atLevel.map((program) => program.subjectArea))]
+        .sort((left, right) => left.localeCompare(right))
+        .map((subjectArea) => ({
+          subjectArea,
+          programs: atLevel.filter((program) => program.subjectArea === subjectArea),
+        })),
+    }
+  })
+}
 
 export function ProfileScreen({ universityId, profile, saved, onToggleSave }: { universityId: string; profile: StudentProfile | null; saved: boolean; onToggleSave: () => void }) {
   const { data, status, reload } = useRepositoryData(() => getUniversity(universityId), [universityId])
@@ -351,7 +375,7 @@ function Programmes({ university }: { university: University }) {
         return <div key={group.level} className="overflow-hidden rounded-xl border border-line">
           <button type="button" onClick={() => setOpenLevels((current) => toggle(current, group.level))} aria-expanded={levelOpen} className="flex min-h-12 w-full items-center gap-3 px-4 text-left font-bold transition hover:bg-canvas">
             <GraduationCap size={17} className="shrink-0 text-forest-600" aria-hidden="true" />
-            {levelLabels[group.level]} ({group.programs.length})
+            {group.label} ({group.programs.length})
             <ChevronDown className={`ml-auto size-4 shrink-0 transition ${levelOpen ? 'rotate-180' : ''}`} />
           </button>
           <Collapse open={levelOpen}>
@@ -387,8 +411,11 @@ function ProgramRow({ program }: { program: Program }) {
     <div className="motion-disclosure">
       <div className="overflow-hidden">
         <div className="grid gap-3 border-t border-line py-3 sm:grid-cols-2">
-          <div><p className="text-xs font-bold text-muted">Duration</p><DataValue point={program.duration} className="mt-1" /></div>
-          <div><p className="text-xs font-bold text-muted">Tuition</p><DataValue point={program.tuition} className="mt-1" /></div>
+          <div><p className="text-xs font-bold text-muted">Graduates</p><DataValue point={program.graduates} className="mt-1" /></div>
+          <div><p className="text-xs font-bold text-muted">Median earnings, 4 years after completing</p><DataValue point={program.medianEarnings} className="mt-1" /></div>
+          <div><p className="text-xs font-bold text-muted">National median, same field and level</p><DataValue point={program.nationalMedianEarnings} className="mt-1" /></div>
+          <div><p className="text-xs font-bold text-muted">Median debt at completion</p><DataValue point={program.medianDebt} className="mt-1" /></div>
+          <div><p className="text-xs font-bold text-muted">Median monthly repayment</p><DataValue point={program.medianMonthlyPayment} className="mt-1" /></div>
         </div>
       </div>
     </div>
