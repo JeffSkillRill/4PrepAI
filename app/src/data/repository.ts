@@ -512,20 +512,6 @@ export async function submitLearningAssignment({
   if (validationError) throw new Error(validationError)
 
   const client = getSupabaseClient()
-  const existing = await getLearningSubmission(userId, assignment.id)
-  const { data: submissionRow, error: submissionError } = await client
-    .from('learning_submissions')
-    .upsert({
-      assignment_id: assignment.id,
-      user_id: userId,
-      status: 'pending',
-    }, { onConflict: 'user_id,assignment_id' })
-    .select('id')
-    .single()
-  throwIfError(submissionError)
-  if (!submissionRow) throw new Error('The submission record could not be created.')
-  const submissionId = submissionRow.id
-
   const uniquePrefix = typeof crypto !== 'undefined' && 'randomUUID' in crypto
     ? crypto.randomUUID()
     : `${Date.now()}`
@@ -535,41 +521,20 @@ export async function submitLearningAssignment({
     `${uniquePrefix}-${sanitizeLearningFilename(file.name)}`,
   ].join('/')
 
-  let uploaded = false
-  try {
-    await uploadLearningObject(storagePath, file, onProgress)
-    uploaded = true
-
-    const { error: fileError } = await client.from('learning_submission_files').insert({
-      submission_id: submissionId,
-      storage_path: storagePath,
-      original_filename: file.name,
-      mime_type: file.type.toLowerCase(),
-      byte_size: file.size,
-    })
-    throwIfError(fileError)
-
-    const { error: completionError } = await client
-      .from('learning_submissions')
-      .update({
-        status: 'pending',
-        submitted_at: new Date().toISOString(),
-        feedback_ref: null,
-      })
-      .eq('id', submissionId)
-      .eq('user_id', userId)
-    throwIfError(completionError)
-  } catch (reason) {
-    if (uploaded) {
-      await Promise.allSettled([
-        client.storage.from(LEARNING_SUBMISSIONS_BUCKET).remove([storagePath]),
-        client.from('learning_submission_files').delete().eq('storage_path', storagePath),
-      ])
-    }
-    if (!existing) {
-      await client.from('learning_submissions').delete().eq('id', submissionId)
-    }
-    throw reason
+  // Upload first, then record the submission and its file row in one database
+  // transaction (submit_learning_assignment). A failure at either step leaves no
+  // half-written rows; the only thing to undo is the uploaded object.
+  await uploadLearningObject(storagePath, file, onProgress)
+  const { error: recordError } = await client.rpc('submit_learning_assignment', {
+    p_assignment_id: assignment.id,
+    p_storage_path: storagePath,
+    p_original_filename: file.name,
+    p_mime_type: file.type,
+    p_byte_size: file.size,
+  })
+  if (recordError) {
+    await client.storage.from(LEARNING_SUBMISSIONS_BUCKET).remove([storagePath]).catch(() => undefined)
+    throwIfError(recordError)
   }
 
   const saved = await getLearningSubmission(userId, assignment.id)
