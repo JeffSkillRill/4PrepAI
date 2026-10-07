@@ -23,3 +23,8 @@ _to_delete/
 
 # candidate hiring tests (never commit test data / answers)
 candidate-tests/
+
+# QA campaign secrets
+/qa/.env
+/qa/.state/
+/qa/results/e2e-artifacts/

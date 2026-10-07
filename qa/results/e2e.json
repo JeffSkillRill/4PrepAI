@@ -1,0 +1,448 @@
+{
+  "config": {
+    "argv": [
+      "/usr/local/bin/node",
+      "/Users/abdujafar/Desktop/SAT/4PrepAI/qa/node_modules/.bin/playwright",
+      "test",
+      "--config",
+      "e2e/playwright.config.mjs",
+      "--list"
+    ],
+    "configFile": "/Users/abdujafar/Desktop/SAT/4PrepAI/qa/e2e/playwright.config.mjs",
+    "rootDir": "/Users/abdujafar/Desktop/SAT/4PrepAI/qa/e2e",
+    "failOnFlakyTests": false,
+    "forbidOnly": false,
+    "fullyParallel": false,
+    "globalSetup": null,
+    "globalTeardown": null,
+    "globalTimeout": 0,
+    "grep": {},
+    "grepInvert": null,
+    "maxFailures": 0,
+    "metadata": {},
+    "preserveOutput": "always",
+    "projects": [
+      {
+        "outputDir": "/Users/abdujafar/Desktop/SAT/4PrepAI/qa/results/e2e-artifacts",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {},
+        "id": "",
+        "name": "",
+        "testDir": "/Users/abdujafar/Desktop/SAT/4PrepAI/qa/e2e",
+        "testIgnore": [],
+        "testMatch": [
+          "/.*\\.spec\\.mjs/"
+        ],
+        "timeout": 360000
+      }
+    ],
+    "quiet": false,
+    "reporter": [
+      [
+        "list",
+        null
+      ],
+      [
+        "json",
+        {
+          "outputFile": "../results/e2e.json"
+        }
+      ]
+    ],
+    "reportSlowTests": {
+      "max": 5,
+      "threshold": 300000
+    },
+    "shard": null,
+    "tags": [],
+    "updateSnapshots": "missing",
+    "updateSourceMethod": "patch",
+    "version": "1.63.0",
+    "workers": 1,
+    "webServer": null
+  },
+  "suites": [
+    {
+      "title": "H_races.spec.mjs",
+      "file": "H_races.spec.mjs",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "H1 double-click save stores exactly one row and the UI matches the DB",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 360000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "de38ba2800924a528a53-1e4804207ed6b20acdb7",
+          "file": "H_races.spec.mjs",
+          "line": 5,
+          "column": 1
+        },
+        {
+          "title": "H2 two tabs, same user: save in A, stale unsave in B, both converge after reload",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 360000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "de38ba2800924a528a53-faae30ab5d2533357f6a",
+          "file": "H_races.spec.mjs",
+          "line": 21,
+          "column": 1
+        },
+        {
+          "title": "H3 double-click Send in support creates exactly one message",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 360000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "de38ba2800924a528a53-31a588f1b792f2f59ff5",
+          "file": "H_races.spec.mjs",
+          "line": 44,
+          "column": 1
+        },
+        {
+          "title": "H4 double-click homework submit leaves one submission and no orphan files",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 360000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "de38ba2800924a528a53-f3ae7c0e1380626eb99f",
+          "file": "H_races.spec.mjs",
+          "line": 57,
+          "column": 1
+        },
+        {
+          "title": "H5 signing in with an anonymous intake in the tab overwrites the stored profile",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 360000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "de38ba2800924a528a53-6c1b2ccca42030516f62",
+          "file": "H_races.spec.mjs",
+          "line": 79,
+          "column": 1
+        }
+      ]
+    },
+    {
+      "title": "I_resilience.spec.mjs",
+      "file": "I_resilience.spec.mjs",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "I2 offline 30 s with 3 queued support messages: all delivered once, in order",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 360000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "c8d96862a7c4dd2d046c-ba1a03aabf0075db56f6",
+          "file": "I_resilience.spec.mjs",
+          "line": 5,
+          "column": 1
+        },
+        {
+          "title": "I3 closing the tab while messages are queued offline: are they lost?",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 360000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "c8d96862a7c4dd2d046c-4199c3db5a3da45750e5",
+          "file": "I_resilience.spec.mjs",
+          "line": 24,
+          "column": 1
+        },
+        {
+          "title": "I4 expired access token mid-session: the next write refreshes and succeeds",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 360000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "c8d96862a7c4dd2d046c-ae10f77a89591c20442e",
+          "file": "I_resilience.spec.mjs",
+          "line": 45,
+          "column": 1
+        },
+        {
+          "title": "I5 dropped save request: UI must not claim success; retry succeeds",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 360000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "c8d96862a7c4dd2d046c-8149b42b9b9aa17e26b3",
+          "file": "I_resilience.spec.mjs",
+          "line": 68,
+          "column": 1
+        },
+        {
+          "title": "I1 reload during homework upload leaves no half-submission",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 360000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "c8d96862a7c4dd2d046c-2d917b791234bab0c775",
+          "file": "I_resilience.spec.mjs",
+          "line": 90,
+          "column": 1
+        }
+      ]
+    },
+    {
+      "title": "J_tamper.spec.mjs",
+      "file": "J_tamper.spec.mjs",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "J1 consented_at comes from the client clock: does the server accept a forged time?",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 360000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "c30e3390816027ae99f9-64af8f039059f19739fb",
+          "file": "J_tamper.spec.mjs",
+          "line": 13,
+          "column": 1
+        },
+        {
+          "title": "J2 skewed clock (+2 days) in the browser still saves with server-valid data",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 360000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "c30e3390816027ae99f9-447456bcfc3c7821cdd2",
+          "file": "J_tamper.spec.mjs",
+          "line": 29,
+          "column": 1
+        },
+        {
+          "title": "J3 tampered pending-auth profile (out-of-range values) is rejected, not partially saved",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 360000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "c30e3390816027ae99f9-fa0990117b88e86a8ecc",
+          "file": "J_tamper.spec.mjs",
+          "line": 46,
+          "column": 1
+        },
+        {
+          "title": "J5 frozen JS (5 min) with a queued message does not burst duplicate sends on resume",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 360000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "c30e3390816027ae99f9-92885605fc0f669ad896",
+          "file": "J_tamper.spec.mjs",
+          "line": 65,
+          "column": 1
+        }
+      ]
+    },
+    {
+      "title": "L_weak_device.spec.mjs",
+      "file": "L_weak_device.spec.mjs",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "L slow4g + CPU 4×: anonymous time to first university card",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 360000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "912fde68a9aeba85c4e1-94219a542060063b8436",
+          "file": "L_weak_device.spec.mjs",
+          "line": 41,
+          "column": 3
+        },
+        {
+          "title": "L fast3g + CPU 4×: anonymous time to first university card",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 360000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "912fde68a9aeba85c4e1-685e22749b727d822e41",
+          "file": "L_weak_device.spec.mjs",
+          "line": 41,
+          "column": 3
+        },
+        {
+          "title": "L slow4g + CPU 4×: signed-in dashboard with Φ ranking rendered",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 360000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "912fde68a9aeba85c4e1-3935b89a8a98a02a7927",
+          "file": "L_weak_device.spec.mjs",
+          "line": 55,
+          "column": 1
+        }
+      ]
+    }
+  ],
+  "errors": [],
+  "stats": {
+    "startTime": "2026-10-07T11:20:49.404Z",
+    "duration": 110.156,
+    "expected": 0,
+    "skipped": 17,
+    "unexpected": 0,
+    "flaky": 0
+  }
+}

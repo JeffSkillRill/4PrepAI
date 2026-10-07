@@ -1,0 +1,18 @@
+{
+  "name": "4prep-qa",
+  "private": true,
+  "type": "module",
+  "description": "Stress and QA tooling for 4PrepAI. Never imported by app/ or admin/.",
+  "scripts": {
+    "step0": "bash step0/measure.sh",
+    "seed": "node --env-file=.env seed/seed.mjs",
+    "teardown": "node --env-file=.env teardown/teardown.mjs",
+    "reconcile": "node --env-file=.env e2e/reconcile.mjs",
+    "authz": "node --env-file=.env e2e/authz.mjs",
+    "e2e": "playwright test --config e2e/playwright.config.mjs"
+  },
+  "dependencies": {
+    "@playwright/test": "^1.56.0",
+    "@supabase/supabase-js": "^2.110.8"
+  }
+}
