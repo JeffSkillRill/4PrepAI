@@ -64,7 +64,7 @@ const programme = (id: string, degreeLevel: number, degree = "Bachelor's Degree"
 })
 
 const ranking = (id: string, rankDisplay: string): Ranking =>
-  ({ id, label: `Ranking ${id}`, rankDisplay, year: 2026, sourceId: 'source-1' })
+  ({ id, label: `Ranking ${id}`, rankDisplay, rankSort: null, year: 2026, sourceId: 'source-1' })
 
 afterEach(cleanup)
 

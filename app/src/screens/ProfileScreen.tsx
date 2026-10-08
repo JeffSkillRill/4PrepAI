@@ -182,8 +182,8 @@ export function ProfileScreen({ universityId, profile, saved, onToggleSave }: { 
         </Section>
 
         <Section title="Rankings & Ratings" heading="Rankings & ratings">
-          {university.rankings.length === 0 ? <div className="mt-6"><MissingValue title="Coming soon" reason="No sourced ranking records have been published for this university." action="Check back when a ranking source is added." /></div> : <>
-            <div className="mt-6"><RankingComparison rankings={university.rankings} /></div>
+          {university.rankings.length === 0 ? <div className="mt-6"><MissingValue title="Not ranked by QS" reason="This university is not ranked in the QS World University Rankings 2027." action="Many excellent US colleges, especially small liberal-arts colleges, are not ranked by QS. Compare them on cost, outcomes and programmes instead." /></div> : <>
+            {university.rankings.length > 1 && <div className="mt-6"><RankingComparison rankings={university.rankings} /></div>}
             <div className="mt-5 grid gap-4 sm:grid-cols-2">
               {university.rankings.map((ranking) => <div key={ranking.id} className="rounded-xl border border-line p-4">
                 <p className="text-sm font-bold text-muted">{ranking.label}</p>

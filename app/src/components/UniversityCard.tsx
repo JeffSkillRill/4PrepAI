@@ -1,10 +1,11 @@
-import { ArrowRight, ArrowUpRight, Bookmark, BookmarkCheck, Info, MapPin } from 'lucide-react'
+import { ArrowRight, ArrowUpRight, Award, Bookmark, BookmarkCheck, Info, MapPin } from 'lucide-react'
 import type { University } from '../types'
 import { DataValue, ExpandableFit, MissingValue } from './Trust'
 import { CostSummary } from './CostSummary'
 import { UniversityVisual } from './UniversityVisual'
 import { AppLink } from './AppLink'
 import { useSource } from '../data/DataProvider'
+import { qsWorldRanking } from '../data/ranking'
 
 function institutionLabel(university: University): string {
   const fourYear = university.tagline.match(/^(Public|Private) four-year institution\b/i)
@@ -19,6 +20,13 @@ function locationLabel(university: University): string {
   return cityAlreadyIncludesState
     ? `${university.city}, ${university.country}`
     : `${university.city}, ${university.stateName}, ${university.country}`
+}
+
+function QsRankBadge({ university }: { university: University }) {
+  const ranking = qsWorldRanking(university)
+  if (!ranking) return <span className="trust-static inline-flex shrink-0 items-center gap-1.5 self-start rounded-full border border-line bg-canvas px-3 py-1.5 text-xs font-bold text-muted" aria-label="Not ranked in the QS World University Rankings"><Info size={13} aria-hidden="true" />Not ranked by QS</span>
+  const edition = ranking.year ? `QS ${ranking.year}` : 'QS World'
+  return <span className="inline-flex shrink-0 items-center gap-1.5 self-start rounded-full border border-forest-200 bg-forest-50 px-3 py-1.5 text-xs font-bold text-forest-900" aria-label={`${ranking.label} ${ranking.year ?? ''}: ${ranking.rankDisplay}`}><Award size={13} aria-hidden="true" />{edition} · {ranking.rankDisplay}</span>
 }
 
 export function UniversityCard({ university, saved, onSave, onOpen, fitsAfterScholarship = false, layout = 'grid' }: { university: University; saved: boolean; onSave: () => void; onOpen: () => void; fitsAfterScholarship?: boolean; layout?: 'grid' | 'list' }) {
@@ -43,7 +51,7 @@ export function UniversityCard({ university, saved, onSave, onOpen, fitsAfterSch
               <h3 className="display text-2xl font-extrabold leading-tight text-forest-950">{university.name}</h3>
               <p className="mt-2 flex items-start gap-1.5 text-sm leading-5 text-muted"><MapPin size={15} className="mt-0.5 shrink-0 text-forest-700" aria-hidden="true" /> <span>{locationLabel(university)}</span></p>
             </div>
-            <span className="trust-static inline-flex shrink-0 items-center gap-1.5 self-start rounded-full border border-line bg-canvas px-3 py-1.5 text-xs font-bold text-muted" aria-label="Ranking: Not currently verified in this catalogue"><Info size={13} aria-hidden="true" />Not currently verified</span>
+            <QsRankBadge university={university} />
           </div>
 
           {fitsAfterScholarship && <p className="mt-4 inline-flex rounded-full bg-forest-100 px-3 py-1 text-xs font-bold text-forest-900">Fits ceiling after published scholarship</p>}

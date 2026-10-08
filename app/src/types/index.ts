@@ -121,6 +121,8 @@ export type Ranking = {
   id: string
   label: string
   rankDisplay: string
+  /** Numeric position for ordering; a band such as 601-610 sorts by its lower bound. */
+  rankSort: number | null
   year: number | null
   sourceId: string
 }

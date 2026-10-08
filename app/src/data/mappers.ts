@@ -53,6 +53,7 @@ export type RawRanking = {
   id: number | string
   label: string
   rank_display: string
+  rank_sort?: number | string | null
   year: number | string | null
   source_id: string
 }
@@ -348,7 +349,7 @@ export function mapProgram(row: RawProgram, universityId: string): Program {
 }
 
 function mapRanking(row: RawRanking): Ranking {
-  return { id: String(row.id), label: row.label, rankDisplay: row.rank_display, year: row.year === null ? null : Number(row.year), sourceId: row.source_id }
+  return { id: String(row.id), label: row.label, rankDisplay: row.rank_display, rankSort: row.rank_sort === null || row.rank_sort === undefined ? null : Number(row.rank_sort), year: row.year === null ? null : Number(row.year), sourceId: row.source_id }
 }
 
 function mapCampus(row: RawCampus): Campus {

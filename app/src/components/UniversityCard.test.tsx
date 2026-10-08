@@ -20,7 +20,8 @@ const university = {
   tagline: 'An example university.',
   description: 'A source-backed description.',
   sourceId: 'source-1',
-} as University
+  rankings: [],
+} as unknown as University
 
 afterEach(() => {
   cleanup()
@@ -36,10 +37,17 @@ describe('UniversityCard', () => {
     expect(card.getAttribute('style')).toBeNull()
   })
 
-  it('shows an explicit unknown state and the verification badge in list layout', () => {
+  it('shows an explicit unknown state and the unranked badge in list layout', () => {
     const { getByText } = render(<UniversityCard university={university} layout="list" saved={false} onSave={() => undefined} onOpen={() => undefined} />)
 
     expect(getByText('Example City, State unknown, United States')).toBeTruthy()
-    expect(getByText('Not currently verified')).toBeTruthy()
+    expect(getByText('Not ranked by QS')).toBeTruthy()
+  })
+
+  it('shows the QS World rank with its edition when one is sourced', () => {
+    const ranked = { ...university, rankings: [{ id: '1', label: 'QS World University Rankings', rankDisplay: '#45', rankSort: 45, year: 2027, sourceId: 'source-1' }] }
+    const { getByText } = render(<UniversityCard university={ranked} layout="list" saved={false} onSave={() => undefined} onOpen={() => undefined} />)
+
+    expect(getByText('QS 2027 · #45')).toBeTruthy()
   })
 })

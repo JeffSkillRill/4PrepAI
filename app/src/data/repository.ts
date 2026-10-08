@@ -24,6 +24,7 @@ import {
 } from '../scoring/costs'
 import { pathwayMilestones } from './static-content'
 import { getSupabaseClient } from './client'
+import { compareByQsRank } from './ranking'
 import {
   mapSource,
   mapLearningSubmission,
@@ -45,7 +46,7 @@ const universitySelectFor = (programColumns: string) => `
   requirements(kind,value,numeric_value,benchmark,source_id,unknown_reason,suggested_action),
   university_scorecard_programs(${programColumns}),
   university_scholarships(scholarships(id,name,amount_value,amount_numeric,currency,amount_period,amount_source_id,amount_unknown_reason,amount_suggested_action,award_conditions(kind,minimum,published_text,source_id))),
-  rankings(id,label,rank_display,year,source_id),
+  rankings(id,label,rank_display,rank_sort,year,source_id),
   campuses(id,name,city,country,source_id)
 `
 // A university profile shows every programme outcome.
@@ -152,7 +153,9 @@ function loadCatalogue(): Promise<University[]> {
       verificationLookup(),
     ])
     throwIfError(result.error)
-    return ((result.data ?? []) as unknown as RawUniversity[]).map((row) => mapUniversity(row, verificationBySource))
+    return ((result.data ?? []) as unknown as RawUniversity[])
+      .map((row) => mapUniversity(row, verificationBySource))
+      .sort(compareByQsRank)
   }, (next) => { catalogueCache = next })
 }
 
