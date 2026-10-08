@@ -147,7 +147,8 @@ export function listSources(): Promise<Source[]> {
 function loadCatalogue(): Promise<University[]> {
   return cachedLoad(catalogueCache, async () => {
     const [result, verificationBySource] = await Promise.all([
-      getSupabaseClient().from('universities').select(catalogueSelect).order('name'),
+      // Unlisted universities keep their profile URL but leave lists and search.
+      getSupabaseClient().from('universities').select(catalogueSelect).eq('listed', true).order('name'),
       verificationLookup(),
     ])
     throwIfError(result.error)

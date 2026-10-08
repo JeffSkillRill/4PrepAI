@@ -4,8 +4,10 @@ import { filterProgrammes, groupProgrammes } from './ProfileScreen'
 
 const point = { status: 'unknown' as const, reason: 'Not published.', suggestedAction: 'Ask the university.' }
 /** degreeLevel is College Scorecard's numeric credential level; degree is its own wording. */
-const programme = (id: string, name: string, degreeLevel: number, degree: string, subjectArea: string): Program => ({
-  id, name, degree, field: 'Computer Science', degreeLevel, subjectArea, graduates: point, medianEarnings: point, nationalMedianEarnings: point, medianDebt: point, medianMonthlyPayment: point,
+const programme = (id: string, name: string, degreeLevel: number, degree: string, subjectArea: string, graduates?: number): Program => ({
+  id, name, degree, field: 'Computer Science', degreeLevel, subjectArea,
+  graduates: graduates === undefined ? point : { status: 'known', value: String(graduates), sourceId: 'scorecard', numericValue: graduates },
+  medianEarnings: point, nationalMedianEarnings: point, medianDebt: point, medianMonthlyPayment: point,
 })
 
 describe('profile programme explorer', () => {
@@ -20,6 +22,19 @@ describe('profile programme explorer', () => {
     expect(groups.map((group) => [group.level, group.programs.length])).toEqual([[3, 2], [5, 1]])
     expect(groups.map((group) => group.label)).toEqual(["Bachelor's Degree", "Master's Degree"])
     expect(groups[0].subjects.map((subject) => subject.subjectArea)).toEqual(['Engineering', 'History'])
+  })
+
+  it('lists subject areas and programmes from most to fewest graduates, unknown counts last', () => {
+    const groups = groupProgrammes([
+      programme('a', 'Art History', 3, "Bachelor's Degree", 'Visual Arts', 12),
+      programme('b', 'Mechanical Engineering', 3, "Bachelor's Degree", 'Engineering', 310),
+      programme('c', 'Civil Engineering', 3, "Bachelor's Degree", 'Engineering', 95),
+      programme('d', 'Aerospace Engineering', 3, "Bachelor's Degree", 'Engineering'),
+      programme('e', 'Computer Science', 3, "Bachelor's Degree", 'Computing', 420),
+    ])
+    expect(groups[0].subjects.map((subject) => subject.subjectArea)).toEqual(['Computing', 'Engineering', 'Visual Arts'])
+    expect(groups[0].subjects[1].programs.map((program) => program.name))
+      .toEqual(['Mechanical Engineering', 'Civil Engineering', 'Aerospace Engineering'])
   })
 
   it('filters programme names case-insensitively without filling missing matches', () => {

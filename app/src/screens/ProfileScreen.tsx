@@ -64,7 +64,19 @@ export function filterProgrammes(programs: Program[], query: string) { const q =
  * would only risk contradicting the source. Ordering follows Scorecard's
  * numeric level, which runs from undergraduate certificate up to graduate
  * certificate.
+ *
+ * Within a level, subject areas and the programmes inside them run from most to
+ * fewest graduates, so the first rows show where the university actually awards
+ * its degrees. Programmes with no reported count follow, alphabetically.
  */
+function graduateCount(program: Program) {
+  return program.graduates.status === 'known' ? program.graduates.numericValue ?? 0 : 0
+}
+
+function byGraduatesThenName(left: Program, right: Program) {
+  return graduateCount(right) - graduateCount(left) || left.name.localeCompare(right.name)
+}
+
 export function groupProgrammes(programs: Program[]) {
   const levels = [...new Map(programs.map((program) => [program.degreeLevel, program.degree])).entries()]
     .sort(([left], [right]) => left - right)
@@ -75,11 +87,14 @@ export function groupProgrammes(programs: Program[]) {
       label,
       programs: atLevel,
       subjects: [...new Set(atLevel.map((program) => program.subjectArea))]
-        .sort((left, right) => left.localeCompare(right))
-        .map((subjectArea) => ({
-          subjectArea,
-          programs: atLevel.filter((program) => program.subjectArea === subjectArea),
-        })),
+        .map((subjectArea) => {
+          const inSubject = atLevel
+            .filter((program) => program.subjectArea === subjectArea)
+            .sort(byGraduatesThenName)
+          return { subjectArea, programs: inSubject, graduates: inSubject.reduce((sum, program) => sum + graduateCount(program), 0) }
+        })
+        .sort((left, right) => right.graduates - left.graduates || left.subjectArea.localeCompare(right.subjectArea))
+        .map(({ subjectArea, programs: inSubject }) => ({ subjectArea, programs: inSubject })),
     }
   })
 }

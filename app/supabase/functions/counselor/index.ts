@@ -218,7 +218,7 @@ async fetch(request: Request) {
 
     // Match against every catalogue name (cheap), then load evidence only for the
     // universities the student actually named.
-    const { data: names, error: namesError } = await database.from('universities').select('id,name')
+    const { data: names, error: namesError } = await database.from('universities').select('id,name').eq('listed', true)
     if (namesError) throw namesError
     const matchedIds = matchUniversities(message, (names ?? []) as NamedUniversity[])
     let relevant: CatalogUniversity[] = []

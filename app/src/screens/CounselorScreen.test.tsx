@@ -168,10 +168,16 @@ describe('CounselorScreen answer hierarchy', () => {
 
   it('refuses an unknown figure locally after loading only the named university', async () => {
     const selects: string[] = []
+    const nameFilters: Array<[string, unknown]> = []
     clientMocks.from.mockImplementation(() => ({
       select: (columns: string) => {
         selects.push(columns)
-        if (columns === 'id,name') return Promise.resolve({ data: [{ id: 'alpha', name: 'Alpha University' }, { id: 'beta', name: 'Beta College' }], error: null })
+        if (columns === 'id,name') return {
+          eq: (column: string, value: unknown) => {
+            nameFilters.push([column, value])
+            return Promise.resolve({ data: [{ id: 'alpha', name: 'Alpha University' }, { id: 'beta', name: 'Beta College' }], error: null })
+          },
+        }
         return {
           eq: (_column: string, id: string) => ({
             maybeSingle: () => Promise.resolve({
@@ -190,5 +196,7 @@ describe('CounselorScreen answer hierarchy', () => {
     // Two small queries, never the facts of the whole catalogue.
     expect(selects).toHaveLength(2)
     expect(selects[0]).toBe('id,name')
+    // Unlisted universities are never matched by name.
+    expect(nameFilters).toEqual([['listed', true]])
   })
 })

@@ -75,7 +75,7 @@ async function preflightUnknown(message: string): Promise<CounselorAnswer | null
   if (!kind) return null
   // Names first (small), then facts for the one university named — not the whole catalogue.
   const client = getSupabaseClient()
-  const { data: names, error: namesError } = await client.from('universities').select('id,name')
+  const { data: names, error: namesError } = await client.from('universities').select('id,name').eq('listed', true)
   if (namesError || !names) return null
   const normalized = message.toLowerCase()
   const named = (names as { id: string; name: string }[]).find((item) =>
