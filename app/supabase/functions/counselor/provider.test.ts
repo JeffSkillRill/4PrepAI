@@ -65,9 +65,9 @@ describe('buildAgentRequest', () => {
     ])
   })
 
-  it('uses a modest temperature so repeat answers are not word for word identical', () => {
-    const body = buildAgentRequest({ model: 'openai/gpt-6-luna', system: 'rules', message: 'Hi', searchWeb: false })
-    expect(body.temperature).toBe(0.3)
+  it('sends no temperature, which openai/gpt-6-luna rejects with a 400', () => {
+    const body = buildAgentRequest({ model: 'openai/gpt-6-luna', system: 'rules', message: 'Hi', searchWeb: true })
+    expect(body).not.toHaveProperty('temperature')
   })
 
   it('adds the web_search tool only for general guidance', () => {

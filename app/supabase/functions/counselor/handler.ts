@@ -330,7 +330,7 @@ export function createCounselorHandler({ env, createClient, fetch: fetchProvider
       let parsed: ParsedProviderPayload
       let providerWebCitations: string[]
       try {
-        const callProvider = (withTemperature: boolean) => fetchProvider(AGENT_API_URL, {
+        const response = await fetchProvider(AGENT_API_URL, {
           method: 'POST',
           headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
           signal: controller.signal,
@@ -341,16 +341,11 @@ export function createCounselorHandler({ env, createClient, fetch: fetchProvider
             history,
             // Verified-record answers never search the web; general guidance may.
             searchWeb: records.length === 0,
-            withTemperature,
           })),
         })
-        let response = await callProvider(true)
         if (response.status === 400) {
           // The provider's own error text says what it rejected; it carries no secrets.
-          const detail = (await response.text()).slice(0, 300)
-          console.error('COUNSELOR_PROVIDER_REJECTED', requestId, detail)
-          // Some models accept only their default sampling temperature.
-          if (/temperature/i.test(detail)) response = await callProvider(false)
+          console.error('COUNSELOR_PROVIDER_REJECTED', requestId, (await response.text()).slice(0, 300))
         }
         if (!response.ok) throw new Error(`Counselor provider returned ${response.status}.`)
         const provider = parseAgentPayload(await response.json())

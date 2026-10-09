@@ -12,9 +12,10 @@ export const AGENT_API_URL = 'https://api.perplexity.ai/v1/agent'
 // The model behind the `fast` preset (Sonar's suggested replacement), pinned.
 export const DEFAULT_AGENT_MODEL = 'openai/gpt-6-luna'
 const MAX_OUTPUT_TOKENS = 2048
-// Modest, so a repeated question does not read word for word the same. The
-// figures themselves are still checked by validateFigures on every answer.
-const TEMPERATURE = 0.3
+// No sampling temperature is sent. openai/gpt-6-luna rejected temperature 0.3
+// with a bare 400 "invalid request" (diagnosed 2026-10-09 with
+// scripts/pplx-diagnose.mjs: every variant sending it failed, the one without
+// it completed). Its default sampling already varies the wording.
 
 export type HistoryTurn = { role: 'user' | 'assistant'; content: string }
 
@@ -52,7 +53,6 @@ export function buildAgentRequest({
   message,
   history = [],
   searchWeb,
-  withTemperature = true,
 }: {
   model: string
   system: string
@@ -60,8 +60,6 @@ export function buildAgentRequest({
   /** Earlier turns, oldest first, already sanitized by sanitizeHistory. */
   history?: HistoryTurn[]
   searchWeb: boolean
-  /** False drops the sampling temperature, for a model that rejects it. */
-  withTemperature?: boolean
 }) {
   return {
     model,
@@ -76,7 +74,6 @@ export function buildAgentRequest({
       ...history.map((turn) => ({ type: 'message' as const, role: turn.role, content: turn.content })),
       { type: 'message' as const, role: 'user' as const, content: message },
     ],
-    ...(withTemperature ? { temperature: TEMPERATURE } : {}),
     max_output_tokens: MAX_OUTPUT_TOKENS,
     ...(searchWeb ? { tools: [{ type: 'web_search' }] } : {}),
     response_format: {

@@ -170,7 +170,7 @@ describe('verified facts written by the model', () => {
     expect(answer.answer).toContain(MIT_FEE)
     expect(answer.recordCitations).toEqual(['us-mit-application'])
     const body = providerBody()
-    expect(body.temperature).toBe(0.3)
+    expect(body).not.toHaveProperty('temperature')
     expect(body).not.toHaveProperty('tools')
     expect(body.input).toHaveLength(1)
     expect(body.instructions).toContain('NOT evidence')
@@ -352,18 +352,15 @@ describe('clients that predate the chat (no history field)', () => {
 })
 
 describe('provider rejections', () => {
-  it('logs the provider error text and retries once without temperature when the model rejects it', async () => {
-    provider.mockResolvedValueOnce(new Response('{"error":{"message":"Unsupported parameter: temperature"}}', { status: 400 }))
-    provider.mockResolvedValueOnce(agentReply({ answerType: 'general_guidance', answer: 'Start early.', recordCitations: [] }))
+  it('logs the provider error text on a 400 and gives a friendly reply', async () => {
+    provider.mockResolvedValueOnce(new Response('{"error":{"message":"invalid request"}}', { status: 400 }))
     const answer = await ask('How do I write a strong personal statement?')
-    expect(answer.answer).toBe('Start early.')
-    expect(provider).toHaveBeenCalledTimes(2)
-    expect(providerBody(0).temperature).toBe(0.3)
-    expect(providerBody(1)).not.toHaveProperty('temperature')
-    expect(console.error).toHaveBeenCalledWith('COUNSELOR_PROVIDER_REJECTED', expect.any(String), expect.stringContaining('temperature'))
+    expect(provider).toHaveBeenCalledOnce()
+    expect(answer.answerType).toBe('refusal')
+    expect(console.error).toHaveBeenCalledWith('COUNSELOR_PROVIDER_REJECTED', expect.any(String), expect.stringContaining('invalid request'))
   })
 
-  it('does not retry a 400 about something else', async () => {
+  it('does not retry a 400', async () => {
     provider.mockResolvedValueOnce(new Response('{"error":{"message":"bad schema"}}', { status: 400 }))
     const answer = await ask('How do I write a strong personal statement?')
     expect(provider).toHaveBeenCalledOnce()
