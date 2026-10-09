@@ -12,6 +12,8 @@ export const AGENT_API_URL = 'https://api.perplexity.ai/v1/agent'
 // The model behind the `fast` preset (Sonar's suggested replacement), pinned.
 export const DEFAULT_AGENT_MODEL = 'openai/gpt-6-luna'
 const MAX_OUTPUT_TOKENS = 2048
+/** Small talk is 1–3 sentences; the budget leaves room for the JSON wrapper. */
+export const CONVERSATION_MAX_OUTPUT_TOKENS = 400
 // No sampling temperature is sent. openai/gpt-6-luna rejected temperature 0.3
 // with a bare 400 "invalid request" (diagnosed 2026-10-09 with
 // scripts/pplx-diagnose.mjs: every variant sending it failed, the one without
@@ -19,7 +21,8 @@ const MAX_OUTPUT_TOKENS = 2048
 
 export type HistoryTurn = { role: 'user' | 'assistant'; content: string }
 
-export type AnswerType = 'verified_fact' | 'general_guidance' | 'refusal'
+export type AnswerType = 'verified_fact' | 'general_guidance' | 'refusal' | 'conversation'
+export const ANSWER_TYPES: readonly AnswerType[] = ['verified_fact', 'general_guidance', 'refusal', 'conversation']
 
 export type ParsedProviderPayload = {
   answerType: AnswerType
@@ -31,7 +34,7 @@ export const ANSWER_SCHEMA = {
   type: 'object',
   required: ['answerType', 'answer', 'recordCitations'],
   properties: {
-    answerType: { type: 'string', enum: ['verified_fact', 'general_guidance', 'refusal'] },
+    answerType: { type: 'string', enum: ANSWER_TYPES },
     answer: { type: 'string' },
     recordCitations: { type: 'array', items: { type: 'string' } },
   },
@@ -53,6 +56,7 @@ export function buildAgentRequest({
   message,
   history = [],
   searchWeb,
+  maxOutputTokens = MAX_OUTPUT_TOKENS,
 }: {
   model: string
   system: string
@@ -60,6 +64,7 @@ export function buildAgentRequest({
   /** Earlier turns, oldest first, already sanitized by sanitizeHistory. */
   history?: HistoryTurn[]
   searchWeb: boolean
+  maxOutputTokens?: number
 }) {
   return {
     model,
@@ -74,7 +79,7 @@ export function buildAgentRequest({
       ...history.map((turn) => ({ type: 'message' as const, role: turn.role, content: turn.content })),
       { type: 'message' as const, role: 'user' as const, content: message },
     ],
-    max_output_tokens: MAX_OUTPUT_TOKENS,
+    max_output_tokens: maxOutputTokens,
     ...(searchWeb ? { tools: [{ type: 'web_search' }] } : {}),
     response_format: {
       type: 'json_schema',
@@ -126,7 +131,7 @@ export function parseAgentPayload(value: unknown): {
   const content = answerText(payload)
   if (content === null) throw new Error('Counselor provider response is missing content.')
   const parsed = JSON.parse(content) as Partial<ParsedProviderPayload>
-  if (!['verified_fact', 'general_guidance', 'refusal'].includes(parsed.answerType ?? '')) {
+  if (!ANSWER_TYPES.includes(parsed.answerType as AnswerType)) {
     throw new Error('Counselor provider returned an invalid answer type.')
   }
   if (typeof parsed.answer !== 'string' || !parsed.answer.trim()) {

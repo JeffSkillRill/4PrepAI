@@ -13,18 +13,19 @@ import {
   type GroundingRecord,
 } from './grounding.ts'
 import { sanitizeHistory, type HistoryMessage } from './history.ts'
-import { type NamedUniversity } from './match.ts'
-import { buildSystemPrompt } from './prompt.ts'
+import { matchUniversities, type NamedUniversity } from './match.ts'
+import { buildSystemPrompt, formatToday } from './prompt.ts'
 import {
   AGENT_API_URL,
+  CONVERSATION_MAX_OUTPUT_TOKENS,
   buildAgentRequest,
   parseAgentPayload,
   resolveAgentModel,
   type ParsedProviderPayload,
 } from './provider.ts'
-import { REPLIES, askWhichUniversity, unknownFigureReply } from './replies.ts'
-import { GREETING_MESSAGE, OUT_OF_SCOPE_MESSAGE, SCOPE_SUGGESTIONS } from './scope.ts'
-import { planTurn } from './turn.ts'
+import { REPLIES, askWhichUniversity, smallTalkFallback, unknownFigureReply } from './replies.ts'
+import { DECLINE_MESSAGES, SCOPE_SUGGESTIONS } from './scope.ts'
+import { planTurn, targetedKind } from './turn.ts'
 
 const ANONYMOUS_MINUTE_LIMIT = 8
 const ANONYMOUS_HOUR_LIMIT = 40
@@ -32,9 +33,9 @@ const AUTHENTICATED_MINUTE_LIMIT = 20
 const AUTHENTICATED_HOUR_LIMIT = 200
 const CACHE_TTL_SECONDS = 24 * 60 * 60
 const PERPLEXITY_TIMEOUT_MS = 25_000
-const CACHE_VERSION = 'counselor-cache-v3'
+const CACHE_VERSION = 'counselor-cache-v4'
 const PHI_VERSION = 'phi-v0.3'
-const PROMPT_VERSION = 'counselor-prompt-v6'
+const PROMPT_VERSION = 'counselor-prompt-v7'
 const CATALOG_EVIDENCE_SELECT = 'id,name,university_facts(kind,value,source_id,unknown_reason,suggested_action),requirements(kind,value,source_id,unknown_reason,suggested_action),university_scholarships(scholarships(name,amount_value,amount_source_id,amount_unknown_reason,amount_suggested_action))'
 
 const corsHeaders = {
@@ -44,7 +45,8 @@ const corsHeaders = {
 }
 
 export type CounselorAnswer = {
-  answerType: 'verified_fact' | 'general_guidance' | 'refusal' | 'out_of_scope' | 'greeting' | 'clarification'
+  /** 'greeting' is no longer sent; it stays valid for turns stored by earlier clients. */
+  answerType: 'verified_fact' | 'general_guidance' | 'refusal' | 'out_of_scope' | 'greeting' | 'clarification' | 'conversation'
   answer: string
   recordCitations: string[]
   webCitations: string[]
@@ -66,6 +68,8 @@ export type CounselorDeps = {
   env: (name: string) => string | undefined
   createClient: (url: string, key: string, options: Record<string, unknown>) => SupabaseClient
   fetch: typeof fetch
+  /** Clock for the date in the system prompt; injectable for tests. */
+  now?: () => Date
 }
 
 function clarification(requestId: string, answer: string): CounselorAnswer {
@@ -74,13 +78,15 @@ function clarification(requestId: string, answer: string): CounselorAnswer {
 
 /**
  * Version-skew shim. Browsers still running the pre-chat client never send
- * `history` and reject answer types they do not know, so for them a greeting
- * goes out as out_of_scope and a clarifying question as a refusal, as before.
- * Remove once every deployed client sends `history`.
+ * `history` and reject answer types they do not know, so for them a clarifying
+ * question goes out as a refusal and a conversation reply as general guidance
+ * (their least misleading banner). Remove once every deployed client sends
+ * `history`.
  */
 function forLegacyClient(answer: CounselorAnswer): CounselorAnswer {
   if (answer.answerType === 'greeting') return { ...answer, answerType: 'out_of_scope' }
   if (answer.answerType === 'clarification') return { ...answer, answerType: 'refusal' }
+  if (answer.answerType === 'conversation') return { ...answer, answerType: 'general_guidance' }
   return answer
 }
 
@@ -103,7 +109,7 @@ function recordsForKind(records: GroundingRecord[], kind: string) {
     record.field === kind || (kind === 'aid_international' && record.field === 'scholarship_amount'))
 }
 
-export function createCounselorHandler({ env, createClient, fetch: fetchProvider }: CounselorDeps) {
+export function createCounselorHandler({ env, createClient, fetch: fetchProvider, now = () => new Date() }: CounselorDeps) {
   async function logStrike(requestId: string, userId: string | null, detail: string) {
     const url = env('SUPABASE_URL')
     const serviceKey = env('SUPABASE_SERVICE_ROLE_KEY')
@@ -213,103 +219,179 @@ export function createCounselorHandler({ env, createClient, fetch: fetchProvider
       }
 
       // Catalogue names first (one small query), so a message that names any
-      // listed university is in scope and a follow-up can reuse the schools the
-      // student just named. The scope gate still runs before any evidence query
-      // or provider call, and stays after the rate limiter so it is metered.
+      // listed university takes the admissions route and a follow-up can reuse
+      // the schools the student just named. Routing runs after the rate limiter,
+      // so every message stays metered.
       const { data: names, error: namesError } = await database.from('universities').select('id,name').eq('listed', true)
       if (namesError) throw namesError
-      const plan = planTurn(message, history, (names ?? []) as NamedUniversity[])
-      if (plan.scope !== 'in_scope') {
-        const greeting = plan.scope === 'greeting'
-        // A greeting is answered locally; only a genuinely off-topic message
-        // counts as out_of_scope in the request analytics.
-        await completeRequest(greeting ? 'local_response' : 'out_of_scope')
-        return json({
-          answerType: greeting ? 'greeting' : 'out_of_scope',
-          answer: greeting ? GREETING_MESSAGE : OUT_OF_SCOPE_MESSAGE,
-          recordCitations: [],
-          webCitations: [],
-          suggestions: SCOPE_SUGGESTIONS,
-          requestId,
-        } satisfies CounselorAnswer)
-      }
-      const { kind } = plan
-      if (kind && plan.needsUniversity) {
-        await completeRequest('local_response')
-        return json(clarification(requestId, askWhichUniversity(kind, message)))
-      }
+      const catalogue = (names ?? []) as NamedUniversity[]
+      const plan = planTurn(message, history, catalogue)
+      const today = formatToday(now())
+      const apiKey = env('PPLX_API_KEY')
+      const finish = completeRequest
 
-      // Evidence only for the universities this turn concerns, fetched now:
-      // nothing from the conversation history can stand in for a record.
-      let relevant: CatalogUniversity[] = []
-      if (plan.universityIds.length) {
-        const { data, error } = await database
-          .from('universities')
-          .select(CATALOG_EVIDENCE_SELECT)
-          .in('id', plan.universityIds)
-        if (error) throw error
-        const byId = new Map(((data ?? []) as unknown as CatalogUniversity[]).map((row) => [row.id, row]))
-        relevant = plan.universityIds.map((id) => byId.get(id)).filter((row): row is CatalogUniversity => Boolean(row))
-      }
-      if (kind && relevant.length === 0) {
-        await completeRequest('local_response')
-        return json(clarification(requestId, askWhichUniversity(kind, message)))
-      }
-      const records = knownContext(relevant)
-
-      // The template answer quotes the stored record and is the fallback whenever
-      // the model is unavailable or its answer cannot be verified.
-      let fallback: CachedCounselorAnswer | null = null
-      if (kind) {
-        const matching = recordsForKind(records, kind)
-        if (matching.length === 0 || matching.every((record) => record.status === 'unknown')) {
-          const next = matching.find((record) => record.suggestedAction)?.suggestedAction
-          await completeRequest('local_response')
-          return json(refusal(requestId, unknownFigureReply(kind, relevant.map((item) => item.name), next)))
-        }
-        const verified = buildVerifiedFactAnswer(kind, records)
-        if (verified) {
-          const validation = validateFigures(verified.answer, records, verified.citations, 'verified_fact')
-          if (!validation.ok) {
-            if (validation.shouldLogStrike) {
-              await logStrike(requestId, userId, JSON.stringify({
-                untraceable: validation.untraceable,
-                figures: validation.figures,
-                citations: verified.citations,
-              }))
-            }
-            await completeRequest('local_response')
-            return json(refusal(requestId, REPLIES.cannotConfirm))
+      async function callModel({ records, kind, searchWeb, maxOutputTokens }: {
+        records: GroundingRecord[]
+        kind: string | null
+        searchWeb: boolean
+        maxOutputTokens?: number
+      }): Promise<{ parsed: ParsedProviderPayload; webCitations: string[] }> {
+        if (!apiKey) throw new Error('PPLX_API_KEY is not configured.')
+        const controller = new AbortController()
+        const timeout = setTimeout(() => controller.abort(), PERPLEXITY_TIMEOUT_MS)
+        try {
+          const response = await fetchProvider(AGENT_API_URL, {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+            signal: controller.signal,
+            body: JSON.stringify(buildAgentRequest({
+              model: resolveAgentModel(env('PPLX_MODEL')),
+              system: buildSystemPrompt({ records, kind, today }),
+              message,
+              history,
+              searchWeb,
+              maxOutputTokens,
+            })),
+          })
+          if (response.status === 400) {
+            // The provider's own error text says what it rejected; it carries no secrets.
+            console.error('COUNSELOR_PROVIDER_REJECTED', requestId, (await response.text()).slice(0, 300))
           }
-          fallback = { answerType: 'verified_fact', answer: verified.answer, recordCitations: verified.citations, webCitations: [] }
+          if (!response.ok) throw new Error(`Counselor provider returned ${response.status}.`)
+          return parseAgentPayload(await response.json())
+        } finally {
+          clearTimeout(timeout)
         }
       }
 
-      // Only a first-turn answer is cacheable: with history, the same words can
-      // mean something else, so a conversation never reads or writes the cache.
-      const firstTurn = history.length === 0
-      const cacheKey = firstTurn
-        ? await buildCounselorCacheKey(
-          message,
-          relevant.map((item) => item.id),
-          records,
-          { cache: CACHE_VERSION, phi: PHI_VERSION, prompt: PROMPT_VERSION },
-        )
-        : undefined
-      if (cacheKey) {
-        const { data: cacheRows, error: cacheError } = await admin.rpc('take_counselor_cache_hit', {
-          p_cache_key: cacheKey,
-          p_ttl_seconds: CACHE_TTL_SECONDS,
+      const cleanText = (text: string) =>
+        // Remove stray inline "[citation-id]" markers; provenance is shown as source chips.
+        text.replace(/\s*\[[a-z0-9_-]+\]/gi, '').replace(/\s+([.,;:])/g, '$1').trim()
+
+      async function answerAdmissions(universityIds: string[], kind: string | null): Promise<Response> {
+        // Evidence only for the universities this turn concerns, fetched now:
+        // nothing from the conversation history can stand in for a record.
+        let relevant: CatalogUniversity[] = []
+        if (universityIds.length) {
+          const { data, error } = await database
+            .from('universities')
+            .select(CATALOG_EVIDENCE_SELECT)
+            .in('id', universityIds)
+          if (error) throw error
+          const byId = new Map(((data ?? []) as unknown as CatalogUniversity[]).map((row) => [row.id, row]))
+          relevant = universityIds.map((id) => byId.get(id)).filter((row): row is CatalogUniversity => Boolean(row))
+        }
+        if (kind && relevant.length === 0) {
+          await finish('local_response')
+          return json(clarification(requestId, askWhichUniversity(kind, message)))
+        }
+        const records = knownContext(relevant)
+
+        // The template answer quotes the stored record and is the fallback whenever
+        // the model is unavailable or its answer cannot be verified.
+        let fallback: CachedCounselorAnswer | null = null
+        if (kind) {
+          const matching = recordsForKind(records, kind)
+          if (matching.length === 0 || matching.every((record) => record.status === 'unknown')) {
+            const next = matching.find((record) => record.suggestedAction)?.suggestedAction
+            await finish('local_response')
+            return json(refusal(requestId, unknownFigureReply(kind, relevant.map((item) => item.name), next)))
+          }
+          const verified = buildVerifiedFactAnswer(kind, records)
+          if (verified) {
+            const validation = validateFigures(verified.answer, records, verified.citations, 'verified_fact')
+            if (!validation.ok) {
+              if (validation.shouldLogStrike) {
+                await logStrike(requestId, userId, JSON.stringify({
+                  untraceable: validation.untraceable,
+                  figures: validation.figures,
+                  citations: verified.citations,
+                }))
+              }
+              await finish('local_response')
+              return json(refusal(requestId, REPLIES.cannotConfirm))
+            }
+            fallback = { answerType: 'verified_fact', answer: verified.answer, recordCitations: verified.citations, webCitations: [] }
+          }
+        }
+
+        // Only a first-turn answer is cacheable: with history, the same words can
+        // mean something else, so a conversation never reads or writes the cache.
+        const cacheKey = history.length === 0
+          ? await buildCounselorCacheKey(
+            message,
+            relevant.map((item) => item.id),
+            records,
+            { cache: CACHE_VERSION, phi: PHI_VERSION, prompt: PROMPT_VERSION },
+          )
+          : undefined
+        if (cacheKey) {
+          const { data: cacheRows, error: cacheError } = await admin.rpc('take_counselor_cache_hit', {
+            p_cache_key: cacheKey,
+            p_ttl_seconds: CACHE_TTL_SECONDS,
+          })
+          if (cacheError) console.error('COUNSELOR_CACHE_READ_FAILED', cacheError.message, { requestId })
+          const cached = cachedAnswer(Array.isArray(cacheRows) ? cacheRows[0]?.response_payload : null)
+          if (cached) {
+            await finish('cache_hit', cacheKey)
+            return json({ ...cached, requestId } satisfies CounselorAnswer)
+          }
+        }
+
+        if (!apiKey) {
+          await finish('provider_failure', cacheKey)
+          return json(fallback ? { ...fallback, requestId } : refusal(requestId, REPLIES.notConfigured))
+        }
+        let parsed: ParsedProviderPayload
+        let providerWebCitations: string[]
+        try {
+          // Verified-record answers never search the web; general guidance may.
+          const provider = await callModel({ records, kind, searchWeb: records.length === 0 })
+          parsed = provider.parsed
+          providerWebCitations = provider.webCitations
+        } catch (error) {
+          console.error('COUNSELOR_PROVIDER_FAILURE', requestId, error instanceof Error ? error.message : 'Unknown provider failure')
+          await finish('provider_failure', cacheKey)
+          return json(fallback ? { ...fallback, requestId } : refusal(requestId, REPLIES.providerFailed))
+        }
+
+        // Citations count only when they name a record supplied on THIS request.
+        const allowedCitationIds = new Set(records.map((record) => record.citationId).filter(Boolean))
+        const citations = Array.isArray(parsed.recordCitations)
+          ? parsed.recordCitations.filter((id: unknown): id is string => typeof id === 'string' && allowedCitationIds.has(id))
+          : []
+        const answer = typeof parsed.answer === 'string' ? parsed.answer : ''
+        const validation = validateFigures(answer, records, citations, parsed.answerType, {
+          namedUniversities: matchUniversities(answer, catalogue),
         })
-        if (cacheError) console.error('COUNSELOR_CACHE_READ_FAILED', cacheError.message, { requestId })
-        const cached = cachedAnswer(Array.isArray(cacheRows) ? cacheRows[0]?.response_payload : null)
-        if (cached) {
-          await completeRequest('cache_hit', cacheKey)
-          return json({ ...cached, requestId } satisfies CounselorAnswer)
+        if (!validation.ok) {
+          if (validation.shouldLogStrike) {
+            await logStrike(requestId, userId, JSON.stringify({ untraceable: validation.untraceable, figures: validation.figures, citations }))
+          }
+          await finish('live_call', cacheKey)
+          return json(fallback ? { ...fallback, requestId } : refusal(requestId, REPLIES.cannotConfirm))
         }
+        // A fact question with a verified record deserves the verified answer; a
+        // model that declined or drifted into general advice gets the template.
+        if (fallback && parsed.answerType !== 'verified_fact') {
+          await finish('live_call', cacheKey)
+          return json({ ...fallback, requestId })
+        }
+
+        const result = {
+          answerType: parsed.answerType,
+          answer: cleanText(answer),
+          recordCitations: parsed.answerType === 'verified_fact' || parsed.answerType === 'refusal' ? citations : [],
+          webCitations: parsed.answerType === 'general_guidance' ? providerWebCitations : [],
+        } satisfies CachedCounselorAnswer
+        if (result.answerType === 'verified_fact' || result.answerType === 'general_guidance') {
+          await storeCache(result, cacheKey)
+        }
+        await finish('live_call', cacheKey)
+        return json({ ...result, requestId } satisfies CounselorAnswer)
       }
 
-      const storeCache = async (answer: CachedCounselorAnswer) => {
+      async function storeCache(answer: CachedCounselorAnswer, cacheKey: string | undefined) {
         if (!cacheKey) return
         const { error } = await admin.from('counselor_cache').upsert({
           cache_key: cacheKey,
@@ -320,80 +402,59 @@ export function createCounselorHandler({ env, createClient, fetch: fetchProvider
         if (error) console.error('COUNSELOR_CACHE_WRITE_FAILED', error.message, { requestId })
       }
 
-      const apiKey = env('PPLX_API_KEY')
-      if (!apiKey) {
-        await completeRequest('provider_failure', cacheKey)
-        return json(fallback ? { ...fallback, requestId } : refusal(requestId, REPLIES.notConfigured))
-      }
-      const controller = new AbortController()
-      const timeout = setTimeout(() => controller.abort(), PERPLEXITY_TIMEOUT_MS)
-      let parsed: ParsedProviderPayload
-      let providerWebCitations: string[]
-      try {
-        const response = await fetchProvider(AGENT_API_URL, {
-          method: 'POST',
-          headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-          signal: controller.signal,
-          body: JSON.stringify(buildAgentRequest({
-            model: resolveAgentModel(env('PPLX_MODEL')),
-            system: buildSystemPrompt(records, kind),
-            message,
-            history,
-            // Verified-record answers never search the web; general guidance may.
-            searchWeb: records.length === 0,
-          })),
-        })
-        if (response.status === 400) {
-          // The provider's own error text says what it rejected; it carries no secrets.
-          console.error('COUNSELOR_PROVIDER_REJECTED', requestId, (await response.text()).slice(0, 300))
+      async function answerConversation(): Promise<Response> {
+        const offline = async () => {
+          await finish('provider_failure')
+          return json({ answerType: 'conversation', answer: smallTalkFallback(message), recordCitations: [], webCitations: [], requestId } satisfies CounselorAnswer)
         }
-        if (!response.ok) throw new Error(`Counselor provider returned ${response.status}.`)
-        const provider = parseAgentPayload(await response.json())
-        parsed = provider.parsed
-        providerWebCitations = provider.webCitations
-      } catch (error) {
-        console.error('COUNSELOR_PROVIDER_FAILURE', requestId, error instanceof Error ? error.message : 'Unknown provider failure')
-        await completeRequest('provider_failure', cacheKey)
-        return json(fallback ? { ...fallback, requestId } : refusal(requestId, REPLIES.providerFailed))
-      } finally {
-        clearTimeout(timeout)
+        if (!apiKey) return offline()
+        let parsed: ParsedProviderPayload
+        try {
+          // Small talk never searches the web and gets a small output budget.
+          parsed = (await callModel({ records: [], kind: null, searchWeb: false, maxOutputTokens: CONVERSATION_MAX_OUTPUT_TOKENS })).parsed
+        } catch (error) {
+          console.error('COUNSELOR_PROVIDER_FAILURE', requestId, error instanceof Error ? error.message : 'Unknown provider failure')
+          return offline()
+        }
+        const answer = cleanText(typeof parsed.answer === 'string' ? parsed.answer : '')
+        // No records stand behind this reply, so it can never be a verified fact.
+        const answerType = parsed.answerType === 'verified_fact' ? 'conversation' : parsed.answerType
+        const named = matchUniversities(answer, catalogue)
+        const validation = validateFigures(answer, [], [], 'conversation', { namedUniversities: named })
+        if (!validation.ok) {
+          // An unverified university figure: never shown. Answer the turn properly
+          // from that university's records instead.
+          console.error('COUNSELOR_CONVERSATION_FIGURE_BLOCKED', requestId, JSON.stringify({ figures: validation.figures, universities: named }))
+          return answerAdmissions(named, targetedKind(message))
+        }
+        await finish('live_call')
+        return json({
+          answerType,
+          answer,
+          recordCitations: [],
+          webCitations: [],
+          ...(answerType === 'refusal' ? { suggestions: SCOPE_SUGGESTIONS } : {}),
+          requestId,
+        } satisfies CounselorAnswer)
       }
 
-      // Citations count only when they name a record supplied on THIS request.
-      const allowedCitationIds = new Set(records.map((record) => record.citationId).filter(Boolean))
-      const citations = Array.isArray(parsed.recordCitations)
-        ? parsed.recordCitations.filter((id: unknown): id is string => typeof id === 'string' && allowedCitationIds.has(id))
-        : []
-      const answer = typeof parsed.answer === 'string' ? parsed.answer : ''
-      const validation = validateFigures(answer, records, citations, parsed.answerType)
-      if (!validation.ok) {
-        if (validation.shouldLogStrike) {
-          await logStrike(requestId, userId, JSON.stringify({ untraceable: validation.untraceable, figures: validation.figures, citations }))
-        }
-        await completeRequest('live_call', cacheKey)
-        return json(fallback ? { ...fallback, requestId } : refusal(requestId, REPLIES.cannotConfirm))
+      if (plan.route === 'decline') {
+        await finish('out_of_scope')
+        return json({
+          answerType: 'out_of_scope',
+          answer: DECLINE_MESSAGES[plan.reason],
+          recordCitations: [],
+          webCitations: [],
+          suggestions: SCOPE_SUGGESTIONS,
+          requestId,
+        } satisfies CounselorAnswer)
       }
-      // A fact question with a verified record deserves the verified answer; a
-      // model that declined or drifted into general advice gets the template.
-      if (fallback && parsed.answerType !== 'verified_fact') {
-        await completeRequest('live_call', cacheKey)
-        return json({ ...fallback, requestId })
+      if (plan.route === 'conversation') return answerConversation()
+      if (plan.kind && plan.needsUniversity) {
+        await finish('local_response')
+        return json(clarification(requestId, askWhichUniversity(plan.kind, message)))
       }
-
-      // Remove any stray inline "[citation-id]" markers so students read clean
-      // prose; provenance is shown as source chips from recordCitations.
-      const displayAnswer = answer.replace(/\s*\[[a-z0-9_-]+\]/gi, '').replace(/\s+([.,;:])/g, '$1').trim()
-      const result = {
-        answerType: parsed.answerType,
-        answer: displayAnswer,
-        recordCitations: parsed.answerType === 'general_guidance' ? [] : citations,
-        webCitations: parsed.answerType === 'general_guidance' ? providerWebCitations : [],
-      } satisfies CachedCounselorAnswer
-      if (result.answerType === 'verified_fact' || result.answerType === 'general_guidance') {
-        await storeCache(result)
-      }
-      await completeRequest('live_call', cacheKey)
-      return json({ ...result, requestId } satisfies CounselorAnswer)
+      return answerAdmissions(plan.universityIds, plan.kind)
     } catch (error) {
       console.error('COUNSELOR_ERROR', requestId, error instanceof Error ? error.message : 'Unknown counselor failure')
       await completeRequest?.('server_failure')

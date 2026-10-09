@@ -3,7 +3,7 @@
 // for. Pure, so every follow-up rule is unit-testable.
 import { lastUserMessage, type HistoryMessage } from './history.ts'
 import { matchUniversities, type NamedUniversity } from './match.ts'
-import { classifyScope, isHardRefusal, isShortMessage, type ScopeVerdict } from './scope.ts'
+import { declineReason, isAdmissionsTopic, isShortMessage, routeMessage, type DeclineReason } from './scope.ts'
 
 export function targetedKind(message: string): string | null {
   if (/\bapplication fee\b|\bapply fee\b/i.test(message)) return 'application_fee'
@@ -25,9 +25,10 @@ export function targetedKind(message: string): string | null {
 }
 
 export type TurnPlan =
-  | { scope: Exclude<ScopeVerdict, 'in_scope'> }
+  | { route: 'decline'; reason: DeclineReason }
+  | { route: 'conversation' }
   | {
-    scope: 'in_scope'
+    route: 'admissions'
     universityIds: string[]
     kind: string | null
     /** A fact was asked for but no university could be resolved: ask which one. */
@@ -35,27 +36,34 @@ export type TurnPlan =
   }
 
 export function planTurn(message: string, history: HistoryMessage[], catalogue: NamedUniversity[]): TurnPlan {
-  // Hard refusals win before any context can unlock them.
-  if (isHardRefusal(message)) return { scope: 'out_of_scope' }
+  // Declines win before any context can unlock them.
+  const reason = declineReason(message)
+  if (reason) return { route: 'decline', reason }
 
   const named = matchUniversities(message, catalogue)
   const previous = lastUserMessage(history)
   const previousIds = previous ? matchUniversities(previous, catalogue) : []
-  const previousInScope = previous !== null
-    && classifyScope(previous, { namesUniversity: previousIds.length > 0 }) === 'in_scope'
-
-  const scope = classifyScope(message, { namesUniversity: named.length > 0, previousTurnInScope: previousInScope })
-  if (scope !== 'in_scope') return { scope }
+  const previousAdmissions = previous !== null && routeMessage(previous, {
+    namesUniversity: previousIds.length > 0,
+    asksForFact: targetedKind(previous) !== null,
+  }) === 'admissions'
 
   let kind = targetedKind(message)
+  const route = routeMessage(message, {
+    namesUniversity: named.length > 0,
+    asksForFact: kind !== null,
+    previousTurnAdmissions: previousAdmissions,
+  })
+  if (route !== 'admissions') return { route: 'conversation' }
+
   let universityIds = named
-  if (previous !== null && previousInScope) {
+  if (previous !== null && previousAdmissions) {
     // "What about Yale?" after "What is MIT's application fee?" asks for Yale's fee.
     if (named.length > 0 && !kind && isShortMessage(message)) kind = targetedKind(previous)
     // "And the deadline?" or "why?" continue with the universities just discussed.
     // A question that stands on its own ("How do I write an essay?") does not.
-    const standsAlone = classifyScope(message) === 'in_scope' && !kind
+    const standsAlone = isAdmissionsTopic(message) && !kind
     if (named.length === 0 && !standsAlone) universityIds = previousIds
   }
-  return { scope: 'in_scope', universityIds, kind, needsUniversity: Boolean(kind) && universityIds.length === 0 }
+  return { route: 'admissions', universityIds, kind, needsUniversity: Boolean(kind) && universityIds.length === 0 }
 }

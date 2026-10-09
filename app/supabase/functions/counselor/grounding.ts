@@ -106,7 +106,7 @@ export function knownContext(rows: CatalogUniversity[]): GroundingRecord[] {
 const normalizeText = (input: string) => input.toLowerCase().replace(/[^a-z0-9]/g, '')
 const normalizeNumber = (input: string) => input.replace(/[,\s]/g, '').replace(/\.0+$/, '')
 
-export type FigureAnswerType = 'verified_fact' | 'general_guidance' | 'refusal'
+export type FigureAnswerType = 'verified_fact' | 'general_guidance' | 'refusal' | 'conversation'
 
 type FigureType =
   | 'currency:USD'
@@ -262,8 +262,26 @@ export function validateFigures(
   records: GroundingRecord[],
   citations: string[],
   answerType: FigureAnswerType = 'verified_fact',
+  options: {
+    /** Catalogue universities the answer names (conversation replies only). */
+    namedUniversities?: string[]
+  } = {},
 ) {
   const figures = extractFigures(answer)
+
+  // A conversation reply has no records behind it. Everyday figures ("Monday,
+  // October 12", "about 20%") are fine, but a money amount, test score,
+  // percentage or date next to a catalogue university is an unverified
+  // university figure and must not be shown.
+  if (answerType === 'conversation') {
+    const ok = figures.length === 0 || (options.namedUniversities ?? []).length === 0
+    return {
+      ok,
+      figures: figures.map((figure) => figure.raw),
+      untraceable: ok ? [] as string[] : figures.map((figure) => figure.raw),
+      shouldLogStrike: false,
+    }
+  }
 
   // With no matched university, a scope-approved general answer is explicitly
   // labelled as unverified guidance. Its dates, counts, and ranges are advice,

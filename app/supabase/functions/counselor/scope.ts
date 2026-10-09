@@ -1,25 +1,27 @@
 /**
- * Topic scope gate for the 4Prep counselor.
+ * Message router for the 4Prep counselor.
  *
- * The counselor is a college-admissions advisor, not a general assistant. Without
- * this gate any question that does not name a catalogue university and does not
- * match a fee/test/deadline keyword falls straight through to the web-search
- * provider, which will answer anything at all. That is both off-brand and a
- * direct spend of Perplexity budget on questions 4Prep has no business answering.
+ * Students talk to the counselor like a person, and everyday conversation has
+ * endless phrasings, so no regex decides what counts as small talk. Code only
+ * enforces the hard limits and picks the route:
  *
- * Design: a deterministic keyword allowlist. Zero latency, zero API cost, and
- * every decision is testable. The trade-off is that unusual phrasings can be
- * wrongly refused — which is why the refusal always shows the student concrete
- * examples of what they CAN ask, rather than a dead end.
+ * - decline: code and schoolwork, essay ghost-writing, a few unmistakable
+ *   off-topic intents, and prompt attacks. A friendly fixed reply, no model call.
+ * - admissions: the message names a catalogue university, asks for a fact, uses
+ *   admissions vocabulary, or follows up an admissions turn. Records, verified
+ *   facts and web search for general guidance, exactly as before.
+ * - conversation: everything else. The model answers briefly from general
+ *   knowledge, with no web search and a small output budget.
  */
 
-export type ScopeVerdict = 'in_scope' | 'greeting' | 'out_of_scope'
+export type Route = 'decline' | 'admissions' | 'conversation'
+export type DeclineReason = 'attack' | 'code' | 'essay' | 'off_topic'
 
 /**
- * Questions 4Prep exists to answer. A message needs at least one of these to
- * reach the provider. Kept deliberately broad — recall matters more than
- * precision here, because the downstream grounding contract still prevents an
- * in-scope question from producing an unsourced figure.
+ * Admissions vocabulary. A match sends the message down the admissions route,
+ * where university records are loaded and web search is available. Kept
+ * deliberately broad: the grounding contract still prevents an admissions
+ * answer from producing an unsourced figure.
  */
 const ADMISSIONS_PATTERNS: RegExp[] = [
   // Application process
@@ -110,17 +112,28 @@ const ADMISSIONS_PATTERNS: RegExp[] = [
 ]
 
 /**
- * High-confidence off-topic intents that OVERRIDE the allowlist. These exist for
- * messages that smuggle in an admissions word — "write me a Python script for my
- * college project" contains "college" but is not an admissions question.
- *
- * Kept deliberately narrow. Each pattern requires an explicit request verb plus
- * an unmistakably non-admissions object, so an on-topic question cannot trip it
- * by accident.
+ * Code and schoolwork. Each pattern needs an explicit request verb plus an
+ * unmistakably non-admissions object, so "write me a Python script for my
+ * college project" is declined even though it says "college".
  */
-const HARD_OFF_TOPIC_PATTERNS: RegExp[] = [
-  /\b(?:write|create|generate|fix|debug|refactor|review)\b[^.?!]{0,40}\b(?:code|script|program|function|app|website|component|algorithm|query)\b/i,
+const CODE_PATTERNS: RegExp[] = [
+  /\b(?:write|create|generate|fix|debug|refactor|review)\b[^.?!]{0,40}\b(?:code|script|program|function|(?<!common |coalition )app|website|component|algorithm|query)\b/i,
   /\b(?:python|javascript|typescript|java|c\+\+|golang|sql|react|node\.?js)\b[^.?!]{0,30}\b(?:code|script|function|error|bug|syntax)\b/i,
+  /\b(?:do|finish|complete|solve)\b[^.?!]{0,15}\bmy (?:homework|assignment|coursework|worksheet|exam|test questions)\b/i,
+]
+
+/**
+ * Ghost-writing an admissions essay. Coaching stays open: "help me write my
+ * essay" and "how do I write my personal statement" are not matched.
+ */
+const ESSAY_GHOSTWRITING_PATTERNS: RegExp[] = [
+  /(?<!\bhelp (?:me )?|\bhow (?:do|can|should|to) (?:i )?)\b(?:write|draft|compose)\s+(?:me\s+)?my\s+(?:\w+\s+){0,2}(?:personal statement|essays?|supplements?|supplemental essays?)\b/i,
+  /\b(?:write|draft|compose)\b[^.?!]{0,20}\b(?:whole|entire|full|complete)\b[^.?!]{0,20}\b(?:personal statement|essay)\b/i,
+  /\b(?:personal statement|essay)\b[^.?!]{0,30}\bfor me\b/i,
+]
+
+/** Other unmistakable off-topic requests, kept deliberately narrow. */
+const OFF_TOPIC_PATTERNS: RegExp[] = [
   /\brecipe for\b|\bhow (?:do i|to) (?:cook|bake|make)\b[^.?!]{0,20}\b(?:food|dinner|cake|bread|meal)\b/i,
   /\b(?:dosage|prescription|diagnos[ei]|symptoms? of|treat(?:ment)? for)\b/i,
   /\bwrite (?:me )?a (?:poem|song|joke|rap|limerick|screenplay)\b/i,
@@ -128,30 +141,25 @@ const HARD_OFF_TOPIC_PATTERNS: RegExp[] = [
 ]
 
 /**
- * Attempts to redirect the counselor away from its role, or to interrogate its
- * configuration. Refused with the same friendly out-of-scope message rather than
- * acknowledged, so there is nothing to probe against.
+ * Attempts to redirect the counselor away from its role, or to read its
+ * configuration. Declined with a friendly redirect rather than acknowledged.
+ * "What model are you?" is not an attack: the counselor answers that it is
+ * 4Prep's AI counselor, without naming a model or provider.
  */
 const PROMPT_ATTACK_PATTERNS: RegExp[] = [
-  /\b(?:ignore|disregard|forget|override)\b[^.?!]{0,30}\b(?:previous|prior|above|earlier|all)\b[^.?!]{0,20}\b(?:instructions?|prompts?|rules?|directives?)\b/i,
+  /\b(?:ignore|disregard|forget|override)\b[^.?!]{0,30}\b(?:previous|prior|above|earlier|all|your)\b[^.?!]{0,20}\b(?:instructions?|prompts?|rules?|directives?)\b/i,
   /\b(?:system prompt|your prompt|your instructions|initial prompt)\b/i,
   /\b(?:jailbreak|dan mode|developer mode|pretend you are|act as (?:if you|a)\b)/i,
-  /\b(?:what|which) (?:model|llm|ai) are you\b|\bare you (?:chatgpt|gpt|claude|gemini)\b/i,
 ]
 
 /**
- * Social openers and questions about the counselor itself ("Hello how can you
- * help me", "who are you") deserve a welcome, not a refusal. Anchored at both
- * ends: a greeting followed by a real question is judged on that question.
+ * Feelings about the process ("I am nervous about applying") belong in a warm
+ * conversation, even though "applying" is admissions vocabulary.
  */
-const GREETING_WORDS = String.raw`(?:hi|hey|hello|hiya|yo|salom|assalomu alaykum|good (?:morning|afternoon|evening)|how are you(?: doing)?|what'?s up|thanks?(?: a lot| so much)?|thank you(?: so much)?|thx|ok(?:ay)?|cool|great|bye|goodbye)(?:\s+(?:there|counselor|4prep))?`
-const META_QUESTIONS = String.raw`(?:(?:so|and|but)\s+)?(?:how (?:can|could|will|do|would) you (?:help|assist)(?: me)?(?: with anything)?|what (?:can|could|do) you (?:do|help(?: me)? with|offer)(?: for me)?|what (?:do|can) i ask(?: you)?|who are you|what are you|what do you do|what is this|how does this work|can you help(?: me)?|help(?: me)?)`
-const GREETING_PATTERN = new RegExp(
-  String.raw`^(?:${GREETING_WORDS}(?:[\s!.,?]+${META_QUESTIONS})?|${META_QUESTIONS})[\s!.,?]*$`,
-  'i',
-)
+const FEELINGS_PATTERN =
+  /\b(?:i'?m|i am|i feel|feeling|i've been|i get|so)\b[^.?!]{0,20}\b(?:nervous|anxious|stressed|scared|afraid|worried|overwhelmed|sad|homesick|lonely|upset|depressed|lost|unsure|confused|excited|disappointed|rejected|hopeless|tired|burn(?:ed|t) out)\b/i
 
-/** Starter questions shown with the welcome and with every out-of-scope reply. */
+/** Starter questions shown under the opener and under every decline. */
 export const SCOPE_SUGGESTIONS: string[] = [
   'What is the application fee at MIT?',
   'What TOEFL score does Clark University require?',
@@ -159,21 +167,39 @@ export const SCOPE_SUGGESTIONS: string[] = [
   'What documents do I need for an F-1 visa interview?',
 ]
 
-export const OUT_OF_SCOPE_MESSAGE =
-  'That one is outside what I can help with. I am here for applying to US universities as an international student: choosing schools, entry requirements, costs and aid, essays, deadlines and student visas. Want to try one of these?'
+const CAN_HELP = 'I’m happy to help with your university plans: choosing schools, requirements, costs, essays or visas.'
 
-export const GREETING_MESSAGE =
-  'Hi, I am your 4Prep counselor. I can help you plan your applications to US universities: what a school costs, test and English requirements, deadlines, essays, financial aid and the F-1 student visa. You make the decisions; I help you see your options clearly. What would you like to start with?'
+export const DECLINE_MESSAGES: Record<DeclineReason, string> = {
+  attack: `Let’s keep our chat about your plans. ${CAN_HELP}`,
+  code: `I can’t help with code or schoolwork, but ${CAN_HELP.charAt(0).toLowerCase()}${CAN_HELP.slice(1)}`,
+  essay: 'I can’t write your essay for you. It needs to be in your own voice, and that is what admissions readers look for. I’d love to coach you, though: tell me your idea or paste a draft and I’ll give you feedback.',
+  off_topic: `That’s not something I can help with, but ${CAN_HELP.charAt(0).toLowerCase()}${CAN_HELP.slice(1)}`,
+}
 
-/** Code requests and prompt attacks. These win over every other signal. */
-export function isHardRefusal(message: string): boolean {
+/** Why a message must be declined without a model call, or null. */
+export function declineReason(message: string): DeclineReason | null {
   const trimmed = message.trim()
-  return PROMPT_ATTACK_PATTERNS.some((pattern) => pattern.test(trimmed))
-    || HARD_OFF_TOPIC_PATTERNS.some((pattern) => pattern.test(trimmed))
+  if (PROMPT_ATTACK_PATTERNS.some((pattern) => pattern.test(trimmed))) return 'attack'
+  if (CODE_PATTERNS.some((pattern) => pattern.test(trimmed))) return 'code'
+  if (ESSAY_GHOSTWRITING_PATTERNS.some((pattern) => pattern.test(trimmed))) return 'essay'
+  if (OFF_TOPIC_PATTERNS.some((pattern) => pattern.test(trimmed))) return 'off_topic'
+  return null
+}
+
+export function isHardRefusal(message: string): boolean {
+  return declineReason(message) !== null
 }
 
 export function isPromptAttack(message: string): boolean {
   return PROMPT_ATTACK_PATTERNS.some((pattern) => pattern.test(message))
+}
+
+export function isAdmissionsTopic(message: string): boolean {
+  return ADMISSIONS_PATTERNS.some((pattern) => pattern.test(message))
+}
+
+export function expressesFeelings(message: string): boolean {
+  return FEELINGS_PATTERN.test(message)
 }
 
 /** A follow-up such as "and the deadline?" or "why?" is short. */
@@ -185,41 +211,38 @@ export function isShortMessage(message: string): boolean {
 
 /**
  * Words that tie a message to what was just said: "and the deadline?", "why?",
- * "is that a lot?", "what about Yale?". A short message without one ("what is
- * 2+2?") stands on its own and is judged on its own, so it cannot ride on an
- * in-scope previous turn to reach the provider.
+ * "is that a lot?", "what about Yale?". A short message without one stands on
+ * its own and is routed on its own.
  */
 const FOLLOW_UP_PATTERN =
-  /^(?:and|but|so|also|then|or|ok(?:ay)?|what about|how about|why|why not|how come|really|is that|are they|does (?:it|that|this|she|he|they)|do they|can i|could i|should i|would (?:it|that)|what if|which one|tell me more|more|explain|go on|example)\b|\b(?:it|its|that|this|those|these|they|them|their|there|both|either|same|instead|else)\b/i
+  /^(?:and|but|so|also|then|or|what about|how about|why|why not|how come|really|is that|are they|does (?:it|that|this|she|he|they)|do they|can i|could i|should i|would (?:it|that)|what if|which one|tell me more|more|explain|go on|example)\b|\b(?:it|its|that|this|those|these|they|them|their|there|both|either|same|instead|else)\b/i
 
 export function isFollowUp(message: string): boolean {
   return isShortMessage(message) && FOLLOW_UP_PATTERN.test(message.trim())
 }
 
-export type ScopeContext = {
+export type RouteContext = {
   /** The message names a catalogue university. */
   namesUniversity?: boolean
-  /** The student's previous message in this conversation was in scope. */
-  previousTurnInScope?: boolean
+  /** The message asks for a specific fact such as a fee or a deadline. */
+  asksForFact?: boolean
+  /** The student's previous message in this conversation took the admissions route. */
+  previousTurnAdmissions?: boolean
 }
 
 /**
- * Classifies a student message against the counselor's remit.
+ * Picks the route for a student message.
  *
- * Order matters: prompt attacks and hard off-topic intents are checked first so
- * they cannot be unlocked by an admissions keyword, a university name, or a
- * conversation that was in scope a moment ago.
+ * Order matters: declines come first so no admissions keyword, university name
+ * or earlier admissions turn can unlock them.
  */
-export function classifyScope(message: string, context: ScopeContext = {}): ScopeVerdict {
+export function routeMessage(message: string, context: RouteContext = {}): Route {
   const trimmed = message.trim()
-  if (!trimmed) return 'out_of_scope'
-  if (isHardRefusal(trimmed)) return 'out_of_scope'
-  if (GREETING_PATTERN.test(trimmed)) return 'greeting'
-  // Catalogue matching replaces the old hard-coded school list: naming any
-  // listed university is an admissions question.
-  if (context.namesUniversity) return 'in_scope'
-  if (ADMISSIONS_PATTERNS.some((pattern) => pattern.test(trimmed))) return 'in_scope'
-  // Each message used to be judged alone, so "and the deadline?" was refused.
-  if (context.previousTurnInScope && isFollowUp(trimmed)) return 'in_scope'
-  return 'out_of_scope'
+  if (!trimmed) return 'conversation'
+  if (isHardRefusal(trimmed)) return 'decline'
+  if (context.namesUniversity || context.asksForFact) return 'admissions'
+  if (expressesFeelings(trimmed)) return 'conversation'
+  if (isAdmissionsTopic(trimmed)) return 'admissions'
+  if (context.previousTurnAdmissions && isFollowUp(trimmed)) return 'admissions'
+  return 'conversation'
 }

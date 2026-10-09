@@ -70,6 +70,11 @@ describe('buildAgentRequest', () => {
     expect(body).not.toHaveProperty('temperature')
   })
 
+  it('takes a smaller output budget for conversation replies', () => {
+    expect(buildAgentRequest({ model: 'm/x', system: 's', message: 'hi', searchWeb: false }).max_output_tokens).toBe(2048)
+    expect(buildAgentRequest({ model: 'm/x', system: 's', message: 'hi', searchWeb: false, maxOutputTokens: 400 }).max_output_tokens).toBe(400)
+  })
+
   it('adds the web_search tool only for general guidance', () => {
     const body = buildAgentRequest({ model: 'openai/gpt-6-luna', system: 'rules', message: 'Visa tips?', searchWeb: true })
     expect(body.tools).toEqual([{ type: 'web_search' }])
@@ -102,6 +107,11 @@ describe('parseAgentPayload', () => {
 
   it('rejects a response with no message text', () => {
     expect(() => parseAgentPayload({ status: 'completed', output: [] })).toThrow('missing content')
+  })
+
+  it('accepts a conversation reply', () => {
+    const reply = { answerType: 'conversation', answer: 'I’m doing well, thanks!', recordCitations: [] }
+    expect(parseAgentPayload(agentResponse(JSON.stringify(reply))).parsed).toEqual(reply)
   })
 
   it('rejects an answer type outside the contract', () => {

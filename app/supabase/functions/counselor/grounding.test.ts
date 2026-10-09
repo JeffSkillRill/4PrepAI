@@ -278,3 +278,22 @@ describe('counselor grounding', () => {
     expect(second).not.toBe(first)
   })
 })
+
+describe('conversation replies', () => {
+  it('allows everyday figures when no catalogue university is named', () => {
+    expect(validateFigures('Today is October 9, 2026. Boston winters are cold.', [], [], 'conversation', { namedUniversities: [] }).ok).toBe(true)
+  })
+
+  it('blocks a money amount, score, percentage or date next to a catalogue university', () => {
+    for (const text of ["MIT's fee is $90.", 'MIT wants TOEFL 100.', 'MIT admits 4%.', 'MIT closes on January 1.']) {
+      const result = validateFigures(text, [], [], 'conversation', { namedUniversities: ['mit'] })
+      expect(result.ok).toBe(false)
+      expect(result.shouldLogStrike).toBe(false)
+    }
+  })
+
+  it('allows a university mentioned without any figure', () => {
+    expect(validateFigures('MIT is in Cambridge, near Boston.', [], [], 'conversation', { namedUniversities: ['mit'] }).ok).toBe(true)
+  })
+})
+
