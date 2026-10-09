@@ -1,63 +1,65 @@
-import { ArrowUpRight, Bot, ChevronDown, Send, X } from 'lucide-react'
+import { ArrowUpRight, Bot, ChevronDown, X } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
-import { useCounselorConversation } from '../counselor/conversation'
-import { SafeMarkdown } from './SafeMarkdown'
-import { requestCounselorAnswer } from '../counselor/request'
+import {
+  CHAT_OPENER,
+  COUNSELOR_NAME,
+  ChatComposer,
+  CounselorAnswerMessage,
+  CounselorBubble,
+  CounselorErrorMessage,
+  StudentBubble,
+  TypingBubble,
+  useStickToBottom,
+} from '../counselor/ChatParts'
+import { useCounselorChat } from '../counselor/useCounselorChat'
 
 export function CounselorWidget({ onOpenCounselor }: { onOpenCounselor?: () => void }) {
   const [open, setOpen] = useState(false)
-  const [message, setMessage] = useState('')
-  const [loading, setLoading] = useState(false)
   const launcherRef = useRef<HTMLButtonElement>(null)
-  const messageInputRef = useRef<HTMLInputElement>(null)
   const hasOpenedRef = useRef(false)
-  const { turns, addTurn, clearTurns } = useCounselorConversation()
+  const { turns, clearTurns, draft, setDraft, pending, busy, send, retry, inputRef } = useCounselorChat()
+  const listRef = useStickToBottom<HTMLDivElement>(`${open}:${turns.length}:${pending ?? ''}`)
 
   useEffect(() => {
     if (open) {
       hasOpenedRef.current = true
-      messageInputRef.current?.focus()
+      inputRef.current?.focus()
     } else if (hasOpenedRef.current) {
       launcherRef.current?.focus()
     }
-  }, [open])
-
-  const ask = async (event: React.FormEvent) => {
-    event.preventDefault()
-    const question = message.trim()
-    if (!question || loading) return
-    setLoading(true)
-    const result = await requestCounselorAnswer(question)
-    setLoading(false)
-    addTurn({ question, answer: result.answer, error: result.error })
-    setMessage('')
-  }
+  }, [inputRef, open])
 
   return (
     <aside className="counselor-widget fixed top-24 right-4 z-50 flex flex-col items-end sm:top-auto sm:bottom-6 sm:right-6" aria-label="4Prep counselor">
       {open ? (
-        <section className="counselor-widget-panel w-[calc(100vw-2rem)] max-w-sm overflow-hidden rounded-xl border border-forest-200 bg-elevated shadow-raised" aria-live="polite">
+        <section className="counselor-widget-panel w-[calc(100vw-2rem)] max-w-sm overflow-hidden rounded-xl border border-forest-200 bg-elevated shadow-raised">
           <header className="flex items-start gap-3 bg-band-mid px-4 py-3 text-white">
             <span className="grid size-10 shrink-0 place-items-center rounded-lg bg-white/15"><Bot size={20} /></span>
             <div className="min-w-0 flex-1">
-              <h2 className="font-extrabold">4Prep counselor</h2>
+              <h2 className="font-extrabold">{COUNSELOR_NAME}</h2>
               <p className="mt-0.5 text-xs leading-5 text-white/75">Ask about universities, costs, or applications.</p>
             </div>
             {onOpenCounselor && <button type="button" onClick={() => { setOpen(false); onOpenCounselor() }} className="inline-flex min-h-9 shrink-0 items-center gap-1 rounded-lg px-2 text-xs font-bold text-white hover:bg-white/10 focus-visible:ring-2 focus-visible:ring-white" aria-label="Open full counselor chat">Open chat <ArrowUpRight size={14} /></button>}
             <button type="button" onClick={() => setOpen(false)} className="grid size-9 min-h-0 min-w-0 place-items-center rounded-lg text-white hover:bg-white/10 focus-visible:ring-2 focus-visible:ring-white" aria-label="Close counselor"><X size={18} /></button>
           </header>
-          <div className="max-h-72 overflow-y-auto px-4 py-3 text-sm leading-6 text-ink" aria-live="polite">
-            {turns.length > 0 ? <div className="space-y-3">{turns.map((turn) => turn.type === 'comparison' ? <div key={turn.id} className="rounded-xl bg-forest-50 px-3 py-2 text-forest-900"><p className="text-[10px] font-extrabold uppercase tracking-[.12em] text-forest-700">4Prep counselor</p><p className="mt-1 font-bold">University comparison added</p><p className="mt-1 text-xs text-muted">Open the full chat to review the current sourced comparison.</p></div> : <div key={turn.id} className="space-y-2"><div className="ml-5 rounded-xl rounded-br-sm bg-action px-3 py-2 text-on-action"><p className="text-[10px] font-extrabold uppercase tracking-[.12em] text-on-action/75">You</p><p>{turn.question}</p></div><div className="mr-5 rounded-xl rounded-bl-sm bg-canvas px-3 py-2"><p className="text-[10px] font-extrabold uppercase tracking-[.12em] text-muted">4Prep counselor</p>{turn.answer ? <SafeMarkdown text={turn.answer.answer} className="mt-1" /> : <p className="mt-1 text-rose-900">{turn.error ?? 'No verified answer is available right now.'}</p>}</div></div>)}</div> : <p>Hi, I can help you understand verified university information. What would you like to know?</p>}
-            {loading && <p className="mt-2 text-muted">Checking sourced records...</p>}
+          <div ref={listRef} role="log" aria-live="polite" aria-label="Counselor conversation" className="max-h-80 space-y-3 overflow-y-auto overflow-x-hidden px-3 py-3">
+            {turns.length === 0 && !pending && <CounselorBubble compact><p>{CHAT_OPENER}</p></CounselorBubble>}
+            {turns.map((turn) => turn.type === 'comparison'
+              ? <CounselorBubble key={turn.id} compact><p className="font-bold">University comparison added</p><p className="mt-1 text-xs text-muted">Open the full chat to review it.</p></CounselorBubble>
+              : (
+                <div key={turn.id} className="space-y-2">
+                  <StudentBubble text={turn.question} />
+                  {turn.answer
+                    ? <CounselorAnswerMessage answer={turn.answer} onSend={(text) => void send(text)} compact busy={busy} />
+                    : turn.error ? <CounselorErrorMessage error={turn.error} onRetry={() => retry(turn)} compact busy={busy} /> : null}
+                </div>
+              ))}
+            {pending && <div className="space-y-2"><StudentBubble text={pending} /><TypingBubble compact /></div>}
           </div>
-          <form onSubmit={(event) => void ask(event)} className="border-t border-line p-3">
+          <div className="border-t border-line p-3">
             {turns.length > 0 && <button type="button" onClick={clearTurns} className="mb-2 min-h-0 px-1 py-1 text-xs font-bold text-muted underline hover:text-forest-800">Clear chat</button>}
-            <label className="sr-only" htmlFor="counselor-widget-message">Ask the counselor</label>
-            <div className="flex items-center gap-2 rounded-lg border border-line bg-canvas px-3 focus-within:border-forest-500 focus-within:ring-2 focus-within:ring-forest-100">
-              <input ref={messageInputRef} id="counselor-widget-message" value={message} onChange={(event) => setMessage(event.target.value)} maxLength={1000} placeholder="Ask a question" className="min-w-0 flex-1 border-0 bg-transparent py-2 text-sm outline-none" />
-              <button type="submit" disabled={!message.trim() || loading} className="grid size-9 min-h-0 min-w-0 place-items-center rounded-lg bg-action text-on-action disabled:bg-button-disabled disabled:text-muted" aria-label="Send question"><Send size={16} /></button>
-            </div>
-          </form>
+            <ChatComposer id="counselor-widget-message" label="Ask the counselor" value={draft} onChange={setDraft} onSend={() => void send(draft)} busy={busy} inputRef={inputRef} placeholder="Ask a question" compact />
+          </div>
         </section>
       ) : (
         <button ref={launcherRef} type="button" onClick={() => setOpen(true)} className="counselor-widget-launcher grid size-14 place-items-center rounded-full bg-action text-on-action shadow-raised hover:bg-action focus-visible:ring-4 focus-visible:ring-forest-200" aria-label="Open 4Prep counselor"><Bot size={25} /></button>

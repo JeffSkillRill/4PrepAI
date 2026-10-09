@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 
 export type CounselorAnswer = {
-  answerType: 'verified_fact' | 'general_guidance' | 'refusal' | 'out_of_scope'
+  answerType: 'verified_fact' | 'general_guidance' | 'refusal' | 'out_of_scope' | 'greeting'
   answer: string
   recordCitations: string[]
   webCitations: string[]
@@ -25,6 +25,28 @@ export type CounselorComparisonTurn = {
 
 export type CounselorChatTurn = CounselorQuestionTurn | CounselorComparisonTurn
 
+export type CounselorHistoryMessage = { role: 'user' | 'assistant'; content: string }
+
+export const ANSWER_TYPES: string[] = ['verified_fact', 'general_guidance', 'refusal', 'out_of_scope', 'greeting']
+
+const HISTORY_TURNS = 6
+
+/**
+ * The conversation the counselor sees as context: the last six answered
+ * questions as student/counselor message pairs. Comparison turns and turns that
+ * errored are skipped. The server treats this as untrusted context, never as
+ * evidence for a figure.
+ */
+export function historyFromTurns(turns: CounselorChatTurn[]): CounselorHistoryMessage[] {
+  return turns
+    .filter((turn): turn is CounselorQuestionTurn & { answer: CounselorAnswer } => turn.type === 'question' && turn.answer !== null && !turn.error)
+    .slice(-HISTORY_TURNS)
+    .flatMap((turn) => [
+      { role: 'user' as const, content: turn.question },
+      { role: 'assistant' as const, content: turn.answer.answer },
+    ])
+}
+
 const STORAGE_KEY = '4prep.counselor-conversation.v1'
 const MAX_TURNS = 20
 const CHANGE_EVENT = '4prep:counselor-conversation-change'
@@ -32,7 +54,7 @@ const CHANGE_EVENT = '4prep:counselor-conversation-change'
 function isAnswer(value: unknown): value is CounselorAnswer {
   if (!value || typeof value !== 'object') return false
   const candidate = value as Partial<CounselorAnswer>
-  return ['verified_fact', 'general_guidance', 'refusal', 'out_of_scope'].includes(candidate.answerType ?? '')
+  return ANSWER_TYPES.includes(candidate.answerType ?? '')
     && typeof candidate.answer === 'string'
     && Array.isArray(candidate.recordCitations)
     && Array.isArray(candidate.webCitations)
@@ -147,6 +169,13 @@ export function useCounselorConversation() {
     publish(next)
   }, [publish])
 
+  const removeTurn = useCallback((turnId: string) => {
+    const next = turnsRef.current.filter((turn) => turn.id !== turnId)
+    turnsRef.current = next
+    setTurns(next)
+    publish(next)
+  }, [publish])
+
   const clearTurns = useCallback(() => {
     turnsRef.current = []
     setTurns([])
@@ -159,5 +188,5 @@ export function useCounselorConversation() {
     window.dispatchEvent(new CustomEvent(CHANGE_EVENT, { detail: [] }))
   }, [])
 
-  return { turns, addTurn, addComparison, updateComparison, clearTurns }
+  return { turns, addTurn, addComparison, updateComparison, removeTurn, clearTurns }
 }

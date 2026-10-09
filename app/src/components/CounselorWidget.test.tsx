@@ -63,4 +63,29 @@ describe('CounselorWidget', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Open 4Prep counselor' }))
     expect(screen.getByText('What aid does Berea offer?')).toBeTruthy()
   })
+
+  it('sends on Enter with the earlier conversation as history', async () => {
+    requestCounselorAnswerMock.mockResolvedValueOnce({
+      answer: { answer: 'MIT fee answer.', answerType: 'verified_fact', recordCitations: [], webCitations: [], requestId: 'request-1' },
+      error: null,
+    })
+    requestCounselorAnswerMock.mockResolvedValueOnce({
+      answer: { answer: 'Hi there, I am your counselor.', answerType: 'greeting', recordCitations: [], webCitations: [], requestId: 'request-2' },
+      error: null,
+    })
+    render(<CounselorWidget />)
+    fireEvent.click(screen.getByRole('button', { name: 'Open 4Prep counselor' }))
+    const input = screen.getByLabelText('Ask the counselor')
+    fireEvent.change(input, { target: { value: 'MIT application fee?' } })
+    fireEvent.keyDown(input, { key: 'Enter' })
+    await screen.findByText('MIT fee answer.')
+    fireEvent.change(input, { target: { value: 'thanks' } })
+    fireEvent.keyDown(input, { key: 'Enter' })
+
+    expect(await screen.findByText('Hi there, I am your counselor.')).toBeTruthy()
+    expect(requestCounselorAnswerMock).toHaveBeenLastCalledWith('thanks', [
+      { role: 'user', content: 'MIT application fee?' },
+      { role: 'assistant', content: 'MIT fee answer.' },
+    ])
+  })
 })
