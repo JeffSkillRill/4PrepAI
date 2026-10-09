@@ -71,11 +71,16 @@ export function SuggestionChips({ suggestions, onSend, disabled = false }: { sug
   )
 }
 
-/** One renderer for every answer type. */
+/**
+ * One renderer for every answer type. Conversation, greeting, clarification and
+ * refusal replies are plain bubbles; only verified facts get source chips and
+ * only general guidance gets the "not verified" tag.
+ */
 export function CounselorAnswerMessage({ answer, onSend, compact = false, busy = false }: { answer: CounselorAnswer; onSend: (text: string) => void; compact?: boolean; busy?: boolean }) {
   // Lines source chips up with the bubble text, past the avatar.
   const indent = compact ? 'ml-9' : 'ml-11'
-  const showChips = (answer.answerType === 'out_of_scope' || answer.answerType === 'greeting') && (answer.suggestions?.length ?? 0) > 0
+  // Chips belong under declines only; a conversation reply never carries them.
+  const showChips = (answer.answerType === 'out_of_scope' || answer.answerType === 'refusal') && (answer.suggestions?.length ?? 0) > 0
   return (
     <div className="space-y-2">
       <CounselorBubble compact={compact}>

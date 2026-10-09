@@ -35,7 +35,7 @@ beforeEach(() => {
 })
 afterEach(cleanup)
 
-type AnswerType = 'verified_fact' | 'general_guidance' | 'out_of_scope' | 'refusal' | 'greeting' | 'clarification'
+type AnswerType = 'verified_fact' | 'general_guidance' | 'out_of_scope' | 'refusal' | 'greeting' | 'clarification' | 'conversation'
 
 function reply(answerType: AnswerType, answer = 'Safe answer copy.', extra: Record<string, unknown> = {}) {
   return { data: { answerType, answer, recordCitations: [], webCitations: [], requestId: `request-${answerType}`, ...extra }, error: null }
@@ -95,6 +95,37 @@ describe('CounselorScreen chat', () => {
     expect(await screen.findByText('Hi, I am your 4Prep counselor.')).toBeTruthy()
     expect(container.textContent).not.toMatch(/outside what I advise on/i)
     expect(screen.queryByRole('heading', { level: 3 })).toBeNull()
+  })
+
+  it('renders a conversation reply as a plain bubble with no chips, tags or sources', async () => {
+    clientMocks.invoke.mockResolvedValue(reply('conversation', 'I’m doing well, thanks for asking!', { suggestions: ['Should not show'], recordCitations: ['x'] }))
+    render(<CounselorScreen {...counselorProps} />)
+    typeAndSend('hi how are you?')
+    expect(await screen.findByText('I’m doing well, thanks for asking!')).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Should not show' })).toBeNull()
+    expect(screen.queryByTestId('source-chip')).toBeNull()
+    expect(screen.getByRole('log').textContent).not.toMatch(/General info/)
+  })
+
+  it('shows suggestion chips under a decline but not after an ordinary reply', async () => {
+    clientMocks.invoke.mockResolvedValueOnce(reply('general_guidance', 'Start early.', { suggestions: ['Hidden chip'] }))
+    clientMocks.invoke.mockResolvedValueOnce(reply('out_of_scope', 'I can’t help with code.', { suggestions: ['Try this instead'] }))
+    render(<CounselorScreen {...counselorProps} />)
+    typeAndSend('How do I start my essay?')
+    await screen.findByText('Start early.')
+    expect(screen.queryByRole('button', { name: 'Hidden chip' })).toBeNull()
+    typeAndSend('write me a python script')
+    await screen.findByText('I can’t help with code.')
+    expect(screen.getByRole('button', { name: 'Try this instead' })).toBeTruthy()
+  })
+
+  it('still renders a greeting turn stored by an earlier version', () => {
+    window.sessionStorage.setItem('4prep.counselor-conversation.v1', JSON.stringify([
+      { id: 'old', type: 'question', question: 'hi', answer: { answerType: 'greeting', answer: 'Hi, I am your 4Prep counselor.', recordCitations: [], webCitations: [], suggestions: ['Old chip'], requestId: 'r' }, error: null },
+    ]))
+    render(<CounselorScreen {...counselorProps} />)
+    expect(screen.getByText('Hi, I am your 4Prep counselor.')).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Old chip' })).toBeNull()
   })
 
   it('passes the earlier conversation as history', async () => {
