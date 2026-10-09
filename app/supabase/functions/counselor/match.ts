@@ -5,27 +5,71 @@
 
 export type NamedUniversity = { id: string; name: string }
 
-// Hand-kept nicknames. Applied only when the id exists in the catalogue.
+// Hand-kept nicknames, keyed by the university's official name exactly as
+// stored in universities.name (compared after normalize(), so case and
+// punctuation do not matter). Keyed by name rather than id so a future id
+// change can never silently disable a nickname, as happened to MIT and Penn.
+// Only unambiguous short forms belong here: never an ordinary word or another
+// school's name. The ambiguity rule below still drops any form two schools share.
 const NICKNAMES: Record<string, string[]> = {
-  harvard: ['harvard'],
-  yale: ['yale'],
-  princeton: ['princeton'],
-  berea: ['berea'],
-  'illinois-wesleyan': ['illinois wesleyan', 'iwu'],
-  clark: ['clark'],
-  usm: ['southern miss', 'usm'],
-  alabama: ['alabama'],
-  unk: ['unk', 'nebraska kearney'],
-  hcc: ['houston community college', 'hcc'],
-  'massachusetts-institute-of-technology': ['mit'],
-  'california-institute-of-technology': ['caltech'],
-  'university-of-pennsylvania': ['upenn', 'penn'],
-  'university-of-california-los-angeles': ['ucla'],
-  'university-of-california-berkeley': ['uc berkeley', 'berkeley'],
-  'university-of-southern-california': ['usc'],
-  'new-york-university': ['nyu'],
-  'georgia-institute-of-technology-main-campus': ['georgia tech'],
-  'carnegie-mellon-university': ['cmu', 'carnegie mellon'],
+  'Harvard University': ['harvard'],
+  'Yale University': ['yale'],
+  'Princeton University': ['princeton'],
+  'Berea College': ['berea'],
+  'Illinois Wesleyan University': ['illinois wesleyan', 'iwu'],
+  'Clark University': ['clark'],
+  'University of Southern Mississippi': ['southern miss', 'usm'],
+  'University of Alabama': ['alabama'],
+  'University of Nebraska at Kearney': ['unk', 'nebraska kearney'],
+  'Houston City College': ['houston community college', 'hcc'],
+  'Massachusetts Institute of Technology': ['mit'],
+  'California Institute of Technology': ['caltech'],
+  'University of Pennsylvania': ['upenn', 'penn'],
+  'Pennsylvania State University-Main Campus': ['penn state'],
+  'University of California-Los Angeles': ['ucla'],
+  'University of California-Berkeley': ['uc berkeley', 'berkeley'],
+  'University of California-San Diego': ['ucsd', 'uc san diego'],
+  'University of California-Santa Barbara': ['ucsb', 'uc santa barbara'],
+  'University of California-Davis': ['uc davis'],
+  'University of California-Irvine': ['uc irvine'],
+  'University of Southern California': ['usc'],
+  'New York University': ['nyu'],
+  'Georgia Institute of Technology-Main Campus': ['georgia tech'],
+  'Carnegie Mellon University': ['cmu', 'carnegie mellon'],
+  'Columbia University in the City of New York': ['columbia'],
+  'Johns Hopkins University': ['jhu', 'hopkins'],
+  'Washington University in St Louis': ['wustl', 'washu'],
+  'University of Chicago': ['uchicago'],
+  'University of Michigan-Ann Arbor': ['umich'],
+  'University of Virginia-Main Campus': ['uva'],
+  'University of North Carolina at Chapel Hill': ['unc', 'unc chapel hill'],
+  'The University of Texas at Austin': ['ut austin'],
+  'University of Illinois Urbana-Champaign': ['uiuc'],
+  'University of Wisconsin-Madison': ['uw madison'],
+  'Texas A&M University-College Station': ['texas a and m', 'tamu'],
+  'Virginia Polytechnic Institute and State University': ['virginia tech'],
+  'North Carolina State University at Raleigh': ['nc state'],
+  'Rensselaer Polytechnic Institute': ['rpi'],
+  'Worcester Polytechnic Institute': ['wpi'],
+  'New Jersey Institute of Technology': ['njit'],
+  'University of Massachusetts-Amherst': ['umass amherst', 'umass'],
+  'University of Connecticut': ['uconn'],
+  'Rutgers University-New Brunswick': ['rutgers'],
+  'Tulane University of Louisiana': ['tulane'],
+  'George Washington University': ['gwu'],
+  'California Polytechnic State University-San Luis Obispo': ['cal poly', 'cal poly slo'],
+}
+
+const nicknamesByName = new Map(Object.entries(NICKNAMES).map(([name, forms]) => [normalize(name), forms]))
+let nicknameKeysChecked = false
+
+/** Logs, once per cold start, any nickname key that names no catalogue university. */
+function warnUnusedNicknames(catalogue: NamedUniversity[]) {
+  if (nicknameKeysChecked || catalogue.length === 0) return
+  nicknameKeysChecked = true
+  const names = new Set(catalogue.map((university) => normalize(university.name)))
+  const unused = Object.keys(NICKNAMES).filter((name) => !names.has(normalize(name)))
+  if (unused.length) console.warn('COUNSELOR_NICKNAME_UNMATCHED', unused)
 }
 
 // Words that carry no identity on their own.
@@ -61,7 +105,7 @@ function variants(university: NamedUniversity): string[] {
   // "Harvard University" → "harvard"; "University of Michigan Ann Arbor" → "michigan ann arbor".
   const core = full.split(' ').filter((word) => !GENERIC.has(word)).join(' ')
   if (core && !(core.split(' ').length === 1 && NEVER_ALONE.has(core))) forms.add(core)
-  for (const nickname of NICKNAMES[university.id] ?? []) forms.add(normalize(nickname).trim())
+  for (const nickname of nicknamesByName.get(normalize(university.name)) ?? []) forms.add(normalize(nickname).trim())
   return [...forms].filter((form) => form.length >= 3)
 }
 
@@ -71,6 +115,7 @@ function variants(university: NamedUniversity): string[] {
  * A short form shared by two universities is ambiguous and dropped.
  */
 export function matchUniversities(message: string, catalogue: NamedUniversity[], limit = 5): string[] {
+  warnUnusedNicknames(catalogue)
   const owners = new Map<string, Set<string>>()
   for (const university of catalogue) {
     for (const form of variants(university)) {
