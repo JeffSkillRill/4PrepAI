@@ -35,7 +35,7 @@ beforeEach(() => {
 })
 afterEach(cleanup)
 
-type AnswerType = 'verified_fact' | 'general_guidance' | 'out_of_scope' | 'refusal' | 'greeting'
+type AnswerType = 'verified_fact' | 'general_guidance' | 'out_of_scope' | 'refusal' | 'greeting' | 'clarification'
 
 function reply(answerType: AnswerType, answer = 'Safe answer copy.', extra: Record<string, unknown> = {}) {
   return { data: { answerType, answer, recordCitations: [], webCitations: [], requestId: `request-${answerType}`, ...extra }, error: null }
@@ -144,7 +144,7 @@ describe('CounselorScreen chat', () => {
     expect(screen.getByRole('link', { name: /travel\.state\.gov/ })).toBeTruthy()
   })
 
-  it.each(['refusal', 'out_of_scope'] as const)('renders %s as a plain bubble with no headline or label', async (answerType) => {
+  it.each(['refusal', 'out_of_scope', 'clarification'] as const)('renders %s as a plain bubble with no headline or label', async (answerType) => {
     clientMocks.invoke.mockResolvedValue(reply(answerType, 'Plain counselor reply.', answerType === 'out_of_scope' ? { suggestions: ['Ask about US admissions'] } : {}))
     const { container } = render(<CounselorScreen {...counselorProps} />)
     typeAndSend('Something')

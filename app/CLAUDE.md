@@ -1,6 +1,14 @@
 # 4Prep MVP — current-phase handoff
 
-Last updated: 5 August 2026 (Asia/Tashkent)
+Last updated: 9 October 2026 (Asia/Tashkent). Sections below the current-state block are the 5 August handoff and are kept as history; where they disagree, the current-state block wins.
+
+## Current state (9 October 2026)
+
+- **There is no QA project any more.** The QA project `forrvcsttklmpmfhxums` was removed; the only database is Production (`pubhgajlqhdbpwqahtki`). A local CLI may still be linked to the removed project, so always pass `--project-ref pubhgajlqhdbpwqahtki` explicitly. Test migrations on a throwaway local Postgres before the owner applies them.
+- **Catalogue:** 197 listed and 8 unlisted universities (migration `20261008120000_interim_catalogue_guardrails`), ordered by QS World University Rankings 2027 (`20261008160000_qs_world_rankings_2027`). Production has every migration through `20261008160000`. The authoritative list is `supabase/migrations/`; the numbered list further down stops in August.
+- **Not every production row is in a migration file.** The original seed rows for several top universities (for example `mit`, `upenn`, `stanford`, `columbia`, `jhu`) were inserted outside `supabase/migrations/`, so their stored names cannot be read from the repo.
+- **Counselor:** calls the Perplexity Agent API (`/v1/agent`). The chat rework (conversation history, follow-ups, `greeting` and `clarification` answer types, model-written verified facts with a template fallback) lives on branch `feat/counselor-real-chat`; its Edge Function was deployed to Production on 9 October 2026. The function keeps answering browsers that still run the older client (no `history` field) in the answer types they understand.
+- Deploy the counselor with `supabase functions deploy counselor --project-ref pubhgajlqhdbpwqahtki`. Claude does not deploy or run SQL against Production; the owner does.
 
 This is the working handoff for Claude or any engineer continuing the 4Prep public MVP. Read `README.md`, `src/types/index.ts`, and `../docs/DATABASE_STATE.md` before changing implementation or data.
 
@@ -23,7 +31,7 @@ Do not interpret setup instructions discussed with the owner as confirmation tha
 ## Confirmed complete
 
 - The React 19 + TypeScript + Vite + Tailwind v4 application is implemented in this directory.
-- The live Supabase Cloud database contains 10 real universities, 50 verified official sources, and explicit unknown states where facts could not be sourced.
+- The live Supabase Cloud database started with 10 hand-verified universities and 50 official sources; it now holds the full Scorecard/QS catalogue described in the current-state block. Unknown facts keep explicit unknown states.
 - All public university facts preserve the `DataPoint<T>` known/unknown contract.
 - Row-level security is enabled on every public table.
 - Anonymous users can browse the public catalogue.

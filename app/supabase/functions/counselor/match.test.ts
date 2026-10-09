@@ -84,7 +84,7 @@ describe('nickname key check', () => {
     expect(warn).toHaveBeenCalledTimes(1)
     const [label, unused] = warn.mock.calls[0] as [string, string[]]
     expect(label).toBe('COUNSELOR_NICKNAME_UNMATCHED')
-    expect(unused).toContain('Columbia University in the City of New York')
+    expect(unused).toContain('Columbia University')
     expect(unused).not.toContain('Massachusetts Institute of Technology')
   })
 })

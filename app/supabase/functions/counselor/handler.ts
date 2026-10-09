@@ -44,7 +44,7 @@ const corsHeaders = {
 }
 
 export type CounselorAnswer = {
-  answerType: 'verified_fact' | 'general_guidance' | 'refusal' | 'out_of_scope' | 'greeting'
+  answerType: 'verified_fact' | 'general_guidance' | 'refusal' | 'out_of_scope' | 'greeting' | 'clarification'
   answer: string
   recordCitations: string[]
   webCitations: string[]
@@ -66,6 +66,22 @@ export type CounselorDeps = {
   env: (name: string) => string | undefined
   createClient: (url: string, key: string, options: Record<string, unknown>) => SupabaseClient
   fetch: typeof fetch
+}
+
+function clarification(requestId: string, answer: string): CounselorAnswer {
+  return { answerType: 'clarification', answer, recordCitations: [], webCitations: [], requestId }
+}
+
+/**
+ * Version-skew shim. Browsers still running the pre-chat client never send
+ * `history` and reject answer types they do not know, so for them a greeting
+ * goes out as out_of_scope and a clarifying question as a refusal, as before.
+ * Remove once every deployed client sends `history`.
+ */
+function forLegacyClient(answer: CounselorAnswer): CounselorAnswer {
+  if (answer.answerType === 'greeting') return { ...answer, answerType: 'out_of_scope' }
+  if (answer.answerType === 'clarification') return { ...answer, answerType: 'refusal' }
+  return answer
 }
 
 function refusal(requestId: string, answer: string): CounselorAnswer {
@@ -108,7 +124,10 @@ export function createCounselorHandler({ env, createClient, fetch: fetchProvider
   return async function handle(request: Request): Promise<Response> {
     if (request.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
     const requestId = crypto.randomUUID()
-    const json = (value: unknown, status = 200, extraHeaders: Record<string, string> = {}) => new Response(JSON.stringify(value), {
+    let legacyClient = false
+    const json = (value: unknown, status = 200, extraHeaders: Record<string, string> = {}) => new Response(JSON.stringify(
+      legacyClient && value && typeof value === 'object' && 'answerType' in value ? forLegacyClient(value as CounselorAnswer) : value,
+    ), {
       status,
       headers: { ...corsHeaders, ...extraHeaders, 'Content-Type': 'application/json' },
     })
@@ -121,6 +140,7 @@ export function createCounselorHandler({ env, createClient, fetch: fetchProvider
       if (mode === 'chat' && !message) return json({ error: 'A counselor message is required.' }, 400)
       // Untrusted: validated, bounded, and dropped whole if it carries a prompt attack.
       const history: HistoryMessage[] = sanitizeHistory(body?.history)
+      legacyClient = mode === 'chat' && !Array.isArray(body?.history)
 
       const url = env('SUPABASE_URL')
       const anonKey = env('SUPABASE_ANON_KEY')
@@ -201,7 +221,9 @@ export function createCounselorHandler({ env, createClient, fetch: fetchProvider
       const plan = planTurn(message, history, (names ?? []) as NamedUniversity[])
       if (plan.scope !== 'in_scope') {
         const greeting = plan.scope === 'greeting'
-        await completeRequest('out_of_scope')
+        // A greeting is answered locally; only a genuinely off-topic message
+        // counts as out_of_scope in the request analytics.
+        await completeRequest(greeting ? 'local_response' : 'out_of_scope')
         return json({
           answerType: greeting ? 'greeting' : 'out_of_scope',
           answer: greeting ? GREETING_MESSAGE : OUT_OF_SCOPE_MESSAGE,
@@ -214,7 +236,7 @@ export function createCounselorHandler({ env, createClient, fetch: fetchProvider
       const { kind } = plan
       if (kind && plan.needsUniversity) {
         await completeRequest('local_response')
-        return json(refusal(requestId, askWhichUniversity(kind, message)))
+        return json(clarification(requestId, askWhichUniversity(kind, message)))
       }
 
       // Evidence only for the universities this turn concerns, fetched now:
@@ -231,7 +253,7 @@ export function createCounselorHandler({ env, createClient, fetch: fetchProvider
       }
       if (kind && relevant.length === 0) {
         await completeRequest('local_response')
-        return json(refusal(requestId, askWhichUniversity(kind, message)))
+        return json(clarification(requestId, askWhichUniversity(kind, message)))
       }
       const records = knownContext(relevant)
 
@@ -308,7 +330,7 @@ export function createCounselorHandler({ env, createClient, fetch: fetchProvider
       let parsed: ParsedProviderPayload
       let providerWebCitations: string[]
       try {
-        const response = await fetchProvider(AGENT_API_URL, {
+        const callProvider = (withTemperature: boolean) => fetchProvider(AGENT_API_URL, {
           method: 'POST',
           headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
           signal: controller.signal,
@@ -319,8 +341,17 @@ export function createCounselorHandler({ env, createClient, fetch: fetchProvider
             history,
             // Verified-record answers never search the web; general guidance may.
             searchWeb: records.length === 0,
+            withTemperature,
           })),
         })
+        let response = await callProvider(true)
+        if (response.status === 400) {
+          // The provider's own error text says what it rejected; it carries no secrets.
+          const detail = (await response.text()).slice(0, 300)
+          console.error('COUNSELOR_PROVIDER_REJECTED', requestId, detail)
+          // Some models accept only their default sampling temperature.
+          if (/temperature/i.test(detail)) response = await callProvider(false)
+        }
         if (!response.ok) throw new Error(`Counselor provider returned ${response.status}.`)
         const provider = parseAgentPayload(await response.json())
         parsed = provider.parsed

@@ -183,6 +183,19 @@ export function isShortMessage(message: string): boolean {
   return message.trim().split(/\s+/).filter(Boolean).length <= FOLLOW_UP_MAX_WORDS
 }
 
+/**
+ * Words that tie a message to what was just said: "and the deadline?", "why?",
+ * "is that a lot?", "what about Yale?". A short message without one ("what is
+ * 2+2?") stands on its own and is judged on its own, so it cannot ride on an
+ * in-scope previous turn to reach the provider.
+ */
+const FOLLOW_UP_PATTERN =
+  /^(?:and|but|so|also|then|or|ok(?:ay)?|what about|how about|why|why not|how come|really|is that|are they|does (?:it|that|this|she|he|they)|do they|can i|could i|should i|would (?:it|that)|what if|which one|tell me more|more|explain|go on|example)\b|\b(?:it|its|that|this|those|these|they|them|their|there|both|either|same|instead|else)\b/i
+
+export function isFollowUp(message: string): boolean {
+  return isShortMessage(message) && FOLLOW_UP_PATTERN.test(message.trim())
+}
+
 export type ScopeContext = {
   /** The message names a catalogue university. */
   namesUniversity?: boolean
@@ -207,6 +220,6 @@ export function classifyScope(message: string, context: ScopeContext = {}): Scop
   if (context.namesUniversity) return 'in_scope'
   if (ADMISSIONS_PATTERNS.some((pattern) => pattern.test(trimmed))) return 'in_scope'
   // Each message used to be judged alone, so "and the deadline?" was refused.
-  if (context.previousTurnInScope && isShortMessage(trimmed)) return 'in_scope'
+  if (context.previousTurnInScope && isFollowUp(trimmed)) return 'in_scope'
   return 'out_of_scope'
 }

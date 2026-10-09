@@ -11,6 +11,10 @@ dist/
 app/dist/
 app/dist-ssr/
 app/supabase/.temp/
+# Supabase CLI state when it runs from the repo root, and the lock file
+# a local `deno check` of the Edge Functions writes.
+/supabase/.temp/
+app/deno.lock
 docs/prompts/
 docs/
 **/README.md

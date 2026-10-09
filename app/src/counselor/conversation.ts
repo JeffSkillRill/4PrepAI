@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 
 export type CounselorAnswer = {
-  answerType: 'verified_fact' | 'general_guidance' | 'refusal' | 'out_of_scope' | 'greeting'
+  answerType: 'verified_fact' | 'general_guidance' | 'refusal' | 'out_of_scope' | 'greeting' | 'clarification'
   answer: string
   recordCitations: string[]
   webCitations: string[]
@@ -27,7 +27,7 @@ export type CounselorChatTurn = CounselorQuestionTurn | CounselorComparisonTurn
 
 export type CounselorHistoryMessage = { role: 'user' | 'assistant'; content: string }
 
-export const ANSWER_TYPES: string[] = ['verified_fact', 'general_guidance', 'refusal', 'out_of_scope', 'greeting']
+export const ANSWER_TYPES: string[] = ['verified_fact', 'general_guidance', 'refusal', 'out_of_scope', 'greeting', 'clarification']
 
 const HISTORY_TURNS = 6
 

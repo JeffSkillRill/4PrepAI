@@ -36,7 +36,7 @@ const NICKNAMES: Record<string, string[]> = {
   'New York University': ['nyu'],
   'Georgia Institute of Technology-Main Campus': ['georgia tech'],
   'Carnegie Mellon University': ['cmu', 'carnegie mellon'],
-  'Columbia University in the City of New York': ['columbia'],
+  'Columbia University': ['columbia'],
   'Johns Hopkins University': ['jhu', 'hopkins'],
   'Washington University in St Louis': ['wustl', 'washu'],
   'University of Chicago': ['uchicago'],

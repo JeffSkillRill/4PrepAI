@@ -52,6 +52,7 @@ export function buildAgentRequest({
   message,
   history = [],
   searchWeb,
+  withTemperature = true,
 }: {
   model: string
   system: string
@@ -59,6 +60,8 @@ export function buildAgentRequest({
   /** Earlier turns, oldest first, already sanitized by sanitizeHistory. */
   history?: HistoryTurn[]
   searchWeb: boolean
+  /** False drops the sampling temperature, for a model that rejects it. */
+  withTemperature?: boolean
 }) {
   return {
     model,
@@ -73,7 +76,7 @@ export function buildAgentRequest({
       ...history.map((turn) => ({ type: 'message' as const, role: turn.role, content: turn.content })),
       { type: 'message' as const, role: 'user' as const, content: message },
     ],
-    temperature: TEMPERATURE,
+    ...(withTemperature ? { temperature: TEMPERATURE } : {}),
     max_output_tokens: MAX_OUTPUT_TOKENS,
     ...(searchWeb ? { tools: [{ type: 'web_search' }] } : {}),
     response_format: {

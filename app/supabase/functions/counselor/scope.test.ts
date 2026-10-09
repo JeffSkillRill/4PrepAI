@@ -145,6 +145,13 @@ describe('classifyScope — conversation context', () => {
     },
   )
 
+  it.each(['what is 2+2?', 'What is the capital of France?', 'Who won the match?'])(
+    'judges the short unrelated message %j on its own, even after an in-scope turn',
+    (message) => {
+      expect(classifyScope(message, { previousTurnInScope: true })).toBe('out_of_scope')
+    },
+  )
+
   it('does not let a short off-topic message through without an in-scope previous turn', () => {
     expect(classifyScope('why?')).toBe('out_of_scope')
   })

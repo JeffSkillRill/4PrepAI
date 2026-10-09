@@ -92,7 +92,12 @@ afterEach(() => vi.restoreAllMocks())
 
 type Turn = { role: 'user' | 'assistant'; content: string }
 
-async function ask(message: string, history?: Turn[]): Promise<CounselorAnswer> {
+/** Sends a chat message as the current client does: `history` is always present. */
+async function ask(message: string, history: Turn[] = []): Promise<CounselorAnswer> {
+  return send({ message, history })
+}
+
+async function send(body: Record<string, unknown>): Promise<CounselorAnswer> {
   const handle = createCounselorHandler({
     env: (name) => environment[name],
     createClient: () => fakeClient(calls),
@@ -101,7 +106,7 @@ async function ask(message: string, history?: Turn[]): Promise<CounselorAnswer> 
   const response = await handle(new Request('https://example.test/counselor', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ message, ...(history ? { history } : {}) }),
+    body: JSON.stringify(body),
   }))
   return response.json()
 }
@@ -120,8 +125,19 @@ describe('greetings and scope', () => {
       expect(answer.answer).not.toMatch(/outside what I/i)
       expect(answer.suggestions?.length).toBeGreaterThan(0)
       expect(provider).not.toHaveBeenCalled()
+      expect(calls.outcomes).toEqual(['local_response'])
     },
   )
+
+  it('refuses a short unrelated message even right after an admissions question', async () => {
+    const answer = await ask('what is 2+2?', [
+      { role: 'user', content: 'What is the application fee at MIT?' },
+      { role: 'assistant', content: `MIT's application fee is ${MIT_FEE}.` },
+    ])
+    expect(answer.answerType).toBe('out_of_scope')
+    expect(calls.outcomes).toEqual(['out_of_scope'])
+    expect(provider).not.toHaveBeenCalled()
+  })
 
   it('politely refuses a coding request, even mid-conversation', async () => {
     const answer = await ask('Write me a python script for my college project', [
@@ -191,7 +207,7 @@ describe('verified facts written by the model', () => {
 
   it('asks which university when none is named, then answers once the student says "MIT"', async () => {
     const question = await ask('What is the application fee?')
-    expect(question.answerType).toBe('refusal')
+    expect(question.answerType).toBe('clarification')
     expect(question.answer).toMatch(/Which university/)
     expect(provider).not.toHaveBeenCalled()
 
@@ -207,7 +223,7 @@ describe('verified facts written by the model', () => {
 
   it('asks which school was meant when the named school is not in the catalogue', async () => {
     const answer = await ask('What is the application fee at Hogwarts University?')
-    expect(answer.answerType).toBe('refusal')
+    expect(answer.answerType).toBe('clarification')
     expect(answer.answer).toMatch(/don’t have that school in my records yet\. Which university did you mean\?/)
     expect(answer.answer).not.toMatch(/verified catalogue|web figure/i)
   })
@@ -311,5 +327,46 @@ describe('untrusted history', () => {
     expect(input).toHaveLength(13)
     expect(input.slice(0, -1).every((turn) => turn.role === 'user' || turn.role === 'assistant')).toBe(true)
     expect(input.slice(0, -1).every((turn) => turn.content.length <= 1000)).toBe(true)
+  })
+})
+
+describe('clients that predate the chat (no history field)', () => {
+  it('receive a greeting as out_of_scope, which they know how to render', async () => {
+    const answer = await send({ message: 'hi' })
+    expect(answer.answerType).toBe('out_of_scope')
+    expect(answer.answer).toMatch(/4Prep counselor/)
+  })
+
+  it('receive a clarifying question as a refusal', async () => {
+    const answer = await send({ message: 'What is the application fee?' })
+    expect(answer.answerType).toBe('refusal')
+    expect(answer.answer).toMatch(/Which university/)
+  })
+
+  it('still get verified facts unchanged', async () => {
+    provider.mockRejectedValue(new Error('offline'))
+    const answer = await send({ message: 'What is the application fee at MIT?' })
+    expect(answer.answerType).toBe('verified_fact')
+    expect(answer.answer).toContain(MIT_FEE)
+  })
+})
+
+describe('provider rejections', () => {
+  it('logs the provider error text and retries once without temperature when the model rejects it', async () => {
+    provider.mockResolvedValueOnce(new Response('{"error":{"message":"Unsupported parameter: temperature"}}', { status: 400 }))
+    provider.mockResolvedValueOnce(agentReply({ answerType: 'general_guidance', answer: 'Start early.', recordCitations: [] }))
+    const answer = await ask('How do I write a strong personal statement?')
+    expect(answer.answer).toBe('Start early.')
+    expect(provider).toHaveBeenCalledTimes(2)
+    expect(providerBody(0).temperature).toBe(0.3)
+    expect(providerBody(1)).not.toHaveProperty('temperature')
+    expect(console.error).toHaveBeenCalledWith('COUNSELOR_PROVIDER_REJECTED', expect.any(String), expect.stringContaining('temperature'))
+  })
+
+  it('does not retry a 400 about something else', async () => {
+    provider.mockResolvedValueOnce(new Response('{"error":{"message":"bad schema"}}', { status: 400 }))
+    const answer = await ask('How do I write a strong personal statement?')
+    expect(provider).toHaveBeenCalledOnce()
+    expect(answer.answerType).toBe('refusal')
   })
 })

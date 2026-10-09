@@ -657,7 +657,8 @@ export default function App() {
         <Suspense fallback={<LoadingState kind="page" />}>{screen}</Suspense>
       </main>
       <Footer onNavigate={navigate} />
-      <CounselorWidget onOpenCounselor={() => navigate('counselor')} />
+      {/* The full chat is already on screen there; a second launcher would cover its header. */}
+      {view !== 'counselor' && <CounselorWidget onOpenCounselor={() => navigate('counselor')} />}
       <EnvironmentBanner />
     </div>
   )
