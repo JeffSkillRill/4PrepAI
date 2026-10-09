@@ -38,11 +38,6 @@ const ADMISSIONS_PATTERNS: RegExp[] = [
   /\bin-?state\b|\bout-?of-?state\b/i,
   /\bhigh school\b|\bfreshman\b|\bsophomore\b|\bjunior year\b|\bsenior year\b/i,
 
-  // Catalogue universities (mirrors the alias map in index.ts)
-  /\bharvard\b|\byale\b|\bprinceton\b|\bberea\b|\bwesleyan\b|\biwu\b/i,
-  /\bclark\b|\bsouthern miss(?:issippi)?\b|\busm\b|\balabama\b/i,
-  /\bnebraska\b|\bkearney\b|\bunk\b|\bhouston\b|\bhcc\b/i,
-
   // Academics
   /\bmajors?\b|\bminors?\b|\bdegrees?\b|\bbachelors?\b|\bundergrad/i,
   /\bgrad(?:uate)? school\b|\bmasters?\b|\bphd\b|\bdoctorate\b/i,
@@ -144,37 +139,74 @@ const PROMPT_ATTACK_PATTERNS: RegExp[] = [
   /\b(?:what|which) (?:model|llm|ai) are you\b|\bare you (?:chatgpt|gpt|claude|gemini)\b/i,
 ]
 
-/** Short social openers deserve a welcome, not a refusal card. */
-const GREETING_PATTERN =
-  /^(?:hi|hey|hello|yo|hiya|salom|assalomu alaykum|good (?:morning|afternoon|evening)|how are you|what'?s up|thanks?|thank you|thx|ok(?:ay)?|cool|bye|goodbye)\b[\s!.,?]*$/i
+/**
+ * Social openers and questions about the counselor itself ("Hello how can you
+ * help me", "who are you") deserve a welcome, not a refusal. Anchored at both
+ * ends: a greeting followed by a real question is judged on that question.
+ */
+const GREETING_WORDS = String.raw`(?:hi|hey|hello|hiya|yo|salom|assalomu alaykum|good (?:morning|afternoon|evening)|how are you(?: doing)?|what'?s up|thanks?(?: a lot| so much)?|thank you(?: so much)?|thx|ok(?:ay)?|cool|great|bye|goodbye)(?:\s+(?:there|counselor|4prep))?`
+const META_QUESTIONS = String.raw`(?:(?:so|and|but)\s+)?(?:how (?:can|could|will|do|would) you (?:help|assist)(?: me)?(?: with anything)?|what (?:can|could|do) you (?:do|help(?: me)? with|offer)(?: for me)?|what (?:do|can) i ask(?: you)?|who are you|what are you|what do you do|what is this|how does this work|can you help(?: me)?|help(?: me)?)`
+const GREETING_PATTERN = new RegExp(
+  String.raw`^(?:${GREETING_WORDS}(?:[\s!.,?]+${META_QUESTIONS})?|${META_QUESTIONS})[\s!.,?]*$`,
+  'i',
+)
 
-/** Example questions shown alongside every out-of-scope refusal. */
+/** Starter questions shown with the welcome and with every out-of-scope reply. */
 export const SCOPE_SUGGESTIONS: string[] = [
-  'What is the application fee at Berea College?',
+  'What is the application fee at MIT?',
   'What TOEFL score does Clark University require?',
   'How do I write a strong personal statement?',
   'What documents do I need for an F-1 visa interview?',
-  'How should I present my volunteering on an application?',
 ]
 
 export const OUT_OF_SCOPE_MESSAGE =
-  'That one is outside what I can help with. I am the 4Prep counselor, and my subject is applying to US universities as an international student — universities, entry requirements, essays, costs, aid, and student visas. Ask me anything in that territory and I will give you what I have.'
+  'That one is outside what I can help with. I am here for applying to US universities as an international student: choosing schools, entry requirements, costs and aid, essays, deadlines and student visas. Want to try one of these?'
 
 export const GREETING_MESSAGE =
-  'Hello, and welcome. I am the 4Prep counselor. I answer questions about applying to US universities — costs, entry requirements, deadlines, essays, aid, and student visas. Any university figure I give you comes from 4Prep’s verified records, with its source attached. My job is to lay out your realistic options and what each one means; the choice stays yours.'
+  'Hi, I am your 4Prep counselor. I can help you plan your applications to US universities: what a school costs, test and English requirements, deadlines, essays, financial aid and the F-1 student visa. You make the decisions; I help you see your options clearly. What would you like to start with?'
+
+/** Code requests and prompt attacks. These win over every other signal. */
+export function isHardRefusal(message: string): boolean {
+  const trimmed = message.trim()
+  return PROMPT_ATTACK_PATTERNS.some((pattern) => pattern.test(trimmed))
+    || HARD_OFF_TOPIC_PATTERNS.some((pattern) => pattern.test(trimmed))
+}
+
+export function isPromptAttack(message: string): boolean {
+  return PROMPT_ATTACK_PATTERNS.some((pattern) => pattern.test(message))
+}
+
+/** A follow-up such as "and the deadline?" or "why?" is short. */
+const FOLLOW_UP_MAX_WORDS = 8
+
+export function isShortMessage(message: string): boolean {
+  return message.trim().split(/\s+/).filter(Boolean).length <= FOLLOW_UP_MAX_WORDS
+}
+
+export type ScopeContext = {
+  /** The message names a catalogue university. */
+  namesUniversity?: boolean
+  /** The student's previous message in this conversation was in scope. */
+  previousTurnInScope?: boolean
+}
 
 /**
  * Classifies a student message against the counselor's remit.
  *
- * Order matters: prompt attacks and hard off-topic intents are checked before the
- * allowlist so they cannot be unlocked by including an admissions keyword.
+ * Order matters: prompt attacks and hard off-topic intents are checked first so
+ * they cannot be unlocked by an admissions keyword, a university name, or a
+ * conversation that was in scope a moment ago.
  */
-export function classifyScope(message: string): ScopeVerdict {
+export function classifyScope(message: string, context: ScopeContext = {}): ScopeVerdict {
   const trimmed = message.trim()
   if (!trimmed) return 'out_of_scope'
+  if (isHardRefusal(trimmed)) return 'out_of_scope'
   if (GREETING_PATTERN.test(trimmed)) return 'greeting'
-  if (PROMPT_ATTACK_PATTERNS.some((pattern) => pattern.test(trimmed))) return 'out_of_scope'
-  if (HARD_OFF_TOPIC_PATTERNS.some((pattern) => pattern.test(trimmed))) return 'out_of_scope'
+  // Catalogue matching replaces the old hard-coded school list: naming any
+  // listed university is an admissions question.
+  if (context.namesUniversity) return 'in_scope'
   if (ADMISSIONS_PATTERNS.some((pattern) => pattern.test(trimmed))) return 'in_scope'
+  // Each message used to be judged alone, so "and the deadline?" was refused.
+  if (context.previousTurnInScope && isShortMessage(trimmed)) return 'in_scope'
   return 'out_of_scope'
 }

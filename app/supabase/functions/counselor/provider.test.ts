@@ -47,6 +47,29 @@ describe('buildAgentRequest', () => {
     expect(body.input).toEqual([{ type: 'message', role: 'user', content: 'Harvard tuition?' }])
   })
 
+  it('sends prior turns as input messages before the current message', () => {
+    const body = buildAgentRequest({
+      model: 'openai/gpt-6-luna',
+      system: 'rules',
+      message: 'What about Yale?',
+      history: [
+        { role: 'user', content: 'What is the application fee at MIT?' },
+        { role: 'assistant', content: 'MIT charges $75.' },
+      ],
+      searchWeb: false,
+    })
+    expect(body.input).toEqual([
+      { type: 'message', role: 'user', content: 'What is the application fee at MIT?' },
+      { type: 'message', role: 'assistant', content: 'MIT charges $75.' },
+      { type: 'message', role: 'user', content: 'What about Yale?' },
+    ])
+  })
+
+  it('uses a modest temperature so repeat answers are not word for word identical', () => {
+    const body = buildAgentRequest({ model: 'openai/gpt-6-luna', system: 'rules', message: 'Hi', searchWeb: false })
+    expect(body.temperature).toBe(0.3)
+  })
+
   it('adds the web_search tool only for general guidance', () => {
     const body = buildAgentRequest({ model: 'openai/gpt-6-luna', system: 'rules', message: 'Visa tips?', searchWeb: true })
     expect(body.tools).toEqual([{ type: 'web_search' }])

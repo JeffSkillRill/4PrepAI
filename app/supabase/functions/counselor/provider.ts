@@ -12,6 +12,11 @@ export const AGENT_API_URL = 'https://api.perplexity.ai/v1/agent'
 // The model behind the `fast` preset (Sonar's suggested replacement), pinned.
 export const DEFAULT_AGENT_MODEL = 'openai/gpt-6-luna'
 const MAX_OUTPUT_TOKENS = 2048
+// Modest, so a repeated question does not read word for word the same. The
+// figures themselves are still checked by validateFigures on every answer.
+const TEMPERATURE = 0.3
+
+export type HistoryTurn = { role: 'user' | 'assistant'; content: string }
 
 export type AnswerType = 'verified_fact' | 'general_guidance' | 'refusal'
 
@@ -45,18 +50,30 @@ export function buildAgentRequest({
   model,
   system,
   message,
+  history = [],
   searchWeb,
 }: {
   model: string
   system: string
   message: string
+  /** Earlier turns, oldest first, already sanitized by sanitizeHistory. */
+  history?: HistoryTurn[]
   searchWeb: boolean
 }) {
   return {
     model,
     instructions: system,
-    input: [{ type: 'message', role: 'user', content: message }],
-    temperature: 0,
+    // Prior turns go before the current message as plain input messages. The
+    // Agent API's InputMessage is { type: 'message', role: 'user' | 'assistant' |
+    // 'system' | 'developer', content: string | InputContentPart[] }; a string
+    // content is accepted for an assistant turn. Source:
+    // https://docs.perplexity.ai/api-reference/agent-post (InputItem → InputMessage),
+    // checked 2026-10-09.
+    input: [
+      ...history.map((turn) => ({ type: 'message' as const, role: turn.role, content: turn.content })),
+      { type: 'message' as const, role: 'user' as const, content: message },
+    ],
+    temperature: TEMPERATURE,
     max_output_tokens: MAX_OUTPUT_TOKENS,
     ...(searchWeb ? { tools: [{ type: 'web_search' }] } : {}),
     response_format: {
