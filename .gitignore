@@ -25,6 +25,13 @@ _to_delete/
 /qs-ingest-extension/
 /cds-extractor/
 
+# Local collection artifacts and container files
+/Claude outputs/
+/4prep-university-data-collection.xlsx
+/cds-extractor.zip
+/docker-compose.yml
+/.dockerignore
+
 # candidate hiring tests (never commit test data / answers)
 candidate-tests/
 
