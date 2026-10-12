@@ -44,7 +44,8 @@ vi.mock('../data/useRepositoryData', () => ({
   }),
 }))
 
-vi.mock('../scoring/phi', () => ({
+vi.mock('../scoring/phi', async (importOriginal) => ({
+  ...await importOriginal<typeof import('../scoring/phi')>(),
   computeFit: () => ({
     label: 'Strong fit',
     summary: 'A single fit summary',

@@ -166,12 +166,17 @@ test('reduced motion disables intake progress transitions', async ({ page }) => 
   expect(duration.split(',').every((value) => parseFloat(value) <= 0.001)).toBe(true)
 })
 
-test('modified link click opens a real deep link in a new tab', async ({ page, context }) => {
+test('deep links retain a real URL when opened in a new tab', async ({ page }) => {
   await page.goto('/login')
   await ready(page)
+  const privacy = page.getByRole('link', { name: 'Privacy', exact: true })
+  await expect(privacy).toHaveAttribute('href', '/privacy')
+  // A real target exercises the browser's native new-tab path deterministically.
+  // AppLink's unit tests separately assert that modified clicks are not intercepted.
+  await privacy.evaluate((link) => { link.target = '_blank' })
   const [newTab] = await Promise.all([
-    context.waitForEvent('page'),
-    page.getByRole('link', { name: 'Privacy', exact: true }).click({ modifiers: ['ControlOrMeta'] }),
+    page.waitForEvent('popup'),
+    privacy.click(),
   ])
   await newTab.waitForLoadState()
   await expect(newTab).toHaveURL(`${appOrigin}/privacy`)
