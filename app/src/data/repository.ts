@@ -16,7 +16,7 @@ import type {
   UniversityFilters,
   Verification,
 } from '../types'
-import { computeFit, PHI_WEIGHTS } from '../scoring/phi'
+import { computeFit, fitEvidence, PHI_WEIGHTS } from '../scoring/phi'
 import {
   bestPublishedCostScenario,
   hasComprehensiveInternationalFunding,
@@ -25,6 +25,7 @@ import {
 import { pathwayMilestones } from './static-content'
 import { getSupabaseClient } from './client'
 import { compareByQsRank } from './ranking'
+import { collectPages } from './pagination'
 import {
   mapSource,
   mapLearningSubmission,
@@ -45,7 +46,7 @@ const universitySelectFor = (programColumns: string) => `
   university_facts(kind,value,numeric_value,currency,amount_period,source_id,unknown_reason,suggested_action),
   requirements(kind,value,numeric_value,benchmark,source_id,unknown_reason,suggested_action),
   university_scorecard_programs(${programColumns}),
-  university_scholarships(scholarships(id,name,amount_value,amount_numeric,currency,amount_period,amount_source_id,amount_unknown_reason,amount_suggested_action,award_conditions(kind,minimum,published_text,source_id))),
+  university_scholarships(scholarships(id,name,amount_value,amount_numeric,currency,amount_period,amount_source_id,amount_unknown_reason,amount_suggested_action,award_conditions(kind,minimum,published_text,source_id,alternative_group))),
   rankings(id,label,rank_display,rank_sort,year,source_id),
   campuses(id,name,city,country,source_id)
 `
@@ -136,12 +137,13 @@ function matchesFilters(university: University, filters: UniversityFilters): boo
 
 export function listSources(): Promise<Source[]> {
   return cachedLoad(sourcesCache, async () => {
-    const { data, error } = await getSupabaseClient()
-      .from('sources')
-      .select('id,name,url,retrieved_at,verification')
-      .order('id')
-    throwIfError(error)
-    return ((data ?? []) as RawSource[]).map(mapSource)
+    const rows = await collectPages<RawSource>(async (from, to) => {
+      const result = await getSupabaseClient().from('sources')
+        .select('id,name,url,retrieved_at,verification').order('id').range(from, to)
+      throwIfError(result.error)
+      return (result.data ?? []) as RawSource[]
+    })
+    return rows.map(mapSource)
   }, (next) => { sourcesCache = next })
 }
 
@@ -149,11 +151,15 @@ function loadCatalogue(): Promise<University[]> {
   return cachedLoad(catalogueCache, async () => {
     const [result, verificationBySource] = await Promise.all([
       // Unlisted universities keep their profile URL but leave lists and search.
-      getSupabaseClient().from('universities').select(catalogueSelect).eq('listed', true).order('name'),
+      collectPages<RawUniversity>(async (from, to) => {
+        const result = await getSupabaseClient().from('universities').select(catalogueSelect)
+          .eq('listed', true).order('id').range(from, to)
+        throwIfError(result.error)
+        return (result.data ?? []) as unknown as RawUniversity[]
+      }),
       verificationLookup(),
     ])
-    throwIfError(result.error)
-    return ((result.data ?? []) as unknown as RawUniversity[])
+    return result
       .map((row) => mapUniversity(row, verificationBySource))
       .sort(compareByQsRank)
   }, (next) => { catalogueCache = next })
@@ -184,7 +190,14 @@ export async function getRankedPathway(profile: StudentProfile): Promise<Pathway
       ...university,
       fit: computeFit(profile, university, PHI_WEIGHTS),
     }))
-    .sort((left, right) => (right.fit?.overall ?? 0) - (left.fit?.overall ?? 0))
+    .sort((left, right) => {
+      const a = fitEvidence(left.fit)
+      const b = fitEvidence(right.fit)
+      if (a.sufficient !== b.sufficient) return a.sufficient ? -1 : 1
+      return a.sufficient
+        ? right.fit.overall - left.fit.overall
+        : b.count - a.count || compareByQsRank(left, right)
+    })
 
   return { profile, ranked, milestones: pathwayMilestones }
 }
@@ -319,11 +332,20 @@ export async function getSupportThread(userId: string): Promise<SupportThread | 
 export async function sendSupportMessage(
   messageId: string,
   body: string,
+  userId: string,
 ): Promise<SupportSendResult> {
-  const { data, error } = await getSupabaseClient().rpc('send_support_message', {
+  const client = getSupabaseClient()
+  const { data: authData, error: authError } = await client.auth.getSession()
+  throwIfError(authError)
+  if (!userId || authData.session?.user.id !== userId) {
+    throw new Error('Your account changed. Reopen support before sending.')
+  }
+  // Keep a queued message bound to its original caller even if the shared
+  // client changes accounts while its fetch waits for authentication.
+  const { data, error } = await client.rpc('send_support_message', {
     p_message_id: messageId,
     p_body: body,
-  })
+  }).setHeader('Authorization', `Bearer ${authData.session.access_token}`)
   throwIfError(error)
   const row = Array.isArray(data) ? data[0] : null
   if (!row || (row.status !== 'sent' && row.status !== 'rate_limited')) {
@@ -349,16 +371,16 @@ export async function submitLead(
   submission: LeadSubmission,
   contextRef?: string | null,
 ): Promise<LeadSubmitResult> {
-  const { data, error } = await getSupabaseClient().rpc('submit_lead', {
+  const { data, error } = await getSupabaseClient().functions.invoke('submit-lead', { body: {
     p_lead_id: leadId,
     p_name: submission.name,
     p_contact: submission.contact,
     p_source: source,
     p_context_ref: contextRef ?? null,
     p_note: submission.note ?? null,
-  })
+  } })
   throwIfError(error)
-  const row = Array.isArray(data) ? data[0] : null
+  const row = data
   if (!row || (row.status !== 'submitted' && row.status !== 'rate_limited')) {
     throw new Error('The request did not receive a confirmation.')
   }
@@ -435,12 +457,14 @@ function encodedStoragePath(path: string): string {
 async function uploadLearningObject(
   path: string,
   file: File,
+  userId: string,
   onProgress?: UploadProgress,
 ): Promise<void> {
   const client = getSupabaseClient()
   const { data, error } = await client.auth.getSession()
   if (error) throw error
   if (!data.session) throw new Error('Please sign in before uploading homework.')
+  if (data.session.user.id !== userId) throw new Error('Your account changed. Reopen the assignment before uploading.')
 
   const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
   const publishableKey = import.meta.env.VITE_SUPABASE_ANON_KEY
@@ -528,7 +552,8 @@ export async function submitLearningAssignment({
   // Upload first, then record the submission and its file row in one database
   // transaction (submit_learning_assignment). A failure at either step leaves no
   // half-written rows; the only thing to undo is the uploaded object.
-  await uploadLearningObject(storagePath, file, onProgress)
+  await uploadLearningObject(storagePath, file, userId, onProgress)
+  await assertLearningOwner(userId)
   const { error: recordError } = await client.rpc('submit_learning_assignment', {
     p_assignment_id: assignment.id,
     p_storage_path: storagePath,
@@ -536,17 +561,38 @@ export async function submitLearningAssignment({
     p_mime_type: file.type,
     p_byte_size: file.size,
   })
+  await assertLearningOwner(userId)
   if (recordError) {
     await client.storage.from(LEARNING_SUBMISSIONS_BUCKET).remove([storagePath]).catch(() => undefined)
     throwIfError(recordError)
   }
 
   const saved = await getLearningSubmission(userId, assignment.id)
+  await assertLearningOwner(userId)
   if (!saved) throw new Error('The upload finished, but the submission record could not be reopened.')
   return saved
 }
 
-export async function downloadLearningSubmissionFile(storagePath: string): Promise<Blob> {
+async function assertLearningOwner(userId: string): Promise<void> {
+  const { data, error } = await getSupabaseClient().auth.getSession()
+  if (error) throw error
+  if (!userId || data.session?.user.id !== userId) {
+    throw new Error('Your account changed. Reopen the assignment before accessing its files.')
+  }
+}
+
+export async function downloadLearningSubmissionFile(storagePath: string, userId: string): Promise<Blob> {
+  const segments = storagePath.split('/')
+  if (
+    segments.length < 3
+    || segments[0] !== userId
+    || segments.some((segment) => !segment || segment === '.' || segment === '..')
+    || /[\\%?#]/.test(storagePath)
+    || Array.from(storagePath).some((character) => character.charCodeAt(0) < 32 || character.charCodeAt(0) === 127)
+  ) {
+    throw new Error('This homework file does not belong to the selected account.')
+  }
+  await assertLearningOwner(userId)
   const { data, error } = await getSupabaseClient()
     .storage
     .from(LEARNING_SUBMISSIONS_BUCKET)
@@ -556,6 +602,7 @@ export async function downloadLearningSubmissionFile(storagePath: string): Promi
       { cache: 'no-store' },
     )
   if (error) throw new Error(`4Prep data request failed: ${error.message}`)
+  await assertLearningOwner(userId)
   return data
 }
 

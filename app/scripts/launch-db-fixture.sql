@@ -1,0 +1,33 @@
+-- Disposable PostgreSQL fixture only; NEVER run this file against Supabase.
+create role anon;
+create role authenticated;
+create role service_role bypassrls;
+create schema auth;
+create table auth.users(id uuid primary key);
+create function auth.uid() returns uuid language sql stable as $$
+  select nullif(current_setting('request.jwt.claim.sub', true), '')::uuid;
+$$;
+grant usage on schema auth to anon, authenticated, service_role;
+grant execute on function auth.uid() to anon, authenticated, service_role;
+create schema storage;
+create table storage.objects(id uuid default gen_random_uuid(), bucket_id text, name text);
+alter table storage.objects enable row level security;
+grant usage on schema storage to authenticated, service_role;
+grant all on storage.objects to authenticated, service_role;
+create policy fixture_owner_upload on storage.objects to authenticated using (true) with check (true);
+create schema cron;
+create table cron.job_run_details(status text, start_time timestamptz);
+create function cron.schedule(text,text,text) returns bigint language sql as $$select 1::bigint$$;
+create table public.admin_users(user_id uuid);
+create table public.award_conditions(scholarship_id text, kind text);
+create table public.learning_lessons(id uuid primary key, module_id uuid, status text);
+create table public.learning_assignments(id uuid primary key, module_id uuid);
+create table public.learning_progress(lesson_id uuid);
+create table public.learning_submissions(assignment_id uuid);
+alter table public.learning_progress enable row level security;
+alter table public.learning_submissions enable row level security;
+grant select on public.learning_lessons, public.learning_assignments to authenticated;
+grant all on public.learning_progress, public.learning_submissions to authenticated;
+create policy fixture_progress_owner on public.learning_progress to authenticated using (true) with check (true);
+create policy fixture_submission_owner on public.learning_submissions to authenticated using (true) with check (true);
+create table public.support_threads(last_sender_role text, last_message_at timestamptz);

@@ -6,7 +6,16 @@ import {
   hasFullNeedPolicy,
 } from './costs'
 
-export const PHI_VERSION = 'phi-v0.3'
+export const PHI_VERSION = 'phi-v0.4'
+
+/** Subject support alone cannot establish a usable overall recommendation. */
+export function fitEvidence(fit: Pick<FitScore, 'components'>) {
+  const keys = ['academic', 'financial', 'language', 'career'] as const
+  const count = keys.filter((key) => fit.components[key].resolved).length
+  const sufficient = count >= 3 && fit.components.financial.resolved
+    && fit.components.career.resolved
+  return { count, total: keys.length, sufficient }
+}
 
 export type PhiWeights = {
   academic: number
@@ -74,7 +83,7 @@ function matchingPrograms(profile: StudentProfile, university: University) {
   })
 }
 
-// Φ v0.3 is intentionally transparent, monotonic, bounded, and deterministic.
+// Φ v0.4 is intentionally transparent, monotonic, bounded, and deterministic.
 // It performs no currency conversion. Components that cannot be resolved from
 // published, cited data are excluded from the overall (weights renormalize over
 // the resolved ones) instead of being pushed to a neutral midpoint.
@@ -137,12 +146,14 @@ export function computeFit(
       'Financial fit',
       70,
       'The university publishes a full-demonstrated-need policy for international students; personal net cost requires an individual aid calculation and is not treated as zero.',
+      false,
     )
   } else if (hasComprehensiveInternationalFunding(university)) {
     financial = component(
       'Financial fit',
       65,
       'The university publishes comprehensive funding for enrolled international students, but no single post-aid price; personal net cost is unresolved and is not treated as zero.',
+      false,
     )
   } else if (costScenario === null) {
     financial = component('Financial fit', 50, 'A sourced annual cost of attendance or a computable aid-adjusted net cost is missing, so this option is not excluded.', false)
@@ -230,16 +241,19 @@ export function computeFit(
   const overall = resolvedWeight > 0
     ? clamp(resolvedEntries.reduce((sum, [key, item]) => sum + item.score * weights[key], 0) / resolvedWeight)
     : 50
-  const grade = gradeForScore(overall)
-  const label = overall >= 72 ? 'Strong fit' : overall >= 52 ? 'Promising fit' : 'Consider carefully'
-  const confidencePrefix = resolvedEntries.length < 2 ? 'Limited data: ' : ''
+  const evidence = fitEvidence({ components })
+  const grade = evidence.sufficient ? gradeForScore(overall) : '—'
+  const label = !evidence.sufficient ? 'Insufficient information'
+    : overall >= 72 ? 'Strong fit' : overall >= 52 ? 'Promising fit' : 'Consider carefully'
 
   return {
     version: PHI_VERSION,
     overall,
     grade,
     label,
-    summary: `${confidencePrefix}${label} for your entered ${profile.field} profile; open all five components before deciding.`,
+    summary: evidence.sufficient
+      ? `${label} for your entered ${profile.field} profile. ${evidence.count} of ${evidence.total} comparisons are available; review the evidence before deciding.`
+      : `${evidence.count} of ${evidence.total} comparisons are available. An overall recommendation needs subject support, a comparable cost scenario, and at least one academic or language comparison.`,
     components,
     computedAt: 'deterministic:no-clock',
   }

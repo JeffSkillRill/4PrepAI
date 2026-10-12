@@ -1,5 +1,5 @@
-import 'jsr:@supabase/functions-js/edge-runtime.d.ts'
-import { createClient } from 'jsr:@supabase/supabase-js@2'
+import 'jsr:@supabase/functions-js@2.117.3/edge-runtime.d.ts'
+import { createClient } from 'jsr:@supabase/supabase-js@2.117.2'
 import { createCounselorHandler } from './handler.ts'
 
 // The request flow lives in handler.ts so it can be tested with fakes; this

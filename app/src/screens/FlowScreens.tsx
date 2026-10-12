@@ -1,5 +1,6 @@
 import { ArrowLeft, ArrowRight, BookOpen, Bookmark, BookmarkCheck, CalendarDays, CircleDollarSign, ClipboardList, GraduationCap, Languages, MapPin, Percent, Sparkles } from 'lucide-react'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { track } from '../data/analytics'
 import type { Pathway, StudentProfile, University } from '../types'
 import { ExpandableFit } from '../components/Trust'
 import { AskACounselor } from '../components/AskACounselor'
@@ -9,6 +10,7 @@ import { UniversityVisual } from '../components/UniversityVisual'
 import { PublishedNetCost } from '../components/CostSummary'
 import { AppLink } from '../components/AppLink'
 import { StepFields } from '../intake/StepFields'
+import { useRequestScope } from '../auth/useRequestScope'
 import {
   draftFromProfile,
   emptyDraft,
@@ -39,6 +41,7 @@ export function IntakeScreen({
   onComplete: (profile: StudentProfile, pathway: Pathway) => void
 }) {
   const [step, setStep] = useState(0)
+  const captureScope = useRequestScope()
   const [draft, setDraft] = useState<IntakeDraft>(
     initialProfile ? draftFromProfile(initialProfile) : emptyDraft,
   )
@@ -48,14 +51,20 @@ export function IntakeScreen({
   const Icon = stepIcons[definition.id]
   const answered = isStepAnswered(draft, definition.id)
   const canContinue = valid && (answered || definition.optional)
+  useEffect(() => { track('intake_started') }, [])
 
   const finish = async (finalDraft: IntakeDraft) => {
+    const isCurrent = captureScope()
     const profile = profileFromDraft(finalDraft)
     setStatus('loading')
     try {
       const pathway = await getRankedPathway(profile)
+      if (!isCurrent()) return
+      track('intake_completed')
       onComplete(profile, pathway)
     } catch {
+      if (!isCurrent()) return
+      track('intake_failed')
       setStatus(typeof navigator !== 'undefined' && !navigator.onLine ? 'offline' : 'error')
     }
   }
@@ -109,16 +118,16 @@ export function ResultsScreen({ pathway, saved, onSave, onOpen }: { pathway: Pat
       <section className="relative overflow-hidden rounded-[28px] bg-band-raised p-6 text-white shadow-card sm:p-9 lg:p-11">
         <div className="absolute -right-20 -top-24 size-80 rounded-full bg-forest-500/30 blur-3xl" />
         <div className="relative grid gap-8 lg:grid-cols-[1fr_340px] lg:items-center">
-          <div><span className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1.5 text-sm font-bold text-on-hero-muted"><Sparkles size={16} /> Profile-based strategy</span><h1 className="display mt-5 text-4xl font-extrabold leading-tight sm:text-5xl">A route built from your answers</h1><p className="mt-4 max-w-2xl text-lg leading-8 text-white/75">The order responds to your destination, subject, academic readiness, budget, language plan, and timing. It organizes verified evidence and does not predict admission.</p></div>
+          <div><span className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1.5 text-sm font-bold text-on-hero-muted"><Sparkles size={16} /> Profile-based comparison</span><h1 className="display mt-5 text-4xl font-extrabold leading-tight sm:text-5xl">A route built from your answers</h1><p className="mt-4 max-w-2xl text-lg leading-8 text-white/75">Compare published subject, cost, academic, and language evidence. Your chosen intake is recorded; term availability and deadlines still need confirmation with each university.</p></div>
           <div className="rounded-2xl border border-white/15 bg-white/10 p-5 backdrop-blur"><p className="text-xs font-bold uppercase tracking-[.14em] text-on-hero-muted">Your entered direction</p><div className="mt-4 grid grid-cols-2 gap-3 text-sm"><PathFact icon={<MapPin />} label={pathway.profile.country} /><PathFact icon={<BookOpen />} label={pathway.profile.field} /><PathFact icon={<CircleDollarSign />} label={pathway.profile.budgetMax && pathway.profile.budgetCurrency ? `${pathway.profile.budgetCurrency} ${pathway.profile.budgetMax.toLocaleString()}` : 'Budget unresolved'} /><PathFact icon={<CalendarDays />} label={pathway.profile.intake} /></div></div>
         </div>
       </section>
 
-      <section className="mt-12"><div className="flex flex-wrap items-end justify-between gap-4"><div><p className="text-sm font-bold uppercase tracking-[.14em] text-forest-700">Ranked shortlist</p><h2 className="display mt-2 text-3xl font-extrabold">Your strongest starting points</h2></div><p className="max-w-md text-sm leading-6 text-muted">Every fit opens into the same five scored components with plain-language reasons.</p></div>
+      <section className="mt-12"><div className="flex flex-wrap items-end justify-between gap-4"><div><p className="text-sm font-bold uppercase tracking-[.14em] text-forest-700">Evidence-based comparison</p><h2 className="display mt-2 text-3xl font-extrabold">Universities to review</h2></div><p className="max-w-md text-sm leading-6 text-muted">Every fit opens into five comparisons with plain-language reasons. Missing evidence is not a positive assessment.</p></div>
         <div className="mt-6 grid gap-6 lg:grid-cols-3">{ranked.map((university, index) => <article key={university.id} className="card interactive-card overflow-hidden"><div className="relative aspect-[2/1] overflow-hidden bg-band-mid"><UniversityVisual university={university} className="absolute inset-0" /><div className="image-scrim absolute inset-0" /><span className="absolute left-3 top-3 rounded-full bg-paper px-3 py-1 text-xs font-extrabold text-forest-900">Choice {index + 1}</span><div className="absolute inset-x-4 bottom-4 text-white"><h3 className="display text-2xl font-extrabold">{university.name}</h3><p className="mt-1 text-sm text-white/80">{university.city}, {university.country}</p></div></div><div className="p-5">{university.fit && <ExpandableFit fit={university.fit} compact />}<div className="mt-4 text-xs"><span className="block font-bold uppercase tracking-wide text-muted">Aid-adjusted net-cost scenario</span><div className="mt-1 font-bold"><PublishedNetCost university={university} compact /></div></div><p className="mt-4 text-sm leading-6 text-muted">{university.fit?.summary}</p><div className="mt-5 grid grid-cols-[1fr_auto] gap-2"><AppLink href={`/universities/${encodeURIComponent(university.id)}`} onNavigate={() => onOpen(university)} className="inline-flex items-center justify-center gap-2 rounded-xl bg-forest-50 py-3 text-sm font-bold text-forest-800 transition hover:bg-forest-100">Review evidence <ArrowRight size={16} /></AppLink><button onClick={() => onSave(university.id)} disabled={saved.has(university.id)} className="grid size-11 place-items-center rounded-xl border border-line text-forest-800 disabled:bg-forest-50" aria-label={saved.has(university.id) ? `${university.name} already saved` : `Save ${university.name}`}>{saved.has(university.id) ? <BookmarkCheck size={18} /> : <Bookmark size={18} />}</button></div></div></article>)}</div>
       </section>
 
-      <section className="mt-14"><p className="text-sm font-bold uppercase tracking-[.14em] text-forest-700">Step by step</p><h2 className="display mt-2 text-3xl font-extrabold">Your application runway</h2><div className="timeline-line relative mt-8 grid gap-4 md:grid-cols-3 xl:grid-cols-6">{pathway.milestones.map((item, index) => <article key={item.month} className="relative rounded-2xl border border-line bg-paper p-4 pt-14 shadow-soft"><span className="absolute left-4 top-3 z-10 grid size-10 place-items-center rounded-full bg-action text-xs font-extrabold text-on-action ring-4 ring-canvas">{index + 1}</span><p className="text-xs font-bold uppercase tracking-[.14em] text-forest-700">Step {item.month}</p><h3 className="mt-2 font-extrabold">{item.title}</h3><p className="mt-2 text-sm leading-5 text-muted">{item.detail}</p></article>)}</div></section>
+      <section className="mt-14"><p className="text-sm font-bold uppercase tracking-[.14em] text-forest-700">Step by step</p><h2 className="display mt-2 text-3xl font-extrabold">General application checklist</h2><p className="mt-3 text-sm leading-6 text-muted">These are suggested steps, not a deadline calendar. Confirm dates for your chosen intake before scheduling them.</p><div className="timeline-line relative mt-8 grid gap-4 md:grid-cols-3 xl:grid-cols-6">{pathway.milestones.map((item, index) => <article key={item.month} className="relative rounded-2xl border border-line bg-paper p-4 pt-14 shadow-soft"><span className="absolute left-4 top-3 z-10 grid size-10 place-items-center rounded-full bg-action text-xs font-extrabold text-on-action ring-4 ring-canvas">{index + 1}</span><p className="text-xs font-bold uppercase tracking-[.14em] text-forest-700">Step {index + 1}</p><h3 className="mt-2 font-extrabold">{item.title}</h3><p className="mt-2 text-sm leading-5 text-muted">{item.detail}</p></article>)}</div></section>
 
       {/* Placed last on purpose: the student sees the sourced shortlist and the
           five scored components first, and is offered a person only after the

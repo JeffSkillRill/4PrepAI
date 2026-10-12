@@ -1,5 +1,5 @@
 import type { AuthChangeEvent, Session, User } from '@supabase/supabase-js'
-import { createContext, useContext, useEffect, useMemo, useState } from 'react'
+import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import { getSupabaseClient } from '../data/client'
 import { destructiveOperationsAllowed } from '../data/environment'
@@ -84,27 +84,38 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [runtimeError, setRuntimeError] = useState<Error | null>(null)
   const [authEvent, setAuthEvent] = useState<AuthChangeEvent | null>(null)
   const [isPasswordRecovery, setIsPasswordRecovery] = useState(isRecoveryUrl)
+  const accountScope = useRef({ owner: null as string | null, version: 0 })
 
   useEffect(() => {
     let active = true
     const authClient = startup.client
     if (!authClient) return
+    const rememberAccount = (nextSession: Session | null, changed = false) => {
+      const owner = nextSession?.user.id ?? null
+      if (changed || accountScope.current.owner !== owner) {
+        accountScope.current = { owner, version: accountScope.current.version + 1 }
+      }
+    }
 
+    const initialVersion = accountScope.current.version
     void authClient.auth.getSession()
       .then(({ data, error }) => {
-        if (!active) return
+        if (!active || accountScope.current.version !== initialVersion) return
         if (error) throw error
+        rememberAccount(data.session)
         setSession(data.session)
         setLoading(false)
       })
       .catch((reason: unknown) => {
-        if (!active) return
+        if (!active || accountScope.current.version !== initialVersion) return
         setLoading(false)
         setRuntimeError(reason instanceof Error ? reason : new Error('4Prep could not initialize authentication.'))
       })
 
     const { data } = authClient.auth.onAuthStateChange((event, nextSession) => {
       if (!active) return
+      rememberAccount(nextSession, event === 'SIGNED_OUT' || event === 'SIGNED_IN')
+      if (event === 'SIGNED_OUT') clearDeviceSupportQueues()
       setAuthEvent(event)
       if (event === 'PASSWORD_RECOVERY') setIsPasswordRecovery(true)
       if (event === 'SIGNED_OUT') setIsPasswordRecovery(false)
@@ -113,6 +124,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     })
     return () => {
       active = false
+      accountScope.current.version += 1
       data.subscription.unsubscribe()
     }
   }, [startup.client])
@@ -168,10 +180,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     },
     updateProfile: async ({ fullName, avatarFile }) => {
       const client = getSupabaseClient()
+      const owner = session?.user.id
+      const version = accountScope.current.version
+      const assertCurrent = () => {
+        if (!owner || accountScope.current.owner !== owner || accountScope.current.version !== version) {
+          throw new Error('Your account changed. Reopen account settings before saving.')
+        }
+      }
+      assertCurrent()
       const { data: userData, error: userError } = await client.auth.getUser()
       if (userError) throw userError
       const currentUser = userData.user
       if (!currentUser) throw new Error('Sign in before updating your profile.')
+      assertCurrent()
+      if (currentUser.id !== owner) throw new Error('Your account changed. Reopen account settings before saving.')
 
       const metadata: Record<string, string> = {}
       if (fullName !== undefined) metadata.full_name = fullName.trim()
@@ -182,13 +204,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           contentType: avatarFile.type,
         })
         if (uploadError) throw uploadError
+        assertCurrent()
         const { data: publicUrl } = client.storage.from('avatars').getPublicUrl(path)
         metadata.avatar_url = publicUrl.publicUrl
       }
 
       if (Object.keys(metadata).length === 0) return currentUser
+      assertCurrent()
       const { data, error } = await client.auth.updateUser({ data: metadata })
       if (error) throw error
+      assertCurrent()
+      if (data.user?.id !== owner) throw new Error('Your account changed. Reopen account settings before saving.')
       if (!data.user) throw new Error('4Prep could not update your profile.')
       return data.user
     },
@@ -220,15 +246,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         throw new Error('Account deletion is blocked in local development while connected to the production Supabase project.')
       }
       const client = getSupabaseClient()
-      const avatarOwnerId = session?.user.id
-      if (avatarOwnerId) {
-        // Public avatar URLs should not outlive the account. RLS limits this
-        // best-effort cleanup to the signed-in user's folder.
-        const bucket = client.storage.from('avatars')
-        const { data: avatars } = await bucket.list(avatarOwnerId, { limit: 100 })
-        const paths = avatars?.map((avatar) => `${avatarOwnerId}/${avatar.name}`) ?? []
-        if (paths.length > 0) await bucket.remove(paths)
-      }
+      // The server verifies and removes all uploaded files before deleting Auth.
       const { data, error } = await client.functions.invoke<{
         deleted: boolean
         orphanedRows: number

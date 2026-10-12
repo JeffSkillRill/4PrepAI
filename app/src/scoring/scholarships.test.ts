@@ -53,6 +53,22 @@ function award(conditions: AwardCondition[]): Scholarship {
 const alabamaTier = [condition('sat', 1420), condition('act', 32), condition('gpa', 3.5)]
 
 describe('an award is reachable only when every published condition is met', () => {
+  it('does not confuse admission-test alternatives with an independent English requirement', () => {
+    const report = evaluateAward(profile({ admissionTest: 'sat', admissionTestScore: 1450, languageScore: 5, gpa: 3.8 }), award([...alabamaTier, condition('ielts', 6.5)]), university())
+    expect(report.status).toBe('partly_met')
+    expect(report.missing.map((item) => item.kind)).toEqual(['ielts'])
+  })
+  it('can assess a GPA-only award without requesting unrelated test scores', () => {
+    expect(evaluateAward(profile({ gpa: 3.8, languageScore: null }), award([condition('gpa', 3.5)]), university()).status).toBe('reachable')
+    const unanswered = evaluateAward(profile({ gpa: null }), award([condition('gpa', 3.5)]), university())
+    expect(unanswered.status).toBe('needs_your_scores')
+    expect(unanswered.message).toContain('GPA')
+    expect(unanswered.message).not.toContain('SAT')
+  })
+  it('does not infer alternatives when reviewed rows explicitly require each measure', () => {
+    const conditions = [condition('sat', 1420), condition('act', 32)].map((item) => ({ ...item, alternativeGroup: null }))
+    expect(evaluateAward(profile({ admissionTest: 'sat', admissionTestScore: 1450 }), award(conditions), university()).status).toBe('needs_your_scores')
+  })
   it('reports reachable when the score and the GPA are both met', () => {
     const report = evaluateAward(
       profile({ admissionTest: 'sat', admissionTestScore: 1450, gpa: 3.6 }),

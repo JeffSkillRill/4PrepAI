@@ -1,9 +1,9 @@
-import { createClient } from 'jsr:@supabase/supabase-js@2'
+import { createClient, type SupabaseClient } from 'jsr:@supabase/supabase-js@2.117.2'
 
 const ADMIN_MINUTE_LIMIT = 30
 const ADMIN_HOUR_LIMIT = 1000
 
-export type AdminServiceClient = ReturnType<typeof createClient>
+export type AdminServiceClient = SupabaseClient
 
 export type AdminContext = {
   requestId: string

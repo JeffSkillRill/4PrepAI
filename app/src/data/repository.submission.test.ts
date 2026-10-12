@@ -6,10 +6,11 @@ const remove = vi.fn()
 const rpc = vi.fn()
 const maybeSingle = vi.fn()
 const from = vi.fn()
+const getSession = vi.fn()
 
 vi.mock('./client', () => ({
   getSupabaseClient: () => ({
-    auth: { getSession: async () => ({ data: { session: { access_token: 'token' } }, error: null }) },
+    auth: { getSession },
     storage: { from: () => ({ upload, remove }) },
     rpc,
     from,
@@ -32,6 +33,7 @@ describe('homework submission', () => {
     vi.stubGlobal('XMLHttpRequest', undefined)
     vi.stubEnv('VITE_SUPABASE_URL', 'https://example.supabase.co')
     vi.stubEnv('VITE_SUPABASE_ANON_KEY', 'anon')
+    getSession.mockReset().mockResolvedValue({ data: { session: { access_token: 'token', user: { id: 'user-1' } } }, error: null })
     upload.mockReset().mockResolvedValue({ error: null })
     remove.mockReset().mockResolvedValue({ error: null })
     rpc.mockReset().mockResolvedValue({ data: 'submission-1', error: null })
@@ -98,5 +100,23 @@ describe('homework submission', () => {
 
     expect(rpc).not.toHaveBeenCalled()
     expect(remove).not.toHaveBeenCalled()
+  })
+
+  it('rejects an upload for a different signed-in account before touching Storage', async () => {
+    getSession.mockResolvedValue({ data: { session: { access_token: 'token', user: { id: 'user-2' } } }, error: null })
+    await expect(submitLearningAssignment({ userId: 'user-1', assignment, file })).rejects.toThrow('Your account changed')
+    expect(upload).not.toHaveBeenCalled()
+    expect(rpc).not.toHaveBeenCalled()
+  })
+
+  it('does not record old homework under a new account after a delayed upload', async () => {
+    upload.mockImplementation(async () => {
+      getSession.mockResolvedValue({ data: { session: { access_token: 'token-b', user: { id: 'user-2' } } }, error: null })
+      return { error: null }
+    })
+    await expect(submitLearningAssignment({ userId: 'user-1', assignment, file })).rejects.toThrow('Your account changed')
+    expect(rpc).not.toHaveBeenCalled()
+    expect(remove).not.toHaveBeenCalled()
+    expect(maybeSingle).not.toHaveBeenCalled()
   })
 })

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { StudentProfile, University } from '../types'
 import { known, unknown } from '../types'
-import { computeFit, PHI_VERSION } from './phi'
+import { computeFit, fitEvidence, PHI_VERSION } from './phi'
 
 const university: University = {
   id: 'test',
@@ -77,13 +77,19 @@ const profile: StudentProfile = {
   intake: 'Autumn 2027',
 }
 
-describe('computeFit Φ v0.3 contract', () => {
+describe('computeFit Φ v0.4 contract', () => {
+  it('never calls subject-only evidence a strong overall fit', () => {
+    const result = computeFit({ ...profile, languageTest: null, languageScore: null, admissionTest: null, admissionTestScore: null, gpa: null }, { ...university, totalCostOfAttendance: unknown('Not available.', 'Ask admissions.') })
+    expect(fitEvidence(result)).toMatchObject({ sufficient: false })
+    expect(result.label).toBe('Insufficient information')
+    expect(result.grade).toBe('—')
+  })
   it('is deterministic, versioned, and exposes exactly five bounded components', () => {
     const first = computeFit(profile, university)
     const second = computeFit(profile, university)
     expect(first).toEqual(second)
     expect(first.version).toBe(PHI_VERSION)
-    expect(PHI_VERSION).toBe('phi-v0.3')
+    expect(PHI_VERSION).toBe('phi-v0.4')
     expect(Object.keys(first.components)).toEqual(['academic', 'financial', 'language', 'career', 'geographic'])
     expect(first.overall).toBeGreaterThanOrEqual(0)
     expect(first.overall).toBeLessThanOrEqual(100)
@@ -152,6 +158,8 @@ describe('computeFit Φ v0.3 contract', () => {
     }
     const result = computeFit({ ...profile, budgetMax: 5000 }, fullNeed)
     expect(result.components.financial.score).toBe(70)
+    expect(result.components.financial.resolved).toBe(false)
+    expect(fitEvidence(result).sufficient).toBe(false)
     expect(result.components.financial.reason).toContain('personal net cost')
 
     const princetonWording = {
@@ -168,6 +176,7 @@ describe('computeFit Φ v0.3 contract', () => {
     }
     const result = computeFit({ ...profile, budgetMax: 5000 }, comprehensive)
     expect(result.components.financial.score).toBe(65)
+    expect(result.components.financial.resolved).toBe(false)
     expect(result.components.financial.reason).toContain('personal net cost is unresolved')
   })
 

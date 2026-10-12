@@ -26,6 +26,8 @@ import {
 } from './data/repository'
 import { runViewTransition } from './motion/viewTransition'
 import { ThemeToggle } from './theme/ThemeToggle'
+import { track } from './data/analytics'
+import { createWriteQueue } from './data/writeQueue'
 
 // Each screen is its own chunk, so a first visit downloads only the screen it opens.
 const loadFlowScreens = () => import('./screens/FlowScreens')
@@ -151,9 +153,17 @@ export default function App() {
   const [selectedLessonSlug, setSelectedLessonSlug] = useState<string | null>(initial.lessonSlug)
   const [profile, setProfile] = useState<StudentProfile | null>(null)
   const [pathway, setPathway] = useState<Pathway | null>(null)
+  const [pathwayLoadFailed, setPathwayLoadFailed] = useState(false)
+  const [pathwayRetry, setPathwayRetry] = useState(0)
   /** Set only by "Rebuild my plan", so the wizard is never reached by accident. */
   const [rebuildRequested, setRebuildRequested] = useState(false)
   const [saved, setSaved] = useState<Set<string>>(new Set())
+  const [profileSaveStatus, setProfileSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
+  const [planSaveError, setPlanSaveError] = useState<string | null>(null)
+  const pendingPlanWrites = useRef(new Set<string>())
+  const profileWrites = useRef(createWriteQueue())
+  const profileWriteId = useRef(0)
+  const accountGeneration = useRef({ owner: null as string | null, version: 0 })
   /** Answers entered while signed out that differ from the account's stored plan. Never saved unasked. */
   const [profileConflict, setProfileConflict] = useState<StudentProfile | null>(null)
   const [conflictStatus, setConflictStatus] = useState<'idle' | 'saving' | 'error'>('idle')
@@ -180,6 +190,16 @@ export default function App() {
     () => initialPendingAuth !== null,
   )
   const { user, loading: authLoading, recordPrivacyConsent } = useAuth()
+  useEffect(() => {
+    const owner = user?.id ?? null
+    if (accountGeneration.current.owner !== owner) {
+      accountGeneration.current = { owner, version: accountGeneration.current.version + 1 }
+      // Auth changes can arrive from another tab without finishSignOut running.
+      // Invalidate pending restores and permit the same account to load again.
+      privateLoadRunRef.current += 1
+      loadedUserRef.current = null
+    }
+  }, [user?.id])
 
   // Declared before the private-data effect so the ref is current when that effect first runs.
   useEffect(() => {
@@ -255,7 +275,11 @@ export default function App() {
     if (!user) {
       // eslint-disable-next-line react-hooks/set-state-in-effect -- Auth transitions must clear private in-memory data before another user's records can render.
       setSaved(new Set())
+      setProfileSaveStatus('idle')
+      setPlanSaveError(null)
       setProfileConflict(null)
+      setConflictStatus('idle')
+      setPathwayLoadFailed(false)
       loadedUserRef.current = null
       setPrivateLoading(false)
       setPrivateLoadFailed(false)
@@ -287,6 +311,7 @@ export default function App() {
         : Promise.resolve(),
     ])
       .then(async ([storedProfile, ids]) => {
+        if (!isCurrentRun()) return
         const resolved = await resolveAccountProfile({
           userId: user.id,
           anonymousProfile,
@@ -295,6 +320,8 @@ export default function App() {
         })
         if (!isCurrentRun()) return
         setProfileConflict(resolved.conflict)
+        setConflictStatus('idle')
+        setPathwayLoadFailed(false)
         profileRef.current = resolved.profile
         profileOwnerRef.current = user.id
         setProfile(resolved.profile)
@@ -366,21 +393,47 @@ export default function App() {
 
   useEffect(() => {
     if (view !== 'results' || !profile || pathway) return
-    void getRankedPathway(profile).then(setPathway)
-  }, [view, profile, pathway])
+    let active = true
+    const generation = accountGeneration.current.version
+    const current = () => active && accountGeneration.current.version === generation
+    void getRankedPathway(profile).then((nextPathway) => {
+      if (!current()) return
+      setPathwayLoadFailed(false)
+      setPathway(nextPathway)
+    }).catch(() => {
+      if (current()) setPathwayLoadFailed(true)
+    })
+    return () => { active = false }
+  }, [view, profile, pathway, pathwayRetry])
 
   const replaceWithNewAnswers = async () => {
     if (!user || !profileConflict) return
+    const owner = user.id
+    const generation = accountGeneration.current.version
+    const nextProfile = profileConflict
+    // This choice is not optimistic: let any earlier ordinary edit finish its
+    // own status update, but do not replace an edit made after this choice.
+    const writeId = profileWriteId.current
     setConflictStatus('saving')
     try {
-      await saveStudentProfile(user.id, profileConflict)
-      profileRef.current = profileConflict
-      setProfile(profileConflict)
-      setPathway(null)
+      await profileWrites.current.enqueue(async () => {
+        if (accountGeneration.current.version !== generation) return
+        await saveStudentProfile(owner, nextProfile)
+      })
+      if (accountGeneration.current.version !== generation) return
+      // A later ordinary edit owns the optimistic profile if it superseded this choice.
+      if (profileWriteId.current === writeId) {
+        profileRef.current = nextProfile
+        profileOwnerRef.current = owner
+        setProfile(nextProfile)
+        setProfileSaveStatus('saved')
+        setPathway(null)
+        setPathwayLoadFailed(false)
+      }
       setProfileConflict(null)
       setConflictStatus('idle')
     } catch {
-      setConflictStatus('error')
+      if (accountGeneration.current.version === generation) setConflictStatus('error')
     }
   }
   const keepSavedPlan = () => {
@@ -458,20 +511,33 @@ export default function App() {
       return
     }
     const isSaved = saved.has(id)
+    const owner = user.id
+    const generation = accountGeneration.current.version
+    const key = `${owner}:${id}`
+    if (pendingPlanWrites.current.has(key)) return
+    pendingPlanWrites.current.add(key)
+    setPlanSaveError(null)
     setSaved((current) => {
       const next = new Set(current)
       if (isSaved) next.delete(id)
       else next.add(id)
       return next
     })
-    void (isSaved ? removePlan(user.id, id) : savePlan(user.id, id)).catch(() => {
+    void (isSaved ? removePlan(owner, id) : savePlan(owner, id)).then(() => {
+      if (!isSaved) track('university_saved')
+    }).catch(() => {
+      track('university_save_failed')
+      if (accountGeneration.current.version !== generation) return
+      setPlanSaveError(isSaved
+        ? 'That university could not be removed. Your previous saved list has been restored. Please try the remove button again.'
+        : 'That university could not be saved. Your previous saved list has been restored. Please try the save button again.')
       setSaved((current) => {
         const next = new Set(current)
         if (isSaved) next.add(id)
         else next.delete(id)
         return next
       })
-    })
+    }).finally(() => { pendingPlanWrites.current.delete(key) })
   }
   const saveOnce = (id: string) => {
     if (!saved.has(id)) toggleSave(id)
@@ -481,14 +547,28 @@ export default function App() {
     profileOwnerRef.current = user?.id ?? null
     setProfile(nextProfile)
     if (user) {
-      void saveStudentProfile(user.id, nextProfile).catch((reason: unknown) => {
-        if (import.meta.env.DEV) console.error('Could not save the student profile:', reason)
+      const owner = user.id
+      const generation = accountGeneration.current.version
+      const writeId = ++profileWriteId.current
+      const current = () => accountGeneration.current.version === generation && profileWriteId.current === writeId
+      setProfileSaveStatus('saving')
+      // Serialize edits so an older, slower response cannot overwrite newer answers.
+      void profileWrites.current.enqueue(async () => {
+        if (accountGeneration.current.version !== generation) return
+        await saveStudentProfile(owner, nextProfile)
+      }).then(() => {
+        if (current()) track('profile_saved')
+        if (current()) setProfileSaveStatus('saved')
+      }).catch(() => {
+        if (current()) track('profile_save_failed')
+        if (current()) setProfileSaveStatus('error')
       })
     }
   }
   const completeIntake = (nextProfile: StudentProfile, nextPathway: Pathway) => {
     persistProfile(nextProfile)
     setPathway(nextPathway)
+    setPathwayLoadFailed(false)
     setRebuildRequested(false)
     navigate('results')
   }
@@ -496,6 +576,7 @@ export default function App() {
   const updatePlanAnswer = (nextProfile: StudentProfile) => {
     persistProfile(nextProfile)
     setPathway(null)
+    setPathwayLoadFailed(false)
   }
 
   const prepareGoogle = (consentedAt: string) => {
@@ -536,6 +617,7 @@ export default function App() {
 
   const authScreen = (
     <AuthScreen
+      key={user?.id ?? 'signed-out'}
       onNavigate={navigate}
       onAuthenticated={finishAuthentication}
       onPrepareGoogle={prepareGoogle}
@@ -563,7 +645,7 @@ export default function App() {
   else if (view === 'search') screen = <SearchScreen query={query} setQuery={setQuery} saved={saved} onToggleSave={toggleSave} onOpen={openUniversity} />
   else if (view === 'profile' && selectedUniversityId) screen = <ProfileScreen universityId={selectedUniversityId} profile={profile} saved={saved.has(selectedUniversityId)} onToggleSave={() => toggleSave(selectedUniversityId)} />
   else if (view === 'profile') screen = <DesignedState state="empty" onReset={() => navigate('search')} />
-  else if (view === 'intake') screen = <IntakeScreen initialProfile={rebuildRequested ? profile : null} onComplete={completeIntake} />
+  else if (view === 'intake') screen = <IntakeScreen key={user?.id ?? 'signed-out'} initialProfile={rebuildRequested ? profile : null} onComplete={completeIntake} />
   else if (view === 'plan' && profile) screen = (
     <PlanScreen
       profile={profile}
@@ -574,6 +656,9 @@ export default function App() {
   )
   else if (view === 'plan') screen = <DesignedState state="empty" onReset={() => navigate('intake')} />
   else if (view === 'results' && pathway) screen = <ResultsScreen pathway={pathway} saved={saved} onSave={saveOnce} onOpen={openUniversity} />
+  else if (view === 'results' && profile) screen = pathwayLoadFailed
+    ? <DesignedState state="error" onReset={() => { setPathwayLoadFailed(false); setPathwayRetry((current) => current + 1) }} />
+    : <LoadingState kind="compare" />
   else if (view === 'results') screen = <DesignedState state="empty" onReset={() => navigate('intake')} />
   else if (view === 'tools') screen = <ToolsScreen onNavigate={navigate} />
   else if (view === 'saved') screen = user
@@ -594,6 +679,7 @@ export default function App() {
   )
   else if (view === 'learn') screen = (
     <LearningTrackScreen
+      key={user?.id ?? 'signed-out'}
       userId={user?.id ?? null}
       onOpenTrack={openLearningTrack}
       onOpenModule={openLearningModule}
@@ -604,6 +690,7 @@ export default function App() {
   )
   else if (view === 'learn_module' && selectedModuleSlug) screen = (
     <LearningModuleScreen
+      key={`${user?.id ?? 'signed-out'}:${selectedModuleSlug}`}
       userId={user?.id ?? null}
       moduleSlug={selectedModuleSlug}
       onOpenTrack={openLearningTrack}
@@ -615,6 +702,7 @@ export default function App() {
   )
   else if (view === 'learn_lesson' && selectedModuleSlug && selectedLessonSlug) screen = (
     <LearningLessonScreen
+      key={`${user?.id ?? 'signed-out'}:${selectedModuleSlug}:${selectedLessonSlug}`}
       userId={user?.id ?? null}
       moduleSlug={selectedModuleSlug}
       lessonSlug={selectedLessonSlug}
@@ -627,6 +715,7 @@ export default function App() {
   )
   else if (view === 'learn_assignment' && selectedModuleSlug) screen = (
     <LearningAssignmentScreen
+      key={`${user?.id ?? 'signed-out'}:${selectedModuleSlug}`}
       userId={user?.id ?? null}
       moduleSlug={selectedModuleSlug}
       onOpenTrack={openLearningTrack}
@@ -652,6 +741,11 @@ export default function App() {
       <a href="#main-content" className="skip-link">Skip to main content</a>
       <Navbar view={view} onNavigate={navigate} hasPlan={Boolean(profile)} />
       <ConnectionStatus />
+      {user && profileSaveStatus !== 'idle' ? <div className="page-container py-3" role={profileSaveStatus === 'error' ? 'alert' : 'status'}>
+        <p className="text-sm">{profileSaveStatus === 'saving' ? 'Saving your plan…' : profileSaveStatus === 'saved' ? 'Plan saved to your account.' : 'Your latest answers are only on this device. Saving to your account failed.'}</p>
+        {profileSaveStatus === 'error' && <button type="button" className="mt-2 font-bold underline" onClick={() => { if (profileRef.current) persistProfile(profileRef.current) }}>Retry saving plan</button>}
+      </div> : null}
+      {planSaveError && <div className="page-container py-3" role="alert"><p className="text-sm">{planSaveError}</p></div>}
       {profileConflict && user ? <ProfileConflictBanner status={conflictStatus} onReplace={() => void replaceWithNewAnswers()} onKeep={keepSavedPlan} /> : null}
       <main id="main-content" tabIndex={-1}>
         <Suspense fallback={<LoadingState kind="page" />}>{screen}</Suspense>

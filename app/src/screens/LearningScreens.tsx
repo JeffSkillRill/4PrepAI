@@ -48,6 +48,7 @@ import {
 import { shouldAnimateMotion } from '../motion/preference'
 import { AppLink } from '../components/AppLink'
 import { learningPath, viewPaths } from '../routes'
+import { useRequestScope } from '../auth/useRequestScope'
 
 type LearningNavigation = {
   onOpenTrack: () => void
@@ -151,6 +152,9 @@ function LearningStateBoundary({
         onAction={data.retry}
       />
     )
+  }
+  if (!data.track.modules.some((module) => module.lessons.some((lesson) => lesson.status === 'published'))) {
+    return <LearningDesignedState state="empty" title="The admission course is coming soon" body="The course is still being prepared. There are no published lessons to start yet, and assignments are not open for submission." action="Check again" onAction={data.retry} />
   }
   return (
     <>
@@ -604,9 +608,11 @@ function LearningLessonContent({
   const access = useModuleAccess(module, track, userState)
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
+  const captureScope = useRequestScope()
   const completed = userState.completedLessonIds.has(lesson.id)
 
   const completeLesson = async () => {
+    const isCurrent = captureScope()
     if (!userId) {
       onSignIn()
       return
@@ -615,11 +621,13 @@ function LearningLessonContent({
     setSaveError(null)
     try {
       await markLearningLessonComplete(userId, lesson.id)
+      if (!isCurrent()) return
       reload()
     } catch {
+      if (!isCurrent()) return
       setSaveError('Progress was not saved. Your place on this page is unchanged; reconnect and try again.')
     } finally {
-      setSaving(false)
+      if (isCurrent()) setSaving(false)
     }
   }
 
@@ -691,12 +699,16 @@ function SubmissionView({
   celebrate?: boolean
 }) {
   const [downloadError, setDownloadError] = useState<string | null>(null)
+  const captureScope = useRequestScope()
   const downloadFile = async (file: LearningSubmission['files'][number]) => {
+    const isCurrent = captureScope()
     setDownloadError(null)
     try {
-      const blob = await downloadLearningSubmissionFile(file.storagePath)
+      const blob = await downloadLearningSubmissionFile(file.storagePath, submission.userId)
+      if (!isCurrent()) return
       triggerBlobDownload(blob, file.originalFilename)
     } catch {
+      if (!isCurrent()) return
       setDownloadError('The file could not be downloaded. Reconnect and try again.')
     }
   }
@@ -792,6 +804,7 @@ function LearningAssignmentContent({
   const [uploadProgress, setUploadProgress] = useState<number | null>(null)
   const [submission, setSubmission] = useState<LearningSubmission | null>(existingSubmission ?? null)
   const [celebrateSubmission, setCelebrateSubmission] = useState(false)
+  const captureScope = useRequestScope()
 
   const chooseFile = (nextFile: File | null) => {
     setFile(nextFile)
@@ -800,6 +813,7 @@ function LearningAssignmentContent({
   }
 
   const upload = async () => {
+    const isCurrent = captureScope()
     if (!userId) {
       onSignIn()
       return
@@ -821,17 +835,19 @@ function LearningAssignmentContent({
         userId,
         assignment: module.assignment,
         file,
-        onProgress: setUploadProgress,
+        onProgress: (percent) => { if (isCurrent()) setUploadProgress(percent) },
       })
+      if (!isCurrent()) return
       setSubmission(saved)
       setCelebrateSubmission(shouldAnimateMotion())
       setShowUpload(false)
       setFile(null)
       reload()
     } catch (reason) {
+      if (!isCurrent()) return
       setUploadError(reason instanceof Error ? reason.message : 'The upload failed.')
     } finally {
-      setUploadProgress(null)
+      if (isCurrent()) setUploadProgress(null)
     }
   }
 

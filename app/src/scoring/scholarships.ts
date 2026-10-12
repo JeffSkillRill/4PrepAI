@@ -99,8 +99,11 @@ const conditionLabels: Record<AwardCondition['kind'], string> = {
   gpa: 'GPA',
 }
 
-/** Score conditions are alternatives to one another; GPA applies in addition. */
-const scoreKinds: AwardCondition['kind'][] = ['sat', 'act', 'ielts', 'toefl', 'duolingo']
+function legacyGroup(kind: AwardCondition['kind']): string | null {
+  if (kind === 'sat' || kind === 'act') return 'admission_test'
+  if (kind === 'ielts' || kind === 'toefl' || kind === 'duolingo') return 'english_test'
+  return null
+}
 
 function round2(value: number): number {
   return Math.round(value * 100) / 100
@@ -178,24 +181,19 @@ export function evaluateAward(
 
   // A student reaching the SAT bar has satisfied the score family even though the
   // ACT row is unmet, because the university offers them as alternatives.
-  const scoreConditions = conditions.filter((item) => scoreKinds.includes(item.kind))
-  const otherConditions = conditions.filter((item) => !scoreKinds.includes(item.kind))
-  const scoreSatisfied = scoreConditions.length === 0 || scoreConditions.some((item) => item.status === 'met')
-  const scoreAttempted = scoreConditions.some((item) => item.status !== 'no_student_value')
-  const othersSatisfied = otherConditions.every((item) => item.status === 'met')
-  const othersAttempted = otherConditions.every((item) => item.status !== 'no_student_value')
-
-  const missing = [
-    ...(scoreSatisfied ? [] : scoreConditions.filter((item) => item.status === 'short')),
-    ...otherConditions.filter((item) => item.status === 'short'),
-  ]
+  const grouped = new Map<string, ConditionOutcome[]>()
+  scholarship.conditions.forEach((condition, index) => {
+    const group = condition.alternativeGroup === undefined ? legacyGroup(condition.kind) : condition.alternativeGroup
+    const key = group === null ? `required:${index}` : `alternatives:${group}`
+    grouped.set(key, [...(grouped.get(key) ?? []), conditions[index]])
+  })
+  const unmet = [...grouped.values()].filter((group) => !group.some((item) => item.status === 'met'))
+  const unanswered = unmet.filter((group) => group.every((item) => item.status === 'no_student_value'))
+  const missing = unmet.flatMap((group) => group.filter((item) => item.status === 'short'))
   const metCount = conditions.filter((item) => item.status === 'met').length
 
-  if (!scoreAttempted || !othersAttempted) {
-    const needed = [
-      ...(scoreAttempted ? [] : [scoreConditions.map((item) => item.label).join(' or ')]),
-      ...(othersAttempted ? [] : otherConditions.filter((item) => item.status === 'no_student_value').map((item) => item.label)),
-    ].filter(Boolean)
+  if (unanswered.length > 0) {
+    const needed = unanswered.map((group) => group.map((item) => item.label).join(' or '))
     return {
       ...base,
       status: 'needs_your_scores',
@@ -205,7 +203,7 @@ export function evaluateAward(
     }
   }
 
-  if (scoreSatisfied && othersSatisfied) {
+  if (unmet.length === 0) {
     return {
       ...base,
       status: 'reachable',

@@ -154,7 +154,7 @@ describe('DashboardScreen stage and goal', () => {
     fireEvent.click(screen.getByText('More ways to continue'))
     expect(moreWays?.open).toBe(true)
     expect(screen.getByRole('link', { name: 'Explore universities' }).getAttribute('href')).toBe('/universities')
-    expect(screen.getByRole('link', { name: 'Open Learning Portal' }).getAttribute('href')).toBe('/learn')
+    expect(screen.getByRole('link', { name: 'Check Learning Portal later' }).getAttribute('href')).toBe('/learn')
   })
 
   it('uses recorded feedback as the strongest stage signal', async () => {

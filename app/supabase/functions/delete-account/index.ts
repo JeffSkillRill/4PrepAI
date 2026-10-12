@@ -1,53 +1,10 @@
-import 'jsr:@supabase/functions-js/edge-runtime.d.ts'
-import { createClient } from 'jsr:@supabase/supabase-js@2'
+import 'jsr:@supabase/functions-js@2.117.3/edge-runtime.d.ts'
+import { createClient } from 'jsr:@supabase/supabase-js@2.117.2'
+import { listStorageObjects, removeStorageObjects, verifyOwnedPaths } from './storage.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, apikey, content-type, x-client-info',
-}
-
-const submissionsBucket = 'learning-submissions'
-
-type AdminClient = ReturnType<typeof createClient>
-
-async function listStorageObjects(
-  admin: AdminClient,
-  prefix: string,
-): Promise<string[]> {
-  const paths: string[] = []
-  let offset = 0
-  const limit = 100
-
-  while (true) {
-    const { data, error } = await admin.storage
-      .from(submissionsBucket)
-      .list(prefix, {
-        limit,
-        offset,
-        sortBy: { column: 'name', order: 'asc' },
-      })
-    if (error) throw error
-    for (const item of data ?? []) {
-      const path = `${prefix}/${item.name}`
-      if (item.id) paths.push(path)
-      else paths.push(...await listStorageObjects(admin, path))
-    }
-    if ((data?.length ?? 0) < limit) break
-    offset += limit
-  }
-  return paths
-}
-
-async function removeStorageObjects(
-  admin: AdminClient,
-  paths: string[],
-): Promise<void> {
-  for (let index = 0; index < paths.length; index += 100) {
-    const { error } = await admin.storage
-      .from(submissionsBucket)
-      .remove(paths.slice(index, index + 100))
-    if (error) throw error
-  }
 }
 
 function json(value: unknown, status = 200) {
@@ -91,13 +48,28 @@ export default {
     const authClient = createClient(url, anonKey, {
       auth: { persistSession: false },
     })
-    const { data: userData, error: userError } = await authClient.auth.getUser(accessToken)
-    if (userError || !userData.user) return json({ error: 'Please sign in again.' }, 401)
-
-    const userId = userData.user.id
+    const serviceRetry = accessToken === serviceRoleKey
+    const requestedUserId = (body as { userId?: unknown }).userId
+    const { data: userData, error: userError } = serviceRetry
+      ? { data: { user: null }, error: null }
+      : await authClient.auth.getUser(accessToken)
+    if (!serviceRetry && (userError || !userData.user)) return json({ error: 'Please sign in again.' }, 401)
+    const userId = serviceRetry && typeof requestedUserId === 'string' && /^[0-9a-f-]{36}$/i.test(requestedUserId)
+      ? requestedUserId : userData.user?.id
+    if (!userId) return json({ error: 'Invalid deletion retry.' }, 400)
     const admin = createClient(url, serviceRoleKey, {
       auth: { persistSession: false, autoRefreshToken: false },
     })
+
+    const existingJob = await admin.from('account_deletion_jobs').select('stage').eq('user_id', userId).maybeSingle()
+    if (existingJob.error) return json({ error: 'Deletion tracking is unavailable. Please try again.' }, 503)
+    // Service retries can reconcile a student-confirmed request, never initiate one.
+    if (serviceRetry && !existingJob.data) return json({ error: 'No confirmed deletion request.' }, 403)
+    if (existingJob.data?.stage === 'finished') return json({ deleted: true, orphanedRows: 0, orphanedObjects: 0 })
+    if (!existingJob.data) {
+      const job = await admin.from('account_deletion_jobs').insert({ user_id: userId })
+      if (job.error) return json({ error: 'Deletion tracking is unavailable. Please try again.' }, 503)
+    }
 
     const submissionResult = await admin
       .from('learning_submissions')
@@ -141,10 +113,10 @@ export default {
     let storagePaths: string[]
     try {
       const listedPaths = await listStorageObjects(admin, userId)
-      storagePaths = [...new Set([
+      storagePaths = verifyOwnedPaths(userId, [...new Set([
         ...listedPaths,
         ...(fileResult.data ?? []).map((row) => row.storage_path),
-      ])]
+      ])])
     } catch (reason) {
       console.error('DELETE_ACCOUNT_STORAGE_LOOKUP_FAILED', {
         userId,
@@ -153,20 +125,27 @@ export default {
       return json({ error: 'Account deletion could not verify uploaded files.' }, 500)
     }
 
-    const { error: deletionError } = await admin.auth.admin.deleteUser(userId, false)
-    if (deletionError) {
-      console.error('DELETE_ACCOUNT_AUTH_FAILED', { userId, message: deletionError.message })
-      return json({ error: 'Account deletion could not finish. Please try again.' }, 500)
-    }
-
     try {
+      const avatarPaths = await listStorageObjects(admin, userId, 'avatars')
       await removeStorageObjects(admin, storagePaths)
+      await removeStorageObjects(admin, avatarPaths, 'avatars')
     } catch (reason) {
       console.error('DELETE_ACCOUNT_STORAGE_CLEANUP_FAILED', {
         userId,
         message: reason instanceof Error ? reason.message : String(reason),
       })
-      return json({ error: 'The account was deleted, but uploaded-file cleanup did not finish.' }, 500)
+      return json({ error: 'File cleanup did not finish. Your account remains available so you can retry deletion.' }, 500)
+    }
+
+    if (existingJob.data?.stage !== 'auth_deleted') {
+      const { error: deletionError } = await admin.auth.admin.deleteUser(userId, false)
+      // Reconcile a crash after auth deletion but before the journal update.
+      if (deletionError && !(serviceRetry && deletionError.code === 'user_not_found')) {
+        console.error('DELETE_ACCOUNT_AUTH_FAILED', { userId, message: deletionError.message })
+        return json({ error: 'Account deletion could not finish. Please try again.' }, 500)
+      }
+      const update = await admin.from('account_deletion_jobs').update({ stage: 'auth_deleted' }).eq('user_id', userId)
+      if (update.error) return json({ error: 'Deletion cleanup is queued for reconciliation.' }, 503)
     }
 
     const [
@@ -227,7 +206,10 @@ export default {
 
     let remainingStorageObjects: string[]
     try {
-      remainingStorageObjects = await listStorageObjects(admin, userId)
+      remainingStorageObjects = [
+        ...await listStorageObjects(admin, userId),
+        ...await listStorageObjects(admin, userId, 'avatars'),
+      ]
     } catch (reason) {
       console.error('DELETE_ACCOUNT_STORAGE_CHECK_FAILED', {
         userId,
@@ -256,6 +238,8 @@ export default {
       return json({ error: 'The account was deleted, but uploaded-file cleanup could not be verified.' }, 500)
     }
 
+    const finished = await admin.from('account_deletion_jobs').update({ stage: 'finished', finished_at: new Date().toISOString() }).eq('user_id', userId)
+    if (finished.error) return json({ error: 'Deletion verification is queued for reconciliation.' }, 503)
     return json({ deleted: true, orphanedRows, orphanedObjects })
   },
 }

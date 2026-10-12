@@ -73,6 +73,7 @@ export type RawAwardCondition = {
   minimum: number | string
   published_text: string
   source_id: string
+  alternative_group?: string | null
 }
 
 export type RawScholarship = {
@@ -261,6 +262,7 @@ export function mapScholarship(row: RawScholarship): Scholarship {
     // honest answer, and downstream code must treat it as "cannot be assessed"
     // rather than "no barriers".
     conditions: (row.award_conditions ?? []).map((condition) => ({
+      ...(condition.alternative_group !== undefined ? { alternativeGroup: condition.alternative_group } : {}),
       kind: condition.kind,
       minimum: Number(condition.minimum),
       publishedText: condition.published_text,

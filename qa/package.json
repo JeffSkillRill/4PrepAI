@@ -9,7 +9,8 @@
     "teardown": "node --env-file=.env teardown/teardown.mjs",
     "reconcile": "node --env-file=.env e2e/reconcile.mjs",
     "authz": "node --env-file=.env e2e/authz.mjs",
-    "e2e": "playwright test --config e2e/playwright.config.mjs"
+    "e2e": "playwright test --config e2e/playwright.config.mjs",
+    "test:launch": "playwright test --config launch/playwright.config.mjs"
   },
   "dependencies": {
     "@playwright/test": "^1.56.0",

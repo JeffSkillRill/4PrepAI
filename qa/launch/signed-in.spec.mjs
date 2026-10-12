@@ -1,0 +1,300 @@
+import { expect, test as base } from '@playwright/test'
+import { editBudget, expectBudget, installSignedInFixture, schoolId, schoolName, students } from './signed-in-fixture.mjs'
+
+const test = base.extend({
+  fixture: async ({ context }, use) => {
+    const fixture = await installSignedInFixture(context)
+    try { await use(fixture) } finally { fixture.releaseAll() }
+    expect(fixture.failures, 'uncaught browser errors or unexpected/unsafe fixture requests').toEqual([])
+  },
+})
+
+const savedNotice = (page) => page.getByText('Plan saved to your account.', { exact: true })
+const failedNotice = (page) => page.getByText('Your latest answers are only on this device. Saving to your account failed.', { exact: true })
+const saveSchool = (page) => page.getByRole('button', { name: `Save ${schoolName}`, exact: true })
+const removeSchool = (page) => page.getByRole('button', { name: `Remove ${schoolName} from saved`, exact: true })
+
+test('profile failure retains answers; retry survives reload and sign-out/sign-in', async ({ page, fixture }) => {
+  await fixture.signIn(page)
+  await page.goto('/plan')
+  fixture.failNext('write:student_profiles')
+  await editBudget(page, 23500)
+  await expect(failedNotice(page)).toBeVisible()
+  await expect(savedNotice(page)).toHaveCount(0)
+  await expectBudget(page, 23500)
+  expect(fixture.profiles.get(students[0].id).budget_max).toBe(12000)
+  await page.getByRole('button', { name: 'Retry saving plan', exact: true }).click()
+  await expect(savedNotice(page)).toBeVisible()
+  expect(fixture.profiles.get(students[0].id).budget_max).toBe(23500)
+  expect(fixture.profiles.get(students[0].id).language_score).toBe(6.5)
+  await page.reload()
+  await expectBudget(page, 23500)
+  await fixture.signOut(page)
+  await fixture.signIn(page)
+  await page.goto('/plan')
+  await expectBudget(page, 23500)
+})
+
+test('completed intake visibly reports a failed account save and can retry from results', async ({ page, fixture }) => {
+  fixture.profiles.delete(students[0].id)
+  await fixture.signIn(page)
+  await page.goto('/intake')
+  for (const option of ['United States', 'Computer Science', 'Generally on track']) {
+    await page.getByRole('radio', { name: option, exact: true }).click()
+    await page.getByRole('button', { name: 'Continue', exact: true }).click()
+  }
+  await page.getByRole('radio', { name: 'Custom amount', exact: true }).click()
+  await page.getByLabel('Annual budget in USD').fill('24000')
+  await page.getByRole('button', { name: 'Continue', exact: true }).click()
+  await page.getByRole('radio', { name: 'No test yet', exact: true }).click()
+  await page.getByRole('button', { name: 'Continue', exact: true }).click()
+  await page.getByRole('button', { name: 'Skip', exact: true }).click()
+  await page.getByRole('button', { name: 'Skip', exact: true }).click()
+  await page.getByRole('radio', { name: 'Fall 2027', exact: true }).click()
+  fixture.failNext('write:student_profiles')
+  await page.getByRole('main').getByRole('button', { name: 'Build my plan', exact: true }).click()
+  await expect(page).toHaveURL(/\/results$/)
+  await expect(failedNotice(page)).toBeVisible()
+  expect(fixture.profiles.has(students[0].id)).toBe(false)
+  await page.getByRole('button', { name: 'Retry saving plan', exact: true }).click()
+  await expect(savedNotice(page)).toBeVisible()
+  await page.goto('/plan')
+  await expectBudget(page, 24000)
+})
+
+test('overlapping profile edits are serialized and the newest answer is saved', async ({ page, fixture }) => {
+  await fixture.signIn(page)
+  await page.goto('/plan')
+  const gate = fixture.holdNext('write:student_profiles')
+  await editBudget(page, 21000)
+  await expect.poll(() => gate.started).toBe(true)
+  await editBudget(page, 31000)
+  await expect(page.getByText('Saving your plan…', { exact: true })).toBeVisible()
+  expect(fixture.requests.filter((row) => row.operation === 'write:student_profiles')).toHaveLength(1)
+  gate.release()
+  await expect(savedNotice(page)).toBeVisible()
+  expect(fixture.requests.filter((row) => row.operation === 'write:student_profiles').map((row) => row.body.budget_max)).toEqual([21000, 31000])
+  expect(fixture.profiles.get(students[0].id).budget_max).toBe(31000)
+  await page.reload()
+  await expectBudget(page, 31000)
+})
+
+test('a rejected older profile write does not block the newer queued answer', async ({ page, fixture }) => {
+  await fixture.signIn(page)
+  await page.goto('/plan')
+  const gate = fixture.holdNext('write:student_profiles', true)
+  await editBudget(page, 21000)
+  await expect.poll(() => gate.started).toBe(true)
+  await editBudget(page, 32000)
+  gate.release()
+  await expect(savedNotice(page)).toBeVisible()
+  await expect(failedNotice(page)).toHaveCount(0)
+  expect(fixture.profiles.get(students[0].id).budget_max).toBe(32000)
+})
+
+test('university save failure rolls back visibly; retry survives reload', async ({ page, fixture }) => {
+  await fixture.signIn(page)
+  await page.goto('/universities')
+  fixture.failNext('write:saved_plans')
+  await saveSchool(page).click()
+  await expect(page.getByRole('alert')).toContainText('Your previous saved list has been restored')
+  await expect(saveSchool(page)).toBeVisible()
+  expect(fixture.saved.get(students[0].id).size).toBe(0)
+  await saveSchool(page).click()
+  await expect(removeSchool(page)).toBeVisible()
+  await expect.poll(() => fixture.saved.get(students[0].id).has(schoolId)).toBe(true)
+  await page.reload()
+  await expect(removeSchool(page)).toBeVisible()
+})
+
+test('repeated toggles do not create an overlapping write for the same university', async ({ page, fixture }) => {
+  await fixture.signIn(page)
+  await page.goto('/universities')
+  const gate = fixture.holdNext('write:saved_plans')
+  await saveSchool(page).click()
+  await expect.poll(() => gate.started).toBe(true)
+  await removeSchool(page).click()
+  await removeSchool(page).click()
+  expect(fixture.requests.filter((row) => /^(write|delete):saved_plans$/.test(row.operation))).toHaveLength(1)
+  gate.release()
+  await expect.poll(() => fixture.saved.get(students[0].id).has(schoolId)).toBe(true)
+  await removeSchool(page).click()
+  await expect.poll(() => fixture.saved.get(students[0].id).has(schoolId)).toBe(false)
+  await page.reload()
+  await expect(saveSchool(page)).toBeVisible()
+})
+
+test('university removal failure restores the saved item and explains the failed action', async ({ page, fixture }) => {
+  fixture.saved.get(students[0].id).add(schoolId)
+  await fixture.signIn(page)
+  await page.goto('/universities')
+  fixture.failNext('delete:saved_plans')
+  await removeSchool(page).click()
+  await expect(page.getByRole('alert')).toContainText('could not be removed')
+  await expect(removeSchool(page)).toBeVisible()
+  expect(fixture.saved.get(students[0].id).has(schoolId)).toBe(true)
+  await removeSchool(page).click()
+  await expect.poll(() => fixture.saved.get(students[0].id).has(schoolId)).toBe(false)
+})
+
+test('failed private-data restoration offers retry and never silently shows an empty account', async ({ page, fixture }) => {
+  await fixture.signIn(page)
+  fixture.failNext('read:student_profiles')
+  await page.goto('/plan')
+  await expect(page.getByRole('heading', { name: 'Something did not load correctly' })).toBeVisible()
+  await page.getByRole('button', { name: 'Try again', exact: true }).click()
+  await expectBudget(page, 12000)
+})
+
+test('a late failed university save cannot change a different account or show its old error', async ({ page, context, fixture }) => {
+  await fixture.signIn(page)
+  await page.goto('/universities')
+  const gate = fixture.holdNext('write:saved_plans', true)
+  await saveSchool(page).click()
+  await expect.poll(() => gate.started).toBe(true)
+  const otherTab = await context.newPage()
+  await fixture.signOut(otherTab)
+  await fixture.signIn(otherTab, 1)
+  await expect.poll(() => fixture.requests.some((row) => row.operation === 'read:saved_plans' && row.owner === students[1].id && row.done)).toBe(true)
+  await expect(saveSchool(page)).toBeVisible()
+  gate.release()
+  await expect.poll(() => fixture.requests.find((row) => row.operation === 'write:saved_plans')?.done).toBe(true)
+  await expect(saveSchool(page)).toBeVisible()
+  await expect(page.getByRole('alert')).toHaveCount(0)
+  expect(fixture.saved.get(students[1].id).size).toBe(0)
+  await otherTab.close()
+})
+
+test('a late failed profile save cannot display an old error in the next account', async ({ page, context, fixture }) => {
+  await fixture.signIn(page)
+  await page.goto('/plan')
+  const gate = fixture.holdNext('write:student_profiles', true)
+  await editBudget(page, 35000)
+  await expect.poll(() => gate.started).toBe(true)
+  const otherTab = await context.newPage()
+  await fixture.signOut(otherTab)
+  await fixture.signIn(otherTab, 1)
+  await expectBudget(page, 8000)
+  gate.release()
+  await expect.poll(() => fixture.requests.find((row) => row.operation === 'write:student_profiles')?.done).toBe(true)
+  await expectBudget(page, 8000)
+  await expect(failedNotice(page)).toHaveCount(0)
+  await expect(savedNotice(page)).toHaveCount(0)
+  expect(fixture.profiles.get(students[1].id).budget_max).toBe(8000)
+  await otherTab.close()
+})
+
+test('signing out in another tab invalidates a delayed private-data restore', async ({ page, context, fixture }) => {
+  await fixture.signIn(page)
+  await page.goto('/plan')
+  await expectBudget(page, 12000)
+  const gate = fixture.holdNext('read:student_profiles')
+  await page.reload()
+  await expect.poll(() => gate.started).toBe(true)
+  const otherTab = await context.newPage()
+  await fixture.signOut(otherTab)
+  await expect(page.getByText('Loading private account data', { exact: true })).toHaveCount(0)
+  gate.release()
+  await expect.poll(() => fixture.requests.filter((row) => row.operation === 'read:student_profiles').every((row) => row.done)).toBe(true)
+  // Ensure the application has consumed the released response, not just the mock.
+  await page.getByRole('link', { name: 'Privacy', exact: true }).click()
+  await page.goBack()
+  await expect(page.getByRole('heading', { name: 'Your shortlist is ready for a first choice' })).toBeVisible()
+  await expect(page.getByText('USD 12,000', { exact: true })).toHaveCount(0)
+  await otherTab.close()
+})
+
+test('sign-out/sign-in in another tab restores the same student without reloading the original tab', async ({ page, context, fixture }) => {
+  await fixture.signIn(page)
+  await page.goto('/plan')
+  await expectBudget(page, 12000)
+  const otherTab = await context.newPage()
+  await fixture.signOut(otherTab)
+  await expect(page.getByRole('heading', { name: 'Your shortlist is ready for a first choice' })).toBeVisible()
+  await fixture.signIn(otherTab)
+  await expectBudget(page, 12000)
+  await otherTab.close()
+})
+
+test('a delayed results calculation cannot restore private answers after cross-tab sign-out', async ({ page, context, fixture }) => {
+  await fixture.signIn(page)
+  const gate = fixture.holdNext('read:universities')
+  await page.goto('/results')
+  await expect.poll(() => gate.started).toBe(true)
+  const otherTab = await context.newPage()
+  await fixture.signOut(otherTab)
+  gate.release()
+  await expect.poll(() => fixture.requests.filter((row) => row.operation === 'read:universities').every((row) => row.done)).toBe(true)
+  await page.getByRole('link', { name: 'Privacy', exact: true }).click()
+  await page.goBack()
+  await expect(page.getByRole('heading', { name: 'Your shortlist is ready for a first choice' })).toBeVisible()
+  await expect(page.getByText('USD 12,000', { exact: true })).toHaveCount(0)
+  await otherTab.close()
+})
+
+test('failed results loading is recoverable without losing the saved plan', async ({ page, fixture }) => {
+  await fixture.signIn(page)
+  fixture.failNext('read:universities')
+  await page.goto('/results')
+  await expect(page.getByRole('heading', { name: 'Something did not load correctly' })).toBeVisible()
+  await page.getByRole('button', { name: 'Try again', exact: true }).click()
+  await expect(page.getByRole('heading', { name: 'A route built from your answers' })).toBeVisible()
+  expect(fixture.profiles.get(students[0].id).budget_max).toBe(12000)
+  expect(fixture.requests.filter((row) => row.operation === 'write:student_profiles')).toHaveLength(0)
+})
+
+test('a pending replacement of anonymous answers cannot overwrite the next account on screen', async ({ page, context, fixture }) => {
+  await fixture.signIn(page)
+  await page.goto('/plan')
+  await expectBudget(page, 12000)
+  await page.evaluate(() => sessionStorage.setItem('4prep.pending-auth', JSON.stringify({
+    destination: { view: 'results', universityId: null },
+    profile: {
+      country: 'United States', field: 'Computer Science', academicScore: 72,
+      budgetMax: 45500, budgetCurrency: 'USD', languageTest: 'ielts', languageScore: 6.5,
+      admissionTest: 'sat', admissionTestScore: 1400, gpa: 3.5,
+      needsLanguagePathway: false, intake: 'Fall 2027',
+    },
+  })))
+  await page.reload()
+  const gate = fixture.holdNext('write:student_profiles')
+  await page.getByRole('button', { name: 'Use new answers', exact: true }).click()
+  await expect.poll(() => gate.started).toBe(true)
+  const otherTab = await context.newPage()
+  await fixture.signOut(otherTab)
+  await fixture.signIn(otherTab, 1)
+  await expectBudget(page, 8000)
+  gate.release()
+  await expect.poll(() => fixture.profiles.get(students[0].id).budget_max).toBe(45500)
+  await page.getByRole('link', { name: 'Privacy', exact: true }).click()
+  await page.goBack()
+  await expectBudget(page, 8000)
+  expect(fixture.profiles.get(students[1].id).budget_max).toBe(8000)
+  await otherTab.close()
+})
+
+test('plan replacement queued after an edit finishes without a stuck saving status', async ({ page, fixture }) => {
+  await fixture.signIn(page)
+  await page.goto('/plan')
+  await expectBudget(page, 12000)
+  await page.evaluate(() => sessionStorage.setItem('4prep.pending-auth', JSON.stringify({
+    destination: { view: 'results', universityId: null },
+    profile: {
+      country: 'United States', field: 'Computer Science', academicScore: 72,
+      budgetMax: 45500, budgetCurrency: 'USD', languageTest: 'ielts', languageScore: 6.5,
+      admissionTest: 'sat', admissionTestScore: 1400, gpa: 3.5,
+      needsLanguagePathway: false, intake: 'Fall 2027',
+    },
+  })))
+  await page.reload()
+  await expect(page.getByRole('button', { name: 'Use new answers', exact: true })).toBeVisible()
+  const gate = fixture.holdNext('write:student_profiles')
+  await editBudget(page, 33000)
+  await expect.poll(() => gate.started).toBe(true)
+  await page.getByRole('button', { name: 'Use new answers', exact: true }).click()
+  gate.release()
+  await expectBudget(page, 45500)
+  await expect(savedNotice(page)).toBeVisible()
+  await expect(page.getByText('Saving your plan…', { exact: true })).toHaveCount(0)
+  expect(fixture.requests.filter((row) => row.operation === 'write:student_profiles').map((row) => row.body.budget_max)).toEqual([33000, 45500])
+})

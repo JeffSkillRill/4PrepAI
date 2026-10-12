@@ -4,6 +4,7 @@ import { admissionTestRanges, languageTestRanges } from '../types'
 import {
   academicOptions,
   budgetOptions,
+  customBudgetAmount,
   countryOptions,
   fieldOptions,
   intakeOptions,
@@ -170,7 +171,18 @@ export function StepFields({
     return <OptionList name="Academic readiness" options={academicOptions} selected={draft.academic} onSelect={(value) => onChange({ ...draft, academic: value })} />
   }
   if (stepId === 'budget') {
-    return <OptionList name="Annual budget" options={budgetOptions} selected={draft.budget} onSelect={(value) => onChange({ ...draft, budget: value })} />
+    const custom = draft.budget?.startsWith('USD ') ?? false
+    return <div>
+      <OptionList name="Annual budget" options={budgetOptions} selected={custom ? 'Custom amount' : draft.budget} onSelect={(value) => {
+        report(value !== 'Custom amount')
+        onChange({ ...draft, budget: value === 'Custom amount' ? 'USD ' : value })
+      }} />
+      {custom && <ScoreInput id="annual-budget" label="Annual budget in USD" hint="Enter your total annual budget, including tuition and living costs." value={draft.budget?.slice(4) ?? ''} error={customBudgetAmount(draft.budget) === null ? 'Enter an annual amount greater than zero' : null} onChange={(raw) => {
+        const value = `USD ${raw}`
+        report(customBudgetAmount(value) !== null)
+        onChange({ ...draft, budget: value })
+      }} />}
+    </div>
   }
   if (stepId === 'intake') {
     return <OptionList name="Start date" options={intakeOptions} selected={draft.intake} onSelect={(value) => onChange({ ...draft, intake: value })} />

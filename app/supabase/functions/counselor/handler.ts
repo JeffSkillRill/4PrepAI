@@ -1,7 +1,7 @@
 // The counselor request flow. index.ts wires it to Deno and the real Supabase
 // client; tests wire it to fakes, so every conversation rule can be exercised
 // end to end without a network.
-import type { SupabaseClient } from 'jsr:@supabase/supabase-js@2'
+import type { SupabaseClient } from 'jsr:@supabase/supabase-js@2.117.2'
 import {
   buildCounselorCacheKey,
   buildProfileFitRationale,

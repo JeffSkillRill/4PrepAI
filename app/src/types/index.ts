@@ -147,6 +147,8 @@ export type AwardCondition = {
   /** The university's own sentence, kept verbatim. */
   publishedText: string
   sourceId: string
+  /** Same non-null group means alternatives; null means individually required. */
+  alternativeGroup?: string | null
 }
 
 export type Scholarship = {

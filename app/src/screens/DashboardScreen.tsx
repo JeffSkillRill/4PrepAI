@@ -99,7 +99,8 @@ function useDashboardData(userId: string, profile: StudentProfile | null) {
           ? userStateResult.value
           : emptyLearningState,
         catalogueUnavailable: catalogueResult.status === 'rejected',
-        learningUnavailable: trackResult.status === 'rejected' || userStateResult.status === 'rejected',
+        learningUnavailable: trackResult.status === 'rejected' || userStateResult.status === 'rejected'
+          || !trackResult.value?.modules.some((module) => module.lessons.some((lesson) => lesson.status === 'published')),
         learningUserStateUnavailable: userStateResult.status === 'rejected',
       })
       setStatus('ready')
@@ -177,7 +178,7 @@ function SignedInDashboard({
   const nextAction = deriveDashboardNextAction(signals)
   const savedUniversities = data.catalogue.filter((university) => saved.has(university.id))
   const topRoute = data.pathway?.ranked[0] ?? null
-  const learningStates = data.track
+  const learningStates = data.track && !data.learningUnavailable
     ? deriveLearningModuleStates(
       data.track.modules,
       data.learningUserState.submissions,
@@ -293,7 +294,7 @@ function SignedInDashboard({
         <div className="flex min-w-0 flex-col gap-5">
         <DashboardCard className="lg:flex-1" icon={<BookOpenCheck />} eyebrow="Learning portal" title={`${signals.completedLessonCount} lessons complete · ${signals.submittedHomeworkCount} homework submitted`}>
           {data.learningUnavailable ? (
-            <UnavailableNote>Learning progress could not be checked. Nothing was changed; reconnect and retry from the Learning Portal.</UnavailableNote>
+            <UnavailableNote>{data.track && !data.track.modules.some((module) => module.lessons.some((lesson) => lesson.status === 'published')) ? 'The admission course is coming soon. No lessons are published yet.' : 'Learning progress could not be checked. Nothing was changed; reconnect and retry from the Learning Portal.'}</UnavailableNote>
           ) : (
             <>
               <p className="text-sm leading-6 text-muted">{data.track ? `${data.track.modules.length} real modules are in this track. Counts above come from your saved lesson and submission records.` : 'The learning track has not been published.'}</p>

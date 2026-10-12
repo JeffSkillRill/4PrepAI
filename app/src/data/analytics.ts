@@ -1,27 +1,28 @@
+import { getSupabaseClient } from './client'
+import type { OperationalEvent } from '../../../shared/operational-events'
+
 /**
- * Deliberately minimal event shim.
- *
- * The handoff needs to be measurable from the day it ships, but no analytics
- * provider is wired yet (PostHog EU is scheduled separately). Rather than ship
- * the placements uninstrumented and retrofit call sites later — which is how
- * funnels end up with gaps nobody notices — the call sites go in now against
- * this shim, and wiring a provider becomes a single-file change.
- *
- * Until then every call is a no-op in production. No network request, no
- * identifier, no storage.
+ * Minimal operational measurement, not personal analytics. Production startup
+ * registers a sink that sends only closed event names. Tests can replace it.
  */
 
-export type AnalyticsEvent =
-  | 'handoff_shown'
-  | 'handoff_opened'
-  | 'lead_submitted'
-  | 'lead_failed'
+export type AnalyticsEvent = OperationalEvent
 
 export type AnalyticsProperties = Record<string, string | number | boolean | null>
 
 type Sink = (event: AnalyticsEvent, properties: AnalyticsProperties) => void
 
 let sink: Sink | null = null
+
+export function initializeOperationalTelemetry() {
+  const lastSent = new Map<AnalyticsEvent, number>()
+  setAnalyticsSink((event) => {
+    if (Date.now() - (lastSent.get(event) ?? 0) < 10_000) return
+    lastSent.set(event, Date.now())
+    // Ignore every property. Only a closed, non-personal event name leaves the device.
+    void getSupabaseClient().functions.invoke('client-events', { body: { event } }).catch(() => {})
+  })
+}
 
 /**
  * Register the real provider. Called once at startup when a key is configured;

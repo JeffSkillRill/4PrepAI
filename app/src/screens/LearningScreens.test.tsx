@@ -1,9 +1,10 @@
 // @vitest-environment jsdom
 
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { LearningModule, LearningTrack, LearningUserState } from '../types'
-import { LearningModuleScreen, LearningTrackScreen } from './LearningScreens'
+import { LearningAssignmentScreen, LearningModuleScreen, LearningTrackScreen } from './LearningScreens'
+import { triggerBlobDownload } from '../learning/download'
 
 const repositoryMocks = vi.hoisted(() => ({
   downloadLearningSubmissionFile: vi.fn(),
@@ -14,6 +15,7 @@ const repositoryMocks = vi.hoisted(() => ({
 }))
 
 vi.mock('../data/repository', () => repositoryMocks)
+vi.mock('../learning/download', () => ({ triggerBlobDownload: vi.fn() }))
 
 function moduleFixture(moduleNumber: number): LearningModule {
   return {
@@ -32,7 +34,7 @@ function moduleFixture(moduleNumber: number): LearningModule {
       order: 0,
       durationMinutes: null,
       body: null,
-      status: 'draft',
+      status: 'published',
       transcript: null,
       mediaUrl: null,
       audioUrl: null,
@@ -73,6 +75,7 @@ const navigation = {
 }
 
 beforeEach(() => {
+  vi.mocked(triggerBlobDownload).mockReset()
   Object.defineProperty(window.navigator, 'onLine', { configurable: true, value: true })
   repositoryMocks.getLearningTrack.mockReset().mockResolvedValue(track)
   repositoryMocks.getLearningUserState.mockReset().mockResolvedValue(emptyUserState)
@@ -81,6 +84,28 @@ beforeEach(() => {
 afterEach(cleanup)
 
 describe('LearningTrackScreen hierarchy', () => {
+  it('does not trigger a private download after its account screen has unmounted', async () => {
+    repositoryMocks.getLearningUserState.mockResolvedValue({
+      completedLessonIds: new Set(),
+      submissions: [{ id: 'submission-1', assignmentId: 'assignment-1', userId: 'student-1', status: 'pending', submittedAt: '2026-10-12T00:00:00Z', feedbackRef: null,
+        files: [{ id: 'file-1', submissionId: 'submission-1', storagePath: 'student-1/assignment-1/private.pdf', originalFilename: 'private.pdf', mimeType: 'application/pdf', byteSize: 10, createdAt: '2026-10-12T00:00:00Z' }] }],
+    })
+    let resolveDownload!: (blob: Blob) => void
+    repositoryMocks.downloadLearningSubmissionFile.mockImplementation(() => new Promise((resolve) => { resolveDownload = resolve }))
+    const view = render(<LearningAssignmentScreen {...navigation} userId="student-1" moduleSlug="module-1" />)
+    fireEvent.click(await screen.findByRole('button', { name: /^Download$/ }))
+    expect(repositoryMocks.downloadLearningSubmissionFile).toHaveBeenCalledWith('student-1/assignment-1/private.pdf', 'student-1')
+    view.unmount()
+    await act(async () => { resolveDownload(new Blob(['private'])) })
+    expect(triggerBlobDownload).not.toHaveBeenCalled()
+  })
+
+  it('does not offer a draft-only course as something students can start', async () => {
+    repositoryMocks.getLearningTrack.mockResolvedValue({ ...track, modules: track.modules.map((module) => ({ ...module, lessons: module.lessons.map((lesson) => ({ ...lesson, status: 'draft' })) })) })
+    render(<LearningTrackScreen {...navigation} userId="student-1" />)
+    expect(await screen.findByText('The admission course is coming soon')).toBeTruthy()
+    expect(screen.queryByRole('link', { name: 'Start module' })).toBeNull()
+  })
   it('shows one starting module and defers locked modules until the student expands them', async () => {
     render(<LearningTrackScreen {...navigation} userId="student-1" />)
 

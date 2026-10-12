@@ -1,8 +1,8 @@
-import 'jsr:@supabase/functions-js/edge-runtime.d.ts'
+import 'jsr:@supabase/functions-js@2.117.3/edge-runtime.d.ts'
 import {
   deriveDashboardStage,
   hasRecordedFeedbackReference,
-} from '../../../../shared/dashboard-stage.ts'
+} from '../_shared/dashboard-stage.ts'
 import {
   auditAdminEvent,
   authorizeAdmin,

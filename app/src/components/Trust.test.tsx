@@ -37,7 +37,9 @@ describe('SourceChip touch target', () => {
   it('keeps the compact visual inside a 44px-tall link target', () => {
     render(<SourceChip sourceId="source-1" />)
 
-    expect(screen.getByRole('link').className).toContain('min-h-11')
+    const sourceLink = screen.getByRole('link')
+    expect(sourceLink.className).toContain('min-h-11')
+    expect(sourceLink.className).toContain('overflow-hidden')
   })
 })
 

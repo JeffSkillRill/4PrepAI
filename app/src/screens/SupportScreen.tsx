@@ -2,6 +2,7 @@ import { CircleAlert, LifeBuoy, LoaderCircle, Send, WifiOff } from 'lucide-react
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { getSupportThread, sendSupportMessage } from '../data/repository'
 import type { SupportMessage, SupportThread } from '../types'
+import { useRequestScope } from '../auth/useRequestScope'
 import {
   MAX_SUPPORT_MESSAGE_LENGTH,
   SUPPORT_POLL_INTERVAL_MS,
@@ -94,6 +95,7 @@ export function SupportScreen({
   const [announcement, setAnnouncement] = useState('')
   const queueRef = useRef(queued)
   const sendingRef = useRef(false)
+  const captureScope = useRequestScope()
 
   const persistQueue = useCallback((next: QueuedSupportMessage[]) => {
     if (!userId) return
@@ -103,10 +105,12 @@ export function SupportScreen({
   }, [storage, userId])
 
   const loadThread = useCallback(async (silent = false) => {
-    if (!userId) return
+    const isCurrent = captureScope()
+    if (!userId || !isCurrent()) return
     if (!silent) setThreadState((current) => ({ status: 'loading', thread: current.thread }))
     try {
       const thread = await getSupportThread(userId)
+      if (!isCurrent()) return
       setThreadState({ status: 'ready', thread })
       if (thread) {
         const delivered = new Set(thread.messages.map((message) => message.id))
@@ -114,20 +118,24 @@ export function SupportScreen({
         if (remaining.length !== queueRef.current.length) persistQueue(remaining)
       }
     } catch {
+      if (!isCurrent()) return
       setThreadState((current) => ({ status: 'error', thread: current.thread }))
     }
-  }, [persistQueue, userId])
+  }, [captureScope, persistQueue, userId])
 
   const drainQueue = useCallback(async () => {
-    if (!userId || !online || sendingRef.current) return
+    const isCurrent = captureScope()
+    if (!userId || !online || sendingRef.current || !isCurrent()) return
     sendingRef.current = true
     let delivered = false
     try {
       for (const queuedMessage of [...queueRef.current]) {
+        if (!isCurrent()) return
         if (!canRetryQueuedMessage(queuedMessage)) continue
         setSendingId(queuedMessage.id)
         try {
-          const result = await sendSupportMessage(queuedMessage.id, queuedMessage.body)
+          const result = await sendSupportMessage(queuedMessage.id, queuedMessage.body, userId)
+          if (!isCurrent()) return
           if (result.status === 'rate_limited') {
             const retryNotBefore = retryTimeFromNow(result.retryAfterSeconds)
             persistQueue(queueRef.current.map((message) => (
@@ -140,16 +148,17 @@ export function SupportScreen({
           setAnnouncement('Message sent and confirmed by 4Prep.')
           delivered = true
         } catch {
+          if (!isCurrent()) return
           setAnnouncement('The message was not confirmed. It remains queued and will retry when the connection is available.')
           break
         }
       }
     } finally {
-      setSendingId(null)
+      if (isCurrent()) setSendingId(null)
       sendingRef.current = false
     }
-    if (delivered) await loadThread(true)
-  }, [loadThread, online, persistQueue, userId])
+    if (delivered && isCurrent()) await loadThread(true)
+  }, [captureScope, loadThread, online, persistQueue, userId])
 
   useEffect(() => {
     if (!userId) return
@@ -221,7 +230,7 @@ export function SupportScreen({
       <div className="mx-auto max-w-3xl">
         <p className="text-sm font-extrabold uppercase tracking-[.14em] text-forest-700">Human help</p>
         <h1 className="display mt-2 text-3xl font-extrabold sm:text-4xl">Platform support</h1>
-        <p className="mt-3 max-w-2xl leading-7 text-muted">Tell us when 4Prep is broken or confusing. This is not live chat; during the pilot, expect a reply within two business days.</p>
+        <p className="mt-3 max-w-2xl leading-7 text-muted">Tell us when 4Prep is broken or confusing. This is not live chat. We will review your message; response times may vary during the pilot.</p>
 
         <aside className="mt-5 rounded-2xl border border-sky-200 bg-sky-50 p-4 text-sm leading-6 text-sky-950">
           <strong>Admissions question?</strong> Use the grounded counselor so university facts keep their sources.

@@ -2,6 +2,7 @@ import type { FitDimension, FitScore } from '../../types'
 import { useCountUp, useScrollReveal } from '../../motion/hooks'
 import { ChartFrame } from './ChartFrame'
 import { RadialGauge } from './RadialGauge'
+import { fitEvidence } from '../../scoring/phi'
 
 const order: FitDimension[] = ['academic', 'financial', 'language', 'career', 'geographic']
 
@@ -23,6 +24,7 @@ export function resolvedFitComponents(fit: FitScore) {
 
 /** Overall fit as an arc. `fit.overall` is already the resolved-only weighted score. */
 export function FitGauge({ fit }: { fit: FitScore }) {
+  const evidence = fitEvidence(fit)
   const resolved = resolvedFitComponents(fit)
   const rows = order.map((key) => {
     const item = fit.components[key]
@@ -35,13 +37,13 @@ export function FitGauge({ fit }: { fit: FitScore }) {
 
   return (
     <ChartFrame
-      summary={`Overall 4Prep fit ${fit.overall} of 100, grade ${fit.grade}. ${resolved.length} of five components are resolved from published data and weighted into this score.`}
+      summary={evidence.sufficient ? `Overall 4Prep fit ${fit.overall} of 100, grade ${fit.grade}. ${resolved.length} of five components are resolved from published data and weighted into this score.` : `Overall fit not assessed. ${evidence.count} of ${evidence.total} comparisons available. ${fit.summary}`}
       tableCaption="Overall 4Prep fit and the state of each component"
-      rows={[{ label: 'Overall fit', value: `${fit.overall} of 100, grade ${fit.grade}`, note: fit.summary }, ...rows]}
-      footer={<>Weighted from the {resolved.length} component{resolved.length === 1 ? '' : 's'} that could be resolved from published data. Unresolved components are left out rather than guessed. Scoring model {fit.version}; guidance, not an admission prediction.</>}
+      rows={[{ label: 'Overall fit', value: evidence.sufficient ? `${fit.overall} of 100, grade ${fit.grade}` : 'Not assessed', note: fit.summary }, ...rows]}
+      footer={<>{evidence.sufficient ? `Weighted from ${resolved.length} resolved components. ` : 'An overall score needs at least three of the four core comparisons, including published costs and subject support. '}Unresolved components are left out rather than guessed. Scoring model {fit.version}; guidance, not an admission prediction.</>}
     >
       <div className="flex flex-col items-center gap-4 sm:flex-row sm:items-center sm:gap-6">
-        <RadialGauge value={fit.overall} eyebrow={`Grade ${fit.grade}`} caption="Overall fit out of 100" />
+        {evidence.sufficient && <RadialGauge value={fit.overall} eyebrow={`Grade ${fit.grade}`} caption="Overall fit out of 100" />}
         <div className="min-w-0 flex-1">
           <p className="display text-xl font-extrabold text-forest-950">{fit.label}</p>
           <p className="mt-2 text-sm leading-6 text-muted">{fit.summary}</p>

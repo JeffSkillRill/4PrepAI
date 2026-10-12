@@ -1,0 +1,84 @@
+name: Release checks
+on:
+  pull_request:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  web:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        project: [app, admin]
+    defaults:
+      run:
+        working-directory: ${{ matrix.project }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          package-manager-cache: false
+      - run: npm ci
+      - run: npm audit --audit-level=moderate
+      - run: npm run lint
+      - run: npm test
+      - run: npm run build
+      - run: npm run ssr:smoke
+  public-browser:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          package-manager-cache: false
+      - run: npm ci
+        working-directory: app
+      - run: npm ci
+        working-directory: qa
+      - run: npx --no-install playwright install --with-deps chromium
+        working-directory: qa
+      - run: npm run test:launch
+        working-directory: qa
+  functions:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: '2.9.6'
+      - run: deno check --node-modules-dir=none app/supabase/functions/counselor/index.ts app/supabase/functions/delete-account/index.ts app/supabase/functions/admin-api/index.ts app/supabase/functions/submit-lead/index.ts app/supabase/functions/client-events/index.ts app/supabase/functions/launch-ops/index.ts
+  database-guards:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: disposable-ci-only
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      PGHOST: localhost
+      PGUSER: postgres
+      PGPASSWORD: disposable-ci-only
+      PGDATABASE: postgres
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - run: psql -v ON_ERROR_STOP=1 -f app/scripts/launch-db-fixture.sql -f app/supabase/migrations/202608100017_academy_handoff.sql
+      - run: psql -v ON_ERROR_STOP=1 --single-transaction -f app/supabase/migrations/20261012044253_launch_readiness_guards.sql
+      - run: psql -v ON_ERROR_STOP=1 -f app/scripts/verify-launch-db.sql

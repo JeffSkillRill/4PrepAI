@@ -55,7 +55,7 @@ export const emptyDraft: IntakeDraft = {
 export const countryOptions = ['United States']
 export const fieldOptions = ['Computer Science', 'Business & Management', 'Engineering', 'Data & Analytics']
 export const academicOptions = ['Strong in relevant subjects', 'Generally on track', 'Some gaps to address', 'I am not sure yet']
-export const budgetOptions = ['US$5,000', 'US$8,000', 'US$12,000', 'US$15,000', 'Still working it out']
+export const budgetOptions = ['US$5,000', 'US$8,000', 'US$12,000', 'US$15,000', 'Custom amount', 'Still working it out']
 export const intakeOptions = ['Spring 2027', 'Fall 2027', 'I am flexible']
 
 const academicMap: Record<string, number | null> = {
@@ -80,7 +80,14 @@ function academicLabelFor(score: number | null): string {
 
 function budgetLabelFor(amount: number | null): string {
   const found = Object.entries(budgetMap).find(([, value]) => value.amount === amount)
-  return found ? found[0] : 'Still working it out'
+  return found ? found[0] : amount !== null ? `USD ${amount}` : 'Still working it out'
+}
+
+export function customBudgetAmount(value: string | null): number | null {
+  if (!value?.startsWith('USD ')) return null
+  const raw = value.slice(4).trim()
+  const amount = Number(raw)
+  return raw && Number.isFinite(amount) && amount > 0 ? amount : null
 }
 
 export type IntakeStep = {
@@ -111,7 +118,7 @@ export function isStepAnswered(draft: IntakeDraft, id: IntakeStepId): boolean {
     case 'country': return draft.country !== null
     case 'field': return draft.field !== null
     case 'academic': return draft.academic !== null
-    case 'budget': return draft.budget !== null
+    case 'budget': return draft.budget !== null && (draft.budget.startsWith('USD ') ? customBudgetAmount(draft.budget) !== null : draft.budget in budgetMap)
     case 'language': return draft.languageAnswered
     case 'admissionTest': return draft.admissionAnswered
     case 'gpa': return draft.gpaAnswered
@@ -124,7 +131,8 @@ export function isDraftComplete(draft: IntakeDraft): boolean {
 }
 
 export function profileFromDraft(draft: IntakeDraft): StudentProfile {
-  const budget = budgetMap[draft.budget ?? 'Still working it out'] ?? { amount: null, currency: null }
+  const custom = customBudgetAmount(draft.budget)
+  const budget = budgetMap[draft.budget ?? 'Still working it out'] ?? { amount: custom, currency: custom === null ? null : 'USD' }
   return {
     country: draft.country ?? 'United States',
     field: draft.field ?? fieldOptions[0],

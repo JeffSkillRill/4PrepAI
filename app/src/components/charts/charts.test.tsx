@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import type { DataPoint, FitScore, Program, Ranking, University } from '../../types'
 import { BudgetComposition } from './BudgetComposition'
 import { EmployabilityGauge } from './EmployabilityGauge'
-import { FitRadar, resolvedFitComponents } from './FitCharts'
+import { FitGauge, FitRadar, resolvedFitComponents } from './FitCharts'
 import { LivingCostDonut } from './LivingCostDonut'
 import { ProgrammeLevels } from './ProgrammeLevels'
 import { RankingComparison } from './RankingComparison'
@@ -67,6 +67,12 @@ const ranking = (id: string, rankDisplay: string): Ranking =>
   ({ id, label: `Ranking ${id}`, rankDisplay, rankSort: null, year: 2026, sourceId: 'source-1' })
 
 afterEach(cleanup)
+
+it('does not plot an overall numeric gauge when evidence is insufficient', () => {
+  render(<FitGauge fit={fit(1)} />)
+  expect(screen.queryByText('Overall fit out of 100')).toBeNull()
+  expect(screen.getAllByText('Not assessed').length).toBeGreaterThan(0)
+})
 
 describe('chart guards on published values', () => {
   it('drops points without a sourced numeric annual value instead of zeroing them', () => {
