@@ -11,6 +11,11 @@ jobs:
     strategy:
       matrix:
         project: [app, admin]
+    env:
+      # These inert values let the app's offline smoke render construct its client
+      # without reaching a real Supabase project.
+      VITE_SUPABASE_URL: http://127.0.0.1:54321
+      VITE_SUPABASE_ANON_KEY: local-ci-placeholder
     defaults:
       run:
         working-directory: ${{ matrix.project }}
