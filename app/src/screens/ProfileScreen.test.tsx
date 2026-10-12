@@ -44,6 +44,12 @@ vi.mock('../data/useRepositoryData', () => ({
   }),
 }))
 
+vi.mock('../data/client', () => ({
+  getSupabaseClient: () => ({
+    functions: { invoke: () => Promise.resolve({ data: null }) },
+  }),
+}))
+
 vi.mock('../scoring/phi', async (importOriginal) => ({
   ...await importOriginal<typeof import('../scoring/phi')>(),
   computeFit: () => ({
